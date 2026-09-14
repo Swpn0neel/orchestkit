@@ -1,0 +1,12 @@
+{
+  "slug": "merge-queue-ready",
+  "source": "docs/ci--merge-queue-ready/index.html",
+  "title": "What every required check does when a merge queue asks",
+  "description": "Main requires 18 status contexts. A merge queue only merges when each one reports on the merge_group ref. Pick an event to see which contexts run, which skip as success, and the two that would have failed every queued entry before this change.",
+  "tags": [
+    "ci",
+    "merge-queue",
+    "github-actions"
+  ],
+  "date": "2026-09-14"
+}
