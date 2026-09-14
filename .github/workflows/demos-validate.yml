@@ -36,6 +36,7 @@ on:
   # branch protection, and the queue stalls indefinitely (#3189). This is a
   # no-op until a queue exists, since nothing else emits merge_group events.
   merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 permissions: {}

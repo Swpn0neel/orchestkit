@@ -5,7 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # "Build" is a required context on main, so it must also report for a
+  # queued entry or the merge queue waits on it forever (docs/merge-queue/).
   merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 permissions: {}

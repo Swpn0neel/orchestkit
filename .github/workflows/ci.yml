@@ -5,7 +5,11 @@ on:
     branches: [main, dev]
   pull_request:
     branches: [main, dev]
+  # Produces 13 of main's required contexts, including CI Summary, so a queued
+  # entry needs it (docs/merge-queue/). PR-only jobs and steps below are gated
+  # on event_name and report skipped here, which the queue counts as passing.
   merge_group:
+    types: [checks_requested]
   workflow_dispatch:
   schedule:
     # Nightly at 2 AM UTC
@@ -263,6 +267,15 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # gitleaks-action (pinned v3.0.0, src/index.js) accepts only push,
+    # pull_request, workflow_dispatch and schedule; any other event hits
+    # `process.exit(1)` with "The [merge_group] event is not yet supported".
+    # Running it on merge_group would turn this required context red for every
+    # queued entry. Nothing is lost by skipping: the queued commit is the PR
+    # content already scanned on pull_request, and the push to main that the
+    # queue produces is scanned again by this same job. A skipped job reports
+    # success to the queue, and CI Summary treats skipped as passing.
+    if: github.event_name != 'merge_group'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:

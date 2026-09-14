@@ -5,7 +5,10 @@ on:
     branches: [main, dev, 'feature/**']
   pull_request:
     branches: [main, dev]
+  # "Validation Summary" and "CC Plugin Validate" are required on main, so they
+  # must also report for a queued entry (docs/merge-queue/).
   merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 permissions: {}

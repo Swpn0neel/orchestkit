@@ -7,7 +7,10 @@ on:
     # the new HEAD and the PR stays BLOCKED on a status that never runs.
     branches: [main]
     types: [opened, synchronize, reopened]
+  # Required context on main, so it must report for a queued entry
+  # (docs/merge-queue/). The job itself is PR-scoped and skips there, below.
   merge_group:
+    types: [checks_requested]
 
 permissions: {}
 
@@ -19,6 +22,13 @@ jobs:
     name: Check Version Bump & Changelog
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # PR-scoped gate: the skip decision keys on github.head_ref and the failure
+    # path comments on context.issue.number. A merge_group run has neither, so
+    # a Dependabot or release-please entry would be judged as a feature branch
+    # (head_ref is empty and never matches VERSION_SKIP_PATTERN) and the
+    # comment step would throw on a missing issue number. The PR run already
+    # decided this for the same content. Skipped reports success to the queue.
+    if: github.event_name != 'merge_group'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
