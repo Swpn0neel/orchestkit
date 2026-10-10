@@ -83,8 +83,9 @@ jobs:
           # First dry-run on 2026-05-18 failed with
           # "claude: No such file or directory" — ubuntu-latest ships
           # without CC. Install once per run; ~5s cold from npm.
-          # Pinned to the supported floor (2.1.251, shared/cc-support.json) for reproducibility.
-          npm install -g @anthropic-ai/claude-code@2.1.251
+          # Pinned to the supported floor (supported_floor in shared/cc-support.json) for reproducibility.
+          CC_FLOOR=$(jq -er '.supported_floor' shared/cc-support.json)
+          npm install -g "@anthropic-ai/claude-code@${CC_FLOOR}"
           claude --version
 
       - name: Verify Claude auth (OAuth 401 canary)

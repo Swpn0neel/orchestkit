@@ -84,7 +84,8 @@ jobs:
         # (9-45% scores for content that scores 100% on a floor-compliant CLI).
         run: |
           set -euo pipefail
-          npm install -g @anthropic-ai/claude-code@2.1.251 --ignore-scripts
+          CC_FLOOR=$(jq -er '.supported_floor' shared/cc-support.json)
+          npm install -g "@anthropic-ai/claude-code@${CC_FLOOR}" --ignore-scripts
           node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"
           claude --version
 
