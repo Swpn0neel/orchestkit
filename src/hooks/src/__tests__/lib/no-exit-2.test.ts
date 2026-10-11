@@ -41,7 +41,7 @@ function listSourceFiles(dir: string): string[] {
  * Remove line and block comments without treating comment markers inside
  * strings, template literals, or regex literals as comments.
  */
-export function stripComments(source: string): string {
+function stripComments(source: string): string {
   let out = '';
   let i = 0;
   const n = source.length;
