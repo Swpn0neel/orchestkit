@@ -114,9 +114,13 @@ function readAndTrimHistory(path: string): EditEntry[] {
  * thrash threshold. Counts are per (file, agent): subagents share the
  * parent's session id, and one edit each by three agents is not a loop
  * (#4651). The returned map is keyed by file with the highest per-agent
- * count.
+ * count. thrashingKeys holds the (file, agent) pairs that hit the threshold
+ * so the warn-once filter ignores a non-thrashing agent's edit.
  */
-function findThrashingFiles(entries: EditEntry[]): Map<string, number> {
+function findThrashingFiles(entries: EditEntry[]): {
+  thrashing: Map<string, number>;
+  thrashingKeys: Set<string>;
+} {
   const window = entries.slice(-WINDOW_ENTRIES);
   const counts = new Map<string, { file: string; count: number }>();
   for (const e of window) {
@@ -126,10 +130,14 @@ function findThrashingFiles(entries: EditEntry[]): Map<string, number> {
     else counts.set(key, { file: e.f, count: 1 });
   }
   const thrashing = new Map<string, number>();
-  for (const { file, count } of counts.values()) {
-    if (count >= THRASH_THRESHOLD && count > (thrashing.get(file) ?? 0)) thrashing.set(file, count);
+  const thrashingKeys = new Set<string>();
+  for (const [key, { file, count }] of counts) {
+    if (count >= THRASH_THRESHOLD) {
+      thrashingKeys.add(key);
+      if (count > (thrashing.get(file) ?? 0)) thrashing.set(file, count);
+    }
   }
-  return thrashing;
+  return { thrashing, thrashingKeys };
 }
 
 export function thrashDetector(input: HookInput, ctx: HookContext = NOOP_CTX): HookResult {
@@ -144,14 +152,16 @@ export function thrashDetector(input: HookInput, ctx: HookContext = NOOP_CTX): H
   const sessionEntries = entries.filter(e => (e.sid ?? '') === sid);
   if (sessionEntries.length < THRASH_THRESHOLD) return outputSilentSuccess();
 
-  const thrashing = findThrashingFiles(sessionEntries);
+  const { thrashing, thrashingKeys } = findThrashingFiles(sessionEntries);
   if (thrashing.size === 0) return outputSilentSuccess();
 
-  // Warn once per new edit (#4651): the window does not move on a prompt
-  // with no edit, so without this the same warning repeats every turn.
+  // Warn once per new edit by a thrashing (file, agent) pair (#4651): the
+  // window does not move on a prompt with no edit, so without this the same
+  // warning repeats every turn. A different agent's single edit on the same
+  // file must not re-fire (HOLD CLEAN 6106774797).
   const newestThrashEdit = sessionEntries
     .slice(-WINDOW_ENTRIES)
-    .filter(e => thrashing.has(e.f))
+    .filter(e => thrashingKeys.has(`${e.f}\u0000${e.agent ?? ''}`))
     .reduce((max, e) => Math.max(max, e.t), 0);
   const warnedPath = getWarnedStatePath(ctx.projectDir);
   const warned = readWarnedState(warnedPath);

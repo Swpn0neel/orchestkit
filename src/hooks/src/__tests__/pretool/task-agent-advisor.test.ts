@@ -391,16 +391,39 @@ describe('#4649 routing hint checks build intent against the agent tools', () =>
   // asks the human to redirect a code change to a read-only agent, a false
   // positive only swaps that ask for a note. So these review-only prompts are
   // KNOWN false positives, pinned so a change to them is a decision, not drift.
+  // At 292d8fab the last 4 were already true; the first 3 became true with the
+  // joining-word widen (to/you/lets/go/me/just) at 79d5b602.
   test.each([
-    ['Tell me what you fixed last week'],
-    ['Review the diff and say what to fix'],
-    ['Report what you would refactor'],
-    ['Check how to fix it, report only, do not fix'],
-    ['Security review of whether to fix or replace the vulnerable query.'],
-    ['Security review of commit and push permissions.'],
-    ['Security review of the fix and patch plan.'],
+    ['Tell me what you fixed last week'], // new at 79d5 vs 292d8fab
+    ['Review the diff and say what to fix'], // new at 79d5 vs 292d8fab
+    ['Report what you would refactor'], // already true at 292d8fab
+    ['Check how to fix it, report only, do not fix'], // new at 79d5 vs 292d8fab
+    ['Security review of whether to fix or replace the vulnerable query.'], // already true at 292d8fab
+    ['Security review of commit and push permissions.'], // already true at 292d8fab
+    ['Security review of the fix and patch plan.'], // already true at 292d8fab
+    // product-13 HOLD CLEAN 6103347795: write/add prose about tests or checks.
+    ['Write a short report on the missing input validation'],
+    ['Write up which of the endpoints lack guards'],
+    ['Write a review comment about why the tests are flaky'],
+    ['Add your findings to the report about missing checks'],
   ])('accepted false positive "%s" reads as build intent', (prompt) => {
     expect(hasBuildIntent(SQL_DESC, prompt)).toBe(true);
+  });
+
+  // conductor153 should: negation keeps going across "and" when the next verb
+  // is commit, push or edit. These used to read as build at 79d5b602.
+  test.each([
+    ['Review this PR only. Do not commit and push.'],
+    ['Security review; never edit and commit anything'],
+    ['Do not commit and push'],
+    ['never edit and commit'],
+  ])('negated ship pair "%s" is not build intent', (prompt) => {
+    expect(hasBuildIntent(SQL_DESC, prompt)).toBe(false);
+  });
+
+  // CodeRabbit 4240757717: without <gerund> must not swallow a later fix.
+  test('without gerund keeps a later fix as build intent', () => {
+    expect(hasBuildIntent(SQL_DESC, 'Without breaking the API fix the SQL injection')).toBe(true);
   });
 
   test('a read-only match WITHOUT build intent still asks', () => {

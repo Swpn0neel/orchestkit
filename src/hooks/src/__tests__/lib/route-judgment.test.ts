@@ -47,6 +47,8 @@ import {
   joinReplayRecords,
   parseRouteAnswer,
   postRouteRequestSync,
+  readClientNamesIn,
+  readClientNamesInStrict,
   redactPrompt,
   redactionProfile,
   resolveRouteConfig,
@@ -778,5 +780,40 @@ describe('replay join and redaction profile (#4239)', () => {
     const joined = joinReplayRecords(recordsOnDisk(), [{ id: 'c1', text: CLIENT_PROMPT }], { clientNames: ['acme-corp'], maxPromptChars });
     expect(joined.error).toMatch(/mix/);
     expect(joined.verdicts.size).toBe(0);
+  });
+
+  it('joins legacy null rows with modern none rows when no clients are supplied', () => {
+    const maxPromptChars = resolveRouteConfig({}).maxPromptChars;
+    const text = PLAIN_PROMPT;
+    const sha = sha256(redactPrompt(text, maxPromptChars, null).text);
+    const joined = joinReplayRecords(
+      [
+        { input_sha256: sha, redaction_profile: null },
+        { input_sha256: sha, redaction_profile: 'none' },
+      ],
+      [{ id: 'c1', text }],
+      { clientNames: [], maxPromptChars },
+    );
+    expect(joined.error).toBeNull();
+    expect(joined.verdicts.has('c1')).toBe(true);
+  });
+
+  it('refuses all-legacy records when the supplied clients give a non-none profile', () => {
+    const maxPromptChars = resolveRouteConfig({}).maxPromptChars;
+    const text = CLIENT_PROMPT;
+    const sha = sha256(redactPrompt(text, maxPromptChars, null).text);
+    const joined = joinReplayRecords(
+      [{ input_sha256: sha, redaction_profile: null }],
+      [{ id: 'c1', text }],
+      { clientNames: ['acme-corp'], maxPromptChars },
+    );
+    expect(joined.error).toMatch(/no redaction profile|legacy|none/);
+    expect(joined.verdicts.size).toBe(0);
+  });
+
+  it('readClientNamesInStrict throws on a missing dir; readClientNamesIn returns []', () => {
+    const missing = join(projectDir, 'no-such-clients-dir');
+    expect(readClientNamesIn(missing)).toEqual([]);
+    expect(() => readClientNamesInStrict(missing)).toThrow();
   });
 });

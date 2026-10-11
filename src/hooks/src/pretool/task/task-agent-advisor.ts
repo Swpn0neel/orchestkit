@@ -143,14 +143,16 @@ export const AFFIRMATIVE_REMINDER_PATTERN =
  * A real prohibition ("do not commit or push", "never edit the code",
  * "without changing the API") runs from the negation to the next clause break
  * (a colon included, as in BUILD_INTENT_PATTERN) or to and, but, then, instead
- * or however. A comma followed by or/nor does not
- * end it ("do not fix the bug, or push changes" forbids both). It is removed
- * before the build-intent test, so a review that forbids writes stays
- * review-only, and "do not push but write tests" keeps its write. Exported
- * for tests.
+ * or however. "and" ends it only when the next verb is not commit, push or
+ * edit, so "do not commit and push" stays negated and "do not commit and write
+ * tests" keeps its write. A comma followed by or/nor does not end it ("do not
+ * fix the bug, or push changes" forbids both). "without" is a separate
+ * gerund form so it does not swallow a later build verb. It is removed before
+ * the build-intent test, so a review that forbids writes stays review-only,
+ * and "do not push but write tests" keeps its write. Exported for tests.
  */
 export const NEGATED_CLAUSE_PATTERN =
-  /\b(?:do not|don't|dont|never|must not|mustn't|should not|shouldn't|without|no need to)\b.*?(?=[.;:!?\n]|,(?!\s*(?:or|nor)\b)|\b(?:and|but|then|instead|however)\b|$)/gi;
+  /\b(?:do not|don't|dont|never|must not|mustn't|should not|shouldn't|no need to)\b.*?(?=[.;:!?\n]|,(?!\s*(?:or|nor)\b)|\b(?:and(?!\s+(?:\w+ly\s+)?(?:commit|push|edit)(?:s|ed|ing|es)?\b)|but|then|instead|however)\b|$)|\bwithout\s+\w+ing\b(?:\s+(?:the|a|an|any)?\s*\w+)?/gi;
 
 /** True when the task text asks to build (change code or ship it). */
 export function hasBuildIntent(description: string, prompt: string): boolean {

@@ -21,7 +21,7 @@ describe('thrash-detector — pure logic', () => {
         { t: 2, f: '/b.ts' },
         { t: 3, f: '/c.ts' },
       ];
-      expect(findThrashingFiles(entries).size).toBe(0);
+      expect(findThrashingFiles(entries).thrashing.size).toBe(0);
     });
 
     test('flags a file that hits 3+ edits in the last 10 events', () => {
@@ -31,7 +31,7 @@ describe('thrash-detector — pure logic', () => {
         { t: 3, f: '/b.ts' },
         { t: 4, f: '/a.ts' },
       ];
-      const thrashing = findThrashingFiles(entries);
+      const { thrashing } = findThrashingFiles(entries);
       expect(thrashing.get('/a.ts')).toBe(3);
       expect(thrashing.has('/b.ts')).toBe(false);
     });
@@ -44,7 +44,7 @@ describe('thrash-detector — pure logic', () => {
         { t: 3, f: '/old.ts' },
         ...Array.from({ length: 10 }, (_, i) => ({ t: 10 + i, f: '/fresh.ts' })),
       ];
-      const thrashing = findThrashingFiles(entries);
+      const { thrashing } = findThrashingFiles(entries);
       expect(thrashing.has('/old.ts')).toBe(false);
       expect(thrashing.get('/fresh.ts')).toBe(10);
     });
@@ -211,7 +211,10 @@ describe('thrash-detector — pure logic', () => {
     test('names the file by its path relative to the project, not the basename', () => {
       const f = join(tmp, 'scripts', 'deploy', 'validate-deploy.sh');
       seed([1, 2, 3].map(t => ({ t, f, tool: 'Edit', sid: 'parent' })));
-      expect(run()).toContain('scripts/deploy/validate-deploy.sh');
+      const msg = run();
+      expect(msg).toContain('scripts/deploy/validate-deploy.sh');
+      // Absolute path also contains the relative suffix; reject the project root.
+      expect(msg).not.toContain(tmp);
     });
 
     test('a second prompt with no new edit since the warning stays silent', () => {
@@ -223,6 +226,14 @@ describe('thrash-detector — pure logic', () => {
       // A newer edit to the thrashing file earns the warning again.
       writeFileSync(p, `${JSON.stringify({ t: 4, f, tool: 'Edit', sid: 'parent' })}\n`, { flag: 'a' });
       expect(run()).toBeDefined();
+    });
+
+    test('another agent editing the same file once does not re-fire the warning', () => {
+      const f = join(tmp, 'src', 'auth.ts');
+      const p = seed([1, 2, 3].map(t => ({ t, f, tool: 'Edit', sid: 'parent', agent: 'a1' })));
+      expect(run()).toBeDefined();
+      writeFileSync(p, `${JSON.stringify({ t: 4, f, tool: 'Edit', sid: 'parent', agent: 'a2' })}\n`, { flag: 'a' });
+      expect(run()).toBeUndefined();
     });
   });
 });
