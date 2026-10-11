@@ -389,6 +389,9 @@ describe('#4649 routing hint checks build intent against the agent tools', () =>
     // agy HOLD CLEAN 6108013942: "without" must carry the prohibition across
     // an or-joined object, not just the first noun after the gerund.
     ['Review without making any code changes or commits.'],
+    // CodeRabbit 4242284355: the and-continuation must accept every commit
+    // form (commit, commits, committed, committing), not just the first.
+    ['Review without changing files and committing changes'],
   ])('review-object prompt "%s" is not build intent, so it asks', (prompt) => {
     expect(hasBuildIntent(SQL_DESC, prompt)).toBe(false);
     const result = taskAgentAdvisor(makeInput({ subagent_type: 'general-purpose', description: SQL_DESC, prompt }));

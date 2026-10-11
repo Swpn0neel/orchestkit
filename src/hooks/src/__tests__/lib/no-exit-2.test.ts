@@ -169,10 +169,10 @@ describe('hook sources never exit 2 (#4561)', () => {
   });
 
   test('stripComments keeps process.exit(2) after comment like text inside literals', () => {
-    expect(EXIT_2.test(stripComments('const u = "http://x";\nprocess.exit(2);\n'))).toBe(true);
-    expect(EXIT_2.test(stripComments("const u = 'http://x';\nprocess.exit(2);\n"))).toBe(true);
-    expect(EXIT_2.test(stripComments('const u = `http://x`;\nprocess.exit(2);\n'))).toBe(true);
-    expect(EXIT_2.test(stripComments('const r = /http:\\/\\/x/;\nprocess.exit(2);\n'))).toBe(true);
+    expect(EXIT_2.test(stripComments('const u = "a//b"; process.exit(2);\n'))).toBe(true);
+    expect(EXIT_2.test(stripComments("const u = 'a//b'; process.exit(2);\n"))).toBe(true);
+    expect(EXIT_2.test(stripComments('const u = `a//b`; process.exit(2);\n'))).toBe(true);
+    expect(EXIT_2.test(stripComments('const r = /[//]/; process.exit(2);\n'))).toBe(true);
   });
 
   test('lib/common.js no longer exports outputStderrWarning', async () => {

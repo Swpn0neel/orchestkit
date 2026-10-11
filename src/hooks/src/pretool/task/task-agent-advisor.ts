@@ -158,7 +158,7 @@ export const AFFIRMATIVE_REMINDER_PATTERN =
  * as in the main negation arm. Exported for tests.
  */
 export const NEGATED_CLAUSE_PATTERN =
-  /\b(?:do not|don't|dont|never|must not|mustn't|should not|shouldn't|no need to)\b.*?(?=[.;:!?\n]|,(?!\s*(?:or|nor)\b)|\b(?:and(?!\s+(?:\w+ly\s+)?(?:commit|push|edit)(?:s|ed|ing|es)?\b)|but|then|instead|however)\b|$)|\bwithout\s+\w+ing\b(?:\s+(?:or|nor)\s+\w+|\s+and\s+(?:commit|push|edit)(?:s|ed|ing|es)?\b|\s+(?:the|a|an|any)\s+\w+|\s+(?!(?:and|but|then|instead|however)\b|(?:implement|commit|push|fix|patch|replac\w*|refactor\w*|rewrit\w*|apply|add|write|edit|open|create|raise)\w*\b)\w+)*/gi;
+  /\b(?:do not|don't|dont|never|must not|mustn't|should not|shouldn't|no need to)\b.*?(?=[.;:!?\n]|,(?!\s*(?:or|nor)\b)|\b(?:and(?!\s+(?:\w+ly\s+)?(?:commit(?:s|ted|ting)?|push(?:es|ed|ing)?|edit(?:s|ed|ing)?)\b)|but|then|instead|however)\b|$)|\bwithout\s+\w+ing\b(?:\s+(?:or|nor)\s+\w+|\s+and\s+(?:commit(?:s|ted|ting)?|push(?:es|ed|ing)?|edit(?:s|ed|ing)?)\b|\s+(?:the|a|an|any)\s+\w+|\s+(?!(?:and|but|then|instead|however)\b|(?:implement|commit|push|fix|patch|replac\w*|refactor\w*|rewrit\w*|apply|add|write|edit|open|create|raise)\w*\b)\w+)*/gi;
 
 /** True when the task text asks to build (change code or ship it). */
 export function hasBuildIntent(description: string, prompt: string): boolean {
