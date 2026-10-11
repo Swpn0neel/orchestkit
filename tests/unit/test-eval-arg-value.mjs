@@ -2,19 +2,16 @@
 /**
  * argValue must reject a flag given last (no value) with exit 2.
  * CodeRabbit 4240757703 on #4688.
+ *
+ * Both scripts parse --clients/--clients-dir before loadSeam, so the hooks
+ * bundle is never consulted here: no skip guard, a missing bundle must not
+ * make this test pass vacuously (agy HOLD CLEAN 6108013942).
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
-const BUNDLE = join(ROOT, 'src/hooks/dist/prompt.mjs');
-
-if (!existsSync(BUNDLE)) {
-  console.log('SKIP: hooks bundle missing; run: cd src/hooks && npm run build');
-  process.exit(0);
-}
 
 const cases = [
   {

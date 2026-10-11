@@ -381,6 +381,9 @@ describe('#4649 routing hint checks build intent against the agent tools', () =>
     // The noun must sit in the verb's own clause.
     ['Security review. Write a summary for the team. Tests are out of scope.'],
     ['Security review; add a note to the report; the code stays as is.'],
+    // agy HOLD CLEAN 6108013942: "without" must carry the prohibition across
+    // an or-joined object, not just the first noun after the gerund.
+    ['Review without making any code changes or commits.'],
   ])('review-object prompt "%s" is not build intent, so it asks', (prompt) => {
     expect(hasBuildIntent(SQL_DESC, prompt)).toBe(false);
     const result = taskAgentAdvisor(makeInput({ subagent_type: 'general-purpose', description: SQL_DESC, prompt }));
