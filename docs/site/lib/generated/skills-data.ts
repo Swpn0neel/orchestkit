@@ -897,7 +897,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "chain-patterns",
     "description": "Chain patterns for multi-phase pipelines: MCP detection, handoff files, checkpoint-resume, worktree agents, CronCreate monitoring. Use when building or debugging a pipeline skill.",
     "version": "1.0.0",
-    "sha256": "e05939fa757ffd620494b734af0dd17cea3763ca307a82a763637e47b1c65e9c",
+    "sha256": "40e4c5a63a2c902b5f3fa34cd537199452b5143074d671a012e040f3bd77ba14",
     "author": "OrchestKit",
     "tags": [
       "pipeline",
@@ -1525,7 +1525,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "design-import",
     "description": "Scaffolds React components from a Claude Design handoff bundle and stops at files on disk: no stories, no tests, no pull request. Use when handed a claude.ai/design URL or a local bundle file; when that same scaffold should carry on through test generation, browser verification and an opened PR, run /ork:design-ship instead.",
     "version": "1.0.0",
-    "sha256": "a7e462a94c912f21d9915d9540b5ab3b0ce590f1162712b0c950d7563d9c1913",
+    "sha256": "6c1970859e5d0c235f0baa1a2cfba0d1de348ff74ad3b33642f9c52377d1eee7",
     "author": "OrchestKit",
     "tags": [
       "claude-design",
@@ -2772,7 +2772,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "implement",
     "description": "Full-power feature implementation using parallel subagents for backend, frontend, testing, and security, with worktree isolation and quality verification in one workflow. Chains with /ork:cover for tests and /ork:verify for validation. Use when asked to build, add, create, scaffold, or set up a new feature, endpoint, component, or UI capability. Not for fixing a bug, reviewing, explaining, testing, or comparing existing code.",
     "version": "2.8.0",
-    "sha256": "94c0cad95b43e8bee5f2a7e07ffc5ddab8faf088054cd965eb62a544c8dba8cd",
+    "sha256": "fa898f45bbeed833ce5c15c899d5584abb2c7a686d7b1888198302086b9fabb8",
     "author": "OrchestKit",
     "tags": [
       "implementation",
@@ -4668,7 +4668,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "task-dependency-patterns",
     "description": "Task Management patterns with TaskCreate, TaskUpdate, TaskGet, TaskList tools. Decompose complex work into trackable tasks with dependency chains. Use when managing multi-step implementations, coordinating parallel work, or tracking completion status.",
     "version": "1.0.0",
-    "sha256": "c881301b5b5ee6950421c85087db9d697f7693628e97dd7c87de5ea863ff385b",
+    "sha256": "1690bddc0b26646371377870dc564670137f9e35f72db50a17da6c60d0825526",
     "author": "OrchestKit",
     "tags": [
       "task-management",
