@@ -2439,7 +2439,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "fix-issue",
     "description": "Fixes GitHub issues using parallel analysis agents for root cause investigation, code exploration, and regression detection. Reads issue context from gh CLI, searches codebase and memory for related patterns, generates a fix with tests, and links the resolution back to the issue via PR. Includes prevention analysis to avoid recurrence. Use when debugging errors, resolving regressions, fixing bugs, or triaging issues.",
     "version": "2.6.0",
-    "sha256": "36769e08ddc0ca53d980214f3db55041f560667a5c2992f3470bd9ee5c3ffd39",
+    "sha256": "d73e6f3de82ebd057a55df276347d674fb8e7eb00d26ebd083aa2959d75299f9",
     "author": "OrchestKit",
     "tags": [
       "issue",

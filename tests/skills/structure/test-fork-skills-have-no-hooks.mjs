@@ -134,8 +134,11 @@ for (const [name, markers] of Object.entries(BODY_LOADERS)) {
   if (!/issue view[^\n]*ISSUE_NUMBER/.test(text)) {
     failures.push('src/skills/fix-issue/SKILL.md: no `issue view` of ISSUE_NUMBER; the fork has no issue context at all');
   }
-  if (!/^ISSUE_NUMBER = "\$ARGUMENTS\[0\]"/m.test(text)) {
-    failures.push('src/skills/fix-issue/SKILL.md: ISSUE_NUMBER is not bound to "$ARGUMENTS[0]"; a binding from the branch name is the same bug through another door');
+  if (!/^ISSUE_NUMBER = "\$ARGUMENTS" with the flags stripped/m.test(text)) {
+    failures.push('src/skills/fix-issue/SKILL.md: ISSUE_NUMBER is not bound to the flags-stripped target; binding to the branch name or the first token is the same bug through another door');
+  }
+  if (/^ISSUE_NUMBER[^\n]*\$ARGUMENTS\[0\]/m.test(text)) {
+    failures.push('src/skills/fix-issue/SKILL.md: ISSUE_NUMBER indexes $ARGUMENTS[0], which is the first flag, not the target (#4693)');
   }
 }
 
