@@ -363,6 +363,11 @@ describe('#4649 routing hint checks build intent against the agent tools', () =>
     ['Please write a new SQL injection regression unit test.'],
     ['Please add a new SQL injection regression unit test.'],
     ['Write a focused SQL injection parameterization regression test.'],
+    // agy HOLD 6109078062: "and" ends a without-prohibition, so a coordinated
+    // clause after it keeps its build verb.
+    ['Review the code without changing the API and fix the bug.'],
+    ['Review the code without changing anything and implement the cache.'],
+    ['Review the code without editing it and patch the parser.'],
   ])('build prompt "%s" is build intent, so it is advisory', (prompt) => {
     expect(hasBuildIntent(SQL_DESC, prompt)).toBe(true);
     const result = taskAgentAdvisor(makeInput({ subagent_type: 'general-purpose', description: SQL_DESC, prompt }));

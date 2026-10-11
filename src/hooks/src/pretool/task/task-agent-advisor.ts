@@ -152,12 +152,13 @@ export const AFFIRMATIVE_REMINDER_PATTERN =
  * and "do not push but write tests" keeps its write. The without-gerund keeps
  * its object as a coordinated noun chain: or/nor and articles continue it
  * ("without making any code changes or commits" removes the commits too), a
- * bare build verb ends it ("without breaking the API fix the SQL" keeps the
- * fix in verb position), and "and" continues only before commit, push or
- * edit, as in the main negation arm. Exported for tests.
+ * bare build verb or a clause-ending conjunction (and, but, then, instead,
+ * however) ends it, so "without breaking the API and fix the bug" keeps the
+ * fix in verb position. "and" continues only before commit, push or edit,
+ * as in the main negation arm. Exported for tests.
  */
 export const NEGATED_CLAUSE_PATTERN =
-  /\b(?:do not|don't|dont|never|must not|mustn't|should not|shouldn't|no need to)\b.*?(?=[.;:!?\n]|,(?!\s*(?:or|nor)\b)|\b(?:and(?!\s+(?:\w+ly\s+)?(?:commit|push|edit)(?:s|ed|ing|es)?\b)|but|then|instead|however)\b|$)|\bwithout\s+\w+ing\b(?:\s+(?:or|nor)\s+\w+|\s+and\s+(?:commit|push|edit)(?:s|ed|ing|es)?\b|\s+(?:the|a|an|any)\s+\w+|\s+(?!(?:implement|commit|push|fix|patch|replac\w*|refactor\w*|rewrit\w*|apply|add|write|edit|open|create|raise)\w*\b)\w+)*/gi;
+  /\b(?:do not|don't|dont|never|must not|mustn't|should not|shouldn't|no need to)\b.*?(?=[.;:!?\n]|,(?!\s*(?:or|nor)\b)|\b(?:and(?!\s+(?:\w+ly\s+)?(?:commit|push|edit)(?:s|ed|ing|es)?\b)|but|then|instead|however)\b|$)|\bwithout\s+\w+ing\b(?:\s+(?:or|nor)\s+\w+|\s+and\s+(?:commit|push|edit)(?:s|ed|ing|es)?\b|\s+(?:the|a|an|any)\s+\w+|\s+(?!(?:and|but|then|instead|however)\b|(?:implement|commit|push|fix|patch|replac\w*|refactor\w*|rewrit\w*|apply|add|write|edit|open|create|raise)\w*\b)\w+)*/gi;
 
 /** True when the task text asks to build (change code or ship it). */
 export function hasBuildIntent(description: string, prompt: string): boolean {
