@@ -195,6 +195,7 @@ describe('cost-estimator vocab canaries (#2338)', () => {
     // and the family shorthand must stay on the Haiku 4.5 row.
     expect(getPricing('claude-haiku-5-5').output_per_mtok).toBe(0.5);
     expect(getPricing('claude-haiku-4-5').input_per_mtok).toBe(1.0);
+    expect(getPricing('claude-haiku').input_per_mtok).toBe(1.0);
     expect(resolveModelKey('haiku')).toBe('claude-haiku-4-5-20251001'); // alias advance is a follow-up
   });
 
