@@ -139,7 +139,7 @@ AskUserQuestion(
       "header": "Failure Handling",
       "options": [
         {"label": "Auto-heal (Recommended)", "description": "Fix failing tests up to 3 iterations"},
-        {"label": "Generate only", "description": "Write tests, report failures, don't fix"},
+        {"label": "Generate only", "description": "Write tests, report failures, don't fix (skips the heal loop)"},
         {"label": "Strict", "description": "All tests must pass or abort"}
       ],
       "multiSelect": false
@@ -343,7 +343,7 @@ Workflow(
 # One invocation per tier that has failures.
 ```
 
-**Fan-out rule:** a single pass is never a fallback. Each tier with failures goes through the heal-loop Workflow call; if it does not run, end the run as BLOCKED and say why.
+**Fan-out rule:** a single pass is never a fallback when the selected failure handling runs the heal loop. Each tier with failures goes through the heal-loop Workflow call; if it does not run, end the run as BLOCKED and say why. "Generate only" skips the heal loop, so it is not a violation.
 
 **The iteration bound is enforced by the script, not by instruction.** `heal-loop.js`
 runs a real counted loop clamped to `[2, 3]`: each iteration spawns a diagnose agent that

@@ -108,7 +108,6 @@ const run = (loader) => `run-hook.mjs" ${loader}`;
 const BODY_LOADERS = {
   brainstorm: [run('skill/prior-decisions-loader'), run('skill/brainstorm-instructions-loader')],
   explore: [run('skill/repo-structure-indexer')],
-  'fix-issue': [run('skill/issue-context-loader')],
   implement: [run('skill/project-convention-loader'), run('skill/implement-standards-loader'), run('skill/pattern-consistency-enforcer')],
   setup: [run('skill/setup-env-detector')],
   'visualize-plan': ['scripts/detect-plan-context.sh'],
@@ -120,6 +119,20 @@ for (const [name, markers] of Object.entries(BODY_LOADERS)) {
     if (!body.includes(marker)) {
       failures.push(`src/skills/${name}/SKILL.md: body lacks \`${marker}\`, so the old hook's context is lost (#4683)`);
     }
+  }
+}
+
+// fix-issue is the exception to the loader map: skill/issue-context-loader
+// takes its number from the branch name, so on a branch like fix/ork10-...
+// it loads a different issue than the argument (#4693). The body must fetch
+// ISSUE_NUMBER itself instead of calling that loader.
+{
+  const text = readFileSync(path.join(SKILLS, 'fix-issue', 'SKILL.md'), 'utf8');
+  if (text.includes(run('skill/issue-context-loader'))) {
+    failures.push('src/skills/fix-issue/SKILL.md: calls skill/issue-context-loader, which reads the issue number from the branch name, not the argument');
+  }
+  if (!/issue view[^\n]*ISSUE_NUMBER/.test(text)) {
+    failures.push('src/skills/fix-issue/SKILL.md: no `issue view` of ISSUE_NUMBER; the fork has no issue context at all');
   }
 }
 

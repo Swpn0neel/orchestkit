@@ -136,7 +136,7 @@ AskUserQuestion(
 - **Full assessment** (`full`): All 7 phases, parallel agents, dimension subset scaled by effort
 - **Code quality only** (`quality`): Skip security and performance phases
 - **Security focus** (`security`): Prioritize security-auditor agent
-- **Quick score** (`quick`): Single pass, brief output
+- **Quick score** (`quick`): Single pass by user choice, brief output (skips the Phase 2 fan-out)
 
 
 ## STEP 0b: Select Orchestration Mode
@@ -250,7 +250,7 @@ Write(".claude/chain/02-evaluation.json", result)
 
 Fallback (no Workflow tool, `ORCHESTKIT_FORCE_TASK_TOOL=1`, or the cross-model lane below): `Read("skills/assess/references/agent-spawn-definitions.md")` for Agent tool and Agent Teams spawns, then run Phase 2.5 by hand.
 
-**Fan-out rule:** a single pass is never a fallback. Phase 2 runs through the Workflow call or the Agent tool fallback; if neither spawns an assessor, end the run as BLOCKED and say why.
+**Fan-out rule:** a single pass is never a fallback when the selected focus runs Phase 2. Phase 2 runs through the Workflow call or the Agent tool fallback; if neither spawns an assessor, end the run as BLOCKED and say why. "Quick score" is a declared single pass, so it is not a violation.
 
 **Composite Score:** Weighted average of the scored dimensions (see quality-model.md).
 

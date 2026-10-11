@@ -20,7 +20,7 @@ import { redactSecrets } from '../skill/redact-secrets.js';
 import { reviewPostGate } from '../skill/review-post-gate.js';
 
 // once:true context loaders (CC 2.1.69)
-import { issueContextLoader, commitConventionLoader } from '../skill/context-loaders-git.js';
+import { commitConventionLoader } from '../skill/context-loaders-git.js';
 import { repoStructureIndexer, testFrameworkDetector, projectConventionLoader, doctorEnvSnapshot, setupEnvDetector, priorDecisionsLoader, assessmentBaselineLoader, qualityBaselineLoader } from '../skill/context-loaders-env.js';
 // once:true standards loaders (CC 2.1.72 cache-opt)
 import { implementStandardsLoader, verifyScoringRubricLoader, brainstormInstructionsLoader } from '../skill/context-loaders-standards.js';
@@ -39,7 +39,6 @@ export const hooks: Record<string, HookFn> = {
   'skill/redact-secrets': redactSecrets,
   'skill/review-post-gate': reviewPostGate,
   // once:true context loaders (CC 2.1.69)
-  'skill/issue-context-loader': issueContextLoader,
   'skill/commit-convention-loader': commitConventionLoader,
   'skill/repo-structure-indexer': repoStructureIndexer,
   'skill/test-framework-detector': testFrameworkDetector,

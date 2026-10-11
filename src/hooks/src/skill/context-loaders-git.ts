@@ -8,46 +8,9 @@
  */
 
 import type { HookInput, HookResult , HookContext} from '../types.js';
-import { outputSilentSuccess, outputWithContext } from '../lib/common.js';
+import { outputWithContext } from '../lib/common.js';
 import { safeExec } from './context-loader-utils.js';
 import { NOOP_CTX } from '../lib/context.js';
-
-/**
- * Issue Context Loader — extracts issue number from branch name.
- * Used by: fix-issue skill (PreToolUse/Read, once:true)
- *
- * Common branch patterns: fix/123, issue-123, feat/issue-456
- */
-export function issueContextLoader(_input: HookInput, hookCtx: HookContext = NOOP_CTX): HookResult {
-  const projectDir = hookCtx.projectDir;
-
-  // Extract issue number from current branch name
-  const branch = safeExec('git branch --show-current', projectDir);
-  const issueMatch = branch.match(/(?:fix|issue|bug|feat)[/-](\d+)/i) || branch.match(/(\d{2,})/);
-  if (!issueMatch) return outputSilentSuccess();
-  const issueNum = issueMatch[1];
-
-  const issueData = safeExec(
-    `gh issue view ${issueNum} --json title,body,labels,milestone,state 2>/dev/null`,
-    projectDir,
-  );
-  if (!issueData) return outputSilentSuccess();
-
-  try {
-    const issue = JSON.parse(issueData);
-    const ctx = [
-      `[Issue #${issueNum} Context — loaded once]`,
-      `Title: ${issue.title}`,
-      `State: ${issue.state}`,
-      issue.labels?.length ? `Labels: ${issue.labels.map((l: { name: string }) => l.name).join(', ')}` : '',
-      issue.milestone ? `Milestone: ${issue.milestone.title}` : '',
-      issue.body ? `\nDescription:\n${issue.body.slice(0, 1500)}` : '',
-    ].filter(Boolean).join('\n');
-    return outputWithContext(ctx);
-  } catch {
-    return outputSilentSuccess();
-  }
-}
 
 /**
  * Commit Convention Loader — detects commit message conventions.
@@ -83,3 +46,8 @@ export function commitConventionLoader(_input: HookInput, hookCtx: HookContext =
 // skill (PreToolUse/Read, once:true), deleted as an unreachable orphan. The
 // hook stayed in the entries map with nothing able to dispatch it, which is
 // the #959 dead-hook class; validate-registry.mjs caught it.
+//
+// issueContextLoader removed: its only consumer was fix-issue, and it read
+// the issue number from the branch name, not the skill's argument (on
+// fix/ork10-... it loaded issue #10, #4693). The body now fetches
+// ISSUE_NUMBER itself; a dead registration is the #959 class.

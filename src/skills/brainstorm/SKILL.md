@@ -183,10 +183,10 @@ ExitPlanMode()
 
 **Based on answers, adjust workflow:**
 - **Open exploration** (Q1): Full 7-phase process with all agents
-- **Comparison** (Q1): Skip ideation, jump to evaluation phase
+- **Comparison** (Q1): Skip ideation (skips Phase 2), jump to evaluation phase
 - **Quick ideation** (Q1): Generate ideas, skip deep evaluation
-- **Iterative optimization** (Q1): Skip phases 2-6, enter autoresearch-style loop (see below)
-- **Constrained design** (Q2 = "Fixed requirements"): Skip divergent phase, focus on feasibility within the stated requirements — composes with any Q1 mode
+- **Iterative optimization** (Q1): Skip phases 2-6 (no Phase 2 fan-out), enter autoresearch-style loop (see below)
+- **Constrained design** (Q2 = "Fixed requirements"): Skip divergent phase (skips Phase 2), focus on feasibility within the stated requirements, composes with any Q1 mode
 
 **If 'Iterative optimization' selected:** skip Phases 2-6 and enter the autoresearch-style metric-driven loop.
 
@@ -221,7 +221,7 @@ Full level table + detection rules: `Read("references/effort-scaling.md")`
 
 **Phase 2 always runs at effort `low`**, whatever the level above: in-the-loop ideation is where low effort pays, scoring is not. The skill has no `effort:` frontmatter on purpose (it would lower Phase 4 too); `workflows/brainstorm-diverge.js` passes `effort: "low"` to every generator instead. Details in the same reference.
 
-**Fan-out rule:** a single pass is never a fallback. Phase 2 runs through the Workflow call, Agent Teams, or the Agent tool; this skill runs inline (#4696) because a fork has no Workflow tool. If none of them spawns a generator, end the run as BLOCKED and say why.
+**Fan-out rule:** a single pass is never a fallback when the selected mode runs Phase 2. Phase 2 runs through the Workflow call, Agent Teams, or the Agent tool; this skill runs inline (#4696) because a fork has no Workflow tool. If none of them spawns a generator, end the run as BLOCKED and say why. A mode that skips Phase 2 (Comparison, Iterative optimization, Constrained design) is not a violation.
 
 ---
 

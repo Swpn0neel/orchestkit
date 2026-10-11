@@ -52,10 +52,10 @@ ISSUE_NUMBER = "$ARGUMENTS[0]"  # e.g., "123" (CC 2.1.59 indexed access)
 
 **Run BEFORE any other step.** Detect available MCP servers and check for resumable state.
 
-**Load the branch's issue first.** A fork skill never runs frontmatter hooks (#4683), so run the loader yourself and keep its `additionalContext` in mind:
+**Load the issue in the argument first.** A fork skill never runs frontmatter hooks (#4683), so fetch `ISSUE_NUMBER` yourself and keep the result in mind. Do not call `skill/issue-context-loader` for this: it takes its number from the branch name, not from the argument, so on a branch like `fix/ork10-...` it loads a different issue. Use the CLI the M122 host note selects (`gh`, `glab`, or `bb`):
 
 ```bash
-echo '{"tool_name":"Bash","tool_input":{}}' | node "${CLAUDE_PLUGIN_ROOT}/hooks/bin/run-hook.mjs" skill/issue-context-loader
+gh issue view "$ISSUE_NUMBER" --json title,body,labels,milestone,state
 ```
 
 ```python
