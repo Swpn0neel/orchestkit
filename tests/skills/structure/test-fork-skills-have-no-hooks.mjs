@@ -134,6 +134,9 @@ for (const [name, markers] of Object.entries(BODY_LOADERS)) {
   if (!/issue view[^\n]*ISSUE_NUMBER/.test(text)) {
     failures.push('src/skills/fix-issue/SKILL.md: no `issue view` of ISSUE_NUMBER; the fork has no issue context at all');
   }
+  if (!/^ISSUE_NUMBER = "\$ARGUMENTS\[0\]"/m.test(text)) {
+    failures.push('src/skills/fix-issue/SKILL.md: ISSUE_NUMBER is not bound to "$ARGUMENTS[0]"; a binding from the branch name is the same bug through another door');
+  }
 }
 
 if (withHooks === 0) {
