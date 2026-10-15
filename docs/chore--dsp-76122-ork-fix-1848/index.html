@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="dev status now prints a claude agents command scoped to the current worktree, resolved with git rev-parse instead of the repo-branch name pattern.">
+<title>dev status prints a worktree-scoped agent view</title>
+<style>
+:root {
+  color-scheme: dark;
+  font: 16px/1.6 system-ui, sans-serif;
+  --pg-bg: hsl(232 26% 7%);
+  --pg-ink: hsl(220 18% 93%);
+  --pg-muted: hsl(226 14% 72%);
+  --pg-glass: hsl(0 0% 100% / .05);
+  --pg-glass-edge: hsl(226 14% 30%);
+  --pg-control: hsl(232 20% 15%);
+  --pg-control-edge: hsl(226 14% 45%);
+  --pg-code: hsl(232 20% 11%);
+  --pg-accent: hsl(248 84% 68%);
+  --pg-link: hsl(248 84% 78%);
+  --status-good: #0ca30c;
+  --status-critical: #d03b3b;
+}
+body { margin: 0; background: var(--pg-bg); color: var(--pg-ink); }
+main { max-width: 880px; margin: auto; padding: 32px 24px 72px; }
+header { position: sticky; inset-block-start: 0; padding: 16px 0; background: var(--pg-bg); border-block-end: 1px solid var(--pg-glass-edge); }
+h1 { font-size: clamp(24px, 4vw, 36px); line-height: 1.2; margin: 0 0 12px; }
+p { max-width: 70ch; }
+small, .muted { color: var(--pg-muted); }
+select, button { font: inherit; color: inherit; background: var(--pg-control); border: 1px solid var(--pg-control-edge); border-radius: 8px; padding: 10px 14px; }
+button { cursor: pointer; }
+select:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--pg-accent); outline-offset: 3px; }
+label { display: block; margin-block: 12px; }
+details { margin-block: 20px; padding: 16px; border: 1px solid var(--pg-glass-edge); border-radius: 12px; background: var(--pg-glass); }
+summary { cursor: pointer; font-size: 18px; font-weight: 650; }
+pre, code { font-size: 14px; background: var(--pg-code); border-radius: 8px; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; }
+code { padding: 1px 6px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: start; padding: 8px 10px; border-block-end: 1px solid var(--pg-glass-edge); }
+th { color: var(--pg-muted); font-weight: 600; }
+.verdict { border-inline-start: 4px solid var(--status-good); padding: 12px 16px; }
+.verdict[data-state="wrong"] { border-color: var(--status-critical); }
+.new-line { color: #7ee787; }
+a { color: var(--pg-link); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none; transition: none; scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<main>
+<header><h1>dev status now hands you a worktree-scoped agent view</h1><p class="muted">Issue #1848: wire <code>claude agents --cwd &lt;worktree&gt;</code> into the dev skill, so a lane sees only the sessions started in its own worktree.</p></header>
+<details open>
+<summary>[0] What changed</summary>
+<p>Two files, both in <code>src/skills/dev</code>:</p>
+<table><thead><tr><th>file</th><th>change</th></tr></thead><tbody>
+<tr><td><code>SKILL.md</code></td><td>New note in the claude agents blockquote: <code>claude agents --cwd "$(git rev-parse --show-toplevel)"</code> scopes the agent view to the current worktree (CC 2.1.141+).</td></tr>
+<tr><td><code>scripts/status.sh</code></td><td>Prints the resolved command after the stack state, and on the early-exit paths (no state file, dead stack) so the hint is there even before a boot.</td></tr>
+</tbody></table>
+</details>
+<details open>
+<summary>[1] Why git rev-parse, not the name pattern</summary>
+<p>The old instinct was to build the path as <code>&lt;repo&gt;-&lt;branch&gt;</code>. Worktrees now live under <code>.worktrees/&lt;task&gt;</code> inside the repo, so that guess points at a directory that does not exist. Pick a location to compare the two answers:</p>
+<label for="loc">Where the command runs</label>
+<select id="loc">
+<option value="0">main checkout</option>
+<option value="1" selected>worktree .worktrees/76122-ork-fix-1848</option>
+<option value="2">nested dir inside that worktree</option>
+</select>
+<p class="verdict" id="verdict" role="status" aria-live="polite"></p>
+<pre id="resolve" aria-label="Resolved paths"></pre>
+</details>
+<details open>
+<summary>[2] dev status, after</summary>
+<pre>$ dev status
+ork:dev - chore/dsp-76122-ork-fix-1848
+  ✓ portlessWrapper    portless chore-dsp-76122-ork-fix-1848 npm run dev
+  ✓ agentBrowser       chore-dsp-76122-ork-fix-1848
+  base url:  https://chore-dsp-76122-ork-fix-1848.localhost
+  booted:    2026-10-15T10:00:00Z
+  portless:  route registered ✓
+<span class="new-line">  agents:    claude agents --cwd "/Users/me/coding/orchestkit/.worktrees/76122-ork-fix-1848"</span></pre>
+<p>Before this PR the last line did not exist. Quiet mode (<code>status.sh --quiet</code>) still prints nothing and keeps its exit-code contract.</p>
+</details>
+<details>
+<summary>[3] Try it</summary>
+<p>From any worktree, copy the scoped command:</p>
+<pre id="cmd">claude agents --cwd "$(git rev-parse --show-toplevel)"</pre>
+<p><button id="copy-cmd" type="button">Copy the command</button> <button id="copy-prompt" type="button">Copy review prompt</button> <span id="copy-status" role="status" aria-live="polite"></span></p>
+</details>
+<p><a href="https://github.com/yonatangross/orchestkit/issues/1848">Issue #1848 and its triage comment</a></p>
+</main>
+<script>
+(function(){
+"use strict";
+var LOCS=[
+ {label:"main checkout", cwd:"/Users/me/coding/orchestkit", guess:"/Users/me/coding/orchestkit-chore-dsp-76122-ork-fix-1848"},
+ {label:"worktree", cwd:"/Users/me/coding/orchestkit/.worktrees/76122-ork-fix-1848", guess:"/Users/me/coding/orchestkit-chore-dsp-76122-ork-fix-1848"},
+ {label:"nested dir", cwd:"/Users/me/coding/orchestkit/.worktrees/76122-ork-fix-1848/src/skills/dev", guess:"/Users/me/coding/orchestkit-chore-dsp-76122-ork-fix-1848"}
+];
+var sel=document.getElementById("loc"),v=document.getElementById("verdict"),r=document.getElementById("resolve");
+function show(){
+ var m=LOCS[+sel.value];
+ var root=m.label==="main checkout"?m.cwd:"/Users/me/coding/orchestkit/.worktrees/76122-ork-fix-1848";
+ var same=m.guess===root;
+ v.dataset.state=same?"ok":"wrong";
+ v.innerHTML=same?"<strong>Same answer here.</strong> The pattern only works on the main checkout by accident.":"<strong>Pattern guess is wrong here.</strong> The guessed path does not exist; rev-parse returns the real worktree root.";
+ r.textContent=[
+  "cwd:                 "+m.cwd,
+  "name-pattern guess:  "+m.guess+(same?"":"   (not a real path)"),
+  "git rev-parse:       "+root,
+  "",
+  "claude agents --cwd \""+root+"\""
+ ].join("\n");
+}
+sel.addEventListener("change",show);show();
+var cs=document.getElementById("copy-status");
+function copy(text){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){cs.textContent="Copied."},function(){cs.textContent="Copy failed."})}else{cs.textContent="Clipboard unavailable."}}
+document.getElementById("copy-cmd").addEventListener("click",function(){copy('claude agents --cwd "$(git rev-parse --show-toplevel)"')});
+document.getElementById("copy-prompt").addEventListener("click",function(){copy("Review the draft PR for yonatangross/orchestkit#1848: dev status now prints a worktree-scoped claude agents --cwd command resolved by git rev-parse. Check src/skills/dev/SKILL.md and scripts/status.sh, then run dev status inside a worktree.")});
+})();
+</script>
+</body></html>

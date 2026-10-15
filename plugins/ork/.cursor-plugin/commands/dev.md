@@ -39,6 +39,8 @@ State lives in `.claude/state/dev-stack.json`. Teardown via `dev stop` reads the
 > **Resuming a backgrounded dev session (CC 2.1.144+):** Sessions started via `claude --bg` now appear in `/resume` alongside interactive ones, marked `bg` — use `/resume` as the direct recovery path after a crash or session end instead of navigating the agent view.
 >
 > **Background shell sessions (CC 2.1.154+):** In `claude agents`, type `! <command>` to run a shell command as a backgrounded session you can attach to and detach from — also available as `claude --bg --exec '<command>'`. Useful for long dev-loop processes (watchers, builds, servers) you want to monitor without holding a terminal.
+>
+> **Scoped agent view (CC 2.1.141+):** `claude agents --cwd "$(git rev-parse --show-toplevel)"` lists only the sessions started in the current worktree. `dev status` prints the resolved command after the stack state. The path comes from `git rev-parse`, not the `<repo>-<branch>` name pattern, because worktrees live under `.worktrees/<task>`.
 
 ## Modes (M127)
 

@@ -12,13 +12,25 @@ QUIET=0
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 STATE_FILE="${PROJECT_DIR}/.claude/state/dev-stack.json"
 
+# Scoped agent view (CC 2.1.141+): sessions started in this worktree only.
+# git rev-parse resolves the worktree root, not the <repo>-<branch> name
+# pattern, because worktrees live under .worktrees/<task>.
+agents_hint() {
+  [[ ${QUIET} -eq 0 ]] || return 0
+  local wt_root
+  wt_root="$(git rev-parse --show-toplevel 2>/dev/null)" || return 0
+  printf '  agents:    claude agents --cwd "%s"\n' "${wt_root}"
+}
+
 if [[ ! -f "${STATE_FILE}" ]]; then
   [[ ${QUIET} -eq 0 ]] && printf 'ork:dev — no state file. Run /ork:dev to boot.\n' >&2
+  agents_hint >&2
   exit 1
 fi
 
 if ! command -v jq >/dev/null 2>&1; then
   [[ ${QUIET} -eq 0 ]] && printf 'ork:dev — jq not found. Install: brew install jq\n' >&2
+  agents_hint >&2
   exit 1
 fi
 
@@ -31,6 +43,7 @@ done < <(jq -r '.processes // {} | to_entries[] | .value.pid // empty' "${STATE_
 
 if [[ ${any_live} -ne 1 ]]; then
   [[ ${QUIET} -eq 0 ]] && printf 'ork:dev — state file exists but stack is dead.\n' >&2
+  agents_hint >&2
   exit 1
 fi
 
@@ -78,3 +91,5 @@ if command -v portless >/dev/null 2>&1; then
     fi
   fi
 fi
+
+agents_hint

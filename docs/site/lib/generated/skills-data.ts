@@ -1781,7 +1781,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "dev",
     "description": "One-command dev loop boot. Spins up portless (named HTTPS subdomain), emulate (stateful API mocks), the project's dev server, and an agent-browser session, all keyed to the current git branch. Use when starting a feature branch, switching worktrees, or returning to a project after a break. Skips silently with install hints when prerequisite binaries are missing.",
     "version": "1.1.0",
-    "sha256": "bdf3495b8857e4efa549af7d6be01881a7a2f623ba63fc47adb261c06f7f391e",
+    "sha256": "82d54eea81dbd13fda30267747aa6ace839dc876aa7162b08c34646e2c1d7fc5",
     "author": "OrchestKit",
     "tags": [
       "dev-loop",

@@ -1,0 +1,13 @@
+{
+  "slug": "1848-dev-agents-cwd",
+  "source": "docs/chore--dsp-76122-ork-fix-1848/index.html",
+  "title": "dev status prints a worktree-scoped agent view",
+  "description": "Issue #1848: the dev skill now documents and prints `claude agents --cwd \"$(git rev-parse --show-toplevel)\"`, so a lane lists only the sessions started in its own worktree. The playground compares the git rev-parse answer with the old repo-branch name pattern and shows the new dev status output line.",
+  "tags": [
+    "dev",
+    "claude-agents",
+    "worktree",
+    "1848"
+  ],
+  "date": "2026-10-15"
+}
