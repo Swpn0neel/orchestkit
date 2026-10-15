@@ -7,11 +7,11 @@ afterEach(() => vi.unstubAllGlobals());
 function harness(initial: string) {
   let box = initial;
   let state: BandState | undefined;
-  const handlers = new Map<string, Function>();
+  const handlers = new Map<string, unknown>();
   const sent: string[] = [];
   const displayed: string[] = [];
   const toasts: string[] = [];
-  const complete = vi.fn(async () => ({ isAnswered: true, text: "Add a login page. Read the repo first. Ask when unclear. Verify the page renders." }));
+  const complete = vi.fn<Dollar["model"]["complete"]>(async () => ({ isAnswered: true, text: "Add a login page. Read the repo first. Ask when unclear. Verify the page renders." }));
   const $: Dollar = {
     prompt: {
       read: async () => ({ text: box, cursor: box.length }),
@@ -32,12 +32,24 @@ function harness(initial: string) {
     const node = typeof tag === "function" ? tag(props ?? {}) : { tag, props: props ?? {}, children: [] };
     return { ...node, children };
   });
-  const on = ((name: string, ...args: unknown[]) => { handlers.set(name, args.at(-1) as Function); }) as On;
+  const catches = new Map<string, unknown>();
+  const on = ((name: string, ...args: unknown[]) => {
+    handlers.set(name, args.at(-1));
+    return { catch: (handler: unknown) => { catches.set(name, handler); } };
+  }) as On;
   register(on);
   async function fire<K extends keyof Events>(name: K, event: Events[K]) {
     const handler = handlers.get(name) as Handler<K> | undefined;
     expect(handler, `missing ${name} hook`).toBeDefined();
-    return handler!($, event, async e => { if (name === "prompt.submit") sent.push((e as Events["prompt.submit"]).text); return e; });
+    if (name === "prompt.submit" && (event as Events["prompt.submit"]).origin.kind === "composer" && box === (event as Events["prompt.submit"]).text) box = "";
+    let settled: Events[K];
+    const next = Object.assign(async (e: Events[K]) => { if (next.called) return settled; next.called = true; settled = e; if (name === "prompt.submit") sent.push((e as Events["prompt.submit"]).text); return e; }, { called: false });
+    try { return await handler!($, event, next); }
+    catch (error) {
+      const fallback = catches.get(name) as Handler<K> | undefined;
+      if (!fallback) throw error;
+      return fallback($, event, next);
+    }
   }
   async function press(label: string) {
     const tree = await fire("ui.render", { component: "AbovePrompt", props: { hasSurvey: false, isWorking: false } });
@@ -96,5 +108,127 @@ describe("Prompt Enhancer review boundary", () => {
     expect(h.sent).toEqual([]);
     await h.fire("prompt.submit", submit(visible));
     expect(h.sent).toEqual([visible]);
+  });
+});
+
+describe("failure and race handling", () => {
+  test("Enhance button rewrites an ordinary draft without sending it", async () => {
+    const h = harness("login");
+    await h.press("Enhance");
+    expect(h.box()).toContain("Read the repo first");
+    expect(h.sent).toEqual([]);
+    await h.press("Undo");
+    expect(h.box()).toBe("login");
+  });
+  test.each([false, true])("a missing or empty model answer keeps the original (%s)", async isAnswered => {
+    const h = harness("login++");
+    h.complete.mockResolvedValueOnce({ isAnswered, text: "" });
+    await h.fire("prompt.submit", submit("login++"));
+    expect(h.box()).toBe("login++");
+    expect(h.toasts).toContain("Enhance failed. Kept your original prompt.");
+    expect(h.sent).toEqual([]);
+  });
+  test("a late model answer cannot replace a user edit", async () => {
+    const h = harness("login++");
+    let answer!: (value: { isAnswered: boolean; text: string }) => void;
+    h.complete.mockImplementationOnce(() => new Promise(resolve => { answer = resolve; }));
+    const pending = h.fire("prompt.submit", submit("login++"));
+    await vi.waitFor(() => expect(h.complete).toHaveBeenCalled());
+    h.edit("My newer draft");
+    answer({ isAnswered: true, text: "Stale rewrite" });
+    await pending;
+    expect(h.box()).toBe("My newer draft");
+    expect(h.sent).toEqual([]);
+  });
+  test("Undo cancels a pending rewrite", async () => {
+    const h = harness("login++");
+    let answer!: (value: { isAnswered: boolean; text: string }) => void;
+    h.complete.mockImplementationOnce(() => new Promise(resolve => { answer = resolve; }));
+    const pending = h.fire("prompt.submit", submit("login++"));
+    await vi.waitFor(() => expect(h.complete).toHaveBeenCalled());
+    await h.press("Undo");
+    answer({ isAnswered: true, text: "Stale rewrite" });
+    await pending;
+    expect(h.box()).toBe("login++");
+    expect(h.sent).toEqual([]);
+  });
+  test("Send cannot race a pending model call", async () => {
+    const h = harness("login++");
+    let answer!: (value: { isAnswered: boolean; text: string }) => void;
+    h.complete.mockImplementationOnce(() => new Promise(resolve => { answer = resolve; }));
+    const pending = h.fire("prompt.submit", submit("login++"));
+    await vi.waitFor(() => expect(h.complete).toHaveBeenCalled());
+    await h.press("Send");
+    expect(h.sent).toEqual([]);
+    answer({ isAnswered: true, text: "Visible rewrite" });
+    await pending;
+  });
+  test("prompt.change cancels a pending result without rewriting its event", async () => {
+    const h = harness("login++");
+    let answer!: (value: { isAnswered: boolean; text: string }) => void;
+    h.complete.mockImplementationOnce(() => new Promise(resolve => { answer = resolve; }));
+    const pending = h.fire("prompt.submit", submit("login++"));
+    await vi.waitFor(() => expect(h.complete).toHaveBeenCalled());
+    h.edit("History draft");
+    const change: Events["prompt.change"] = { text: h.box(), cursor: 13, origin: { kind: "history" } };
+    expect(await h.fire("prompt.change", change)).toBe(change);
+    await h.press("Enhance");
+    expect(h.complete).toHaveBeenCalledTimes(2);
+    const current = h.box();
+    answer({ isAnswered: true, text: "Stale rewrite" });
+    await pending;
+    expect(h.box()).toBe(current);
+  });
+  test("a rejected fill sends nothing and reports the failure", async () => {
+    const h = harness("login++");
+    h.$.prompt.fill = async () => ({ isFilled: false });
+    await h.fire("prompt.submit", submit("login++"));
+    expect(h.complete).not.toHaveBeenCalled();
+    expect(h.sent).toEqual([]);
+    expect(h.toasts).toContain("The prompt box is unavailable. Nothing was sent.");
+  });
+  test("an engine error in the submit hook holds the prompt", async () => {
+    const h = harness("login++");
+    h.$.state.get = async () => { throw new Error("state unavailable"); };
+    expect(await h.fire("prompt.submit", submit("login++"))).toHaveProperty("drop");
+    expect(h.box()).toBe("login++");
+    expect(h.sent).toEqual([]);
+  });
+  test("ordinary prompts and prompts from plugins pass through", async () => {
+    const h = harness("ordinary prompt");
+    const ordinary = submit("ordinary prompt");
+    await h.fire("prompt.submit", ordinary);
+    await h.fire("prompt.submit", { ...submit("plugin++"), origin: { kind: "plugin" } });
+    expect(h.sent).toEqual(["ordinary prompt", "plugin++"]);
+    expect(h.complete).not.toHaveBeenCalled();
+  });
+  test("collapse keeps the draft intact and expand restores the controls", async () => {
+    const h = harness("login");
+    await h.press("-");
+    expect(h.box()).toBe("login");
+    await h.press("+");
+    await h.press("Enhance");
+    expect(h.complete).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("submission errors", () => {
+  test("a refused Send retains the visible draft for review", async () => {
+    const h = harness("login++");
+    await h.fire("prompt.submit", submit("login++"));
+    const visible = h.box();
+    h.$.prompt.submit = async () => ({ drop: "Another mod refused" });
+    await h.press("Send");
+    expect(h.box()).toBe(visible);
+    expect(h.sent).toEqual([]);
+    expect(h.toasts).toContain("The prompt was not sent. Kept the draft.");
+    await h.press("Undo");
+    expect(h.box()).toBe("login++");
+  });
+  test("state errors after next do not send the prompt twice", async () => {
+    const h = harness("ordinary prompt");
+    h.$.state.get = async () => { throw new Error("state unavailable"); };
+    await h.fire("prompt.submit", submit("ordinary prompt"));
+    expect(h.sent).toEqual(["ordinary prompt"]);
   });
 });

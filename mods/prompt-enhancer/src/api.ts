@@ -1,9 +1,5 @@
-export interface BandState {
-  visible: boolean;
-  collapsed: boolean;
-  busy: boolean;
-  original: string | null;
-}
+import type { BandState } from "../types/index.js";
+export type { BandState } from "../types/index.js";
 export interface Node {
   tag: string;
   props: Record<string, unknown>;
@@ -33,8 +29,8 @@ export interface Dollar {
     resolve(event: Events["ui.render"]): { Box: Component; Text: Component; Button: Component };
   };
 }
-export type Handler<K extends keyof Events> = ($: Dollar, event: Events[K], next: (event: Events[K]) => Promise<unknown>) => unknown;
+export type Handler<K extends keyof Events> = ($: Dollar, event: Events[K], next: ((event: Events[K]) => Promise<unknown>) & { readonly called: boolean }) => unknown;
 export interface On {
-  <K extends keyof Events>(event: K, handler: Handler<K>): void;
-  <K extends keyof Events>(event: K, filter: { component: "AbovePrompt" }, handler: Handler<K>): void;
+  <K extends keyof Events>(event: K, handler: Handler<K>): { catch(handler: Handler<K>): void };
+  <K extends keyof Events>(event: K, filter: { component: "AbovePrompt" }, handler: Handler<K>): { catch(handler: Handler<K>): void };
 }
