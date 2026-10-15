@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/export-gemini-skills.mjs: one pass fixture and four refusals.
+# scripts/export-gemini-skills.mjs: one pass fixture and five refusals.
 # The Gemini app rules come from support.google.com/gemini/answer/17094296
 # (lowercase-hyphen name, a SKILL.md in the zip's main folder, plain text only)
 # plus the 1024-character description limit. A chat app cannot run MCP tools.
@@ -98,6 +98,12 @@ refuse "a .DS_Store in the folder is refused" hidden-file 'hidden file reference
 # 5. A body that names an MCP tool.
 make_skill uses-mcp uses-mcp "A method." "Then call mcp__memory__search_nodes for the graph."
 refuse "a skill that names an MCP tool is refused" uses-mcp 'names an MCP tool'
+
+# 6. A symlink in the folder: its target must never reach the zip.
+make_skill has-link has-link "A method."
+echo "SECRET-KEY-MATERIAL" > "$FIX/outside-secret.txt"
+ln -s "$FIX/outside-secret.txt" "$FIX/skills/has-link/references/notes.md"
+refuse "a symlink in the folder is refused (its target is never exported)" has-link 'references/notes.md is a symlink'
 
 echo ""
 echo "export-gemini-skills: $pass passed, $fail failed"

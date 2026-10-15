@@ -23,7 +23,7 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-  cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
+  cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -96,12 +96,20 @@ function readScalar(lines, key) {
   return raw;
 }
 
-function listFiles(dir) {
+/**
+ * Every regular file under dir. A symlink is never followed: readFileSync,
+ * cpSync and zip would all read its TARGET, so a link named notes.md that
+ * points at a key file would ship that file to Google. Links are returned in
+ * `links` and the caller refuses the skill.
+ */
+function listFiles(dir, links = []) {
   const out = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...listFiles(p));
-    else out.push(p);
+    if (entry.isSymbolicLink()) links.push(p);
+    else if (entry.isDirectory()) out.push(...listFiles(p, links));
+    else if (entry.isFile()) out.push(p);
+    else links.push(p);
   }
   return out;
 }
@@ -110,7 +118,9 @@ function listFiles(dir) {
 function inspect(skillDir, skill) {
   const problems = [];
   const skillMd = join(skillDir, 'SKILL.md');
+  if (lstatSync(skillDir).isSymbolicLink()) return { problems: [`the skill folder ${skill} is a symlink`] };
   if (!existsSync(skillMd)) return { problems: [`no SKILL.md in ${skill}`] };
+  if (lstatSync(skillMd).isSymbolicLink()) return { problems: ['SKILL.md is a symlink'] };
   const parts = splitFrontmatter(readFileSync(skillMd, 'utf8'));
   if (!parts) return { problems: ['SKILL.md has no frontmatter block'] };
   const name = readScalar(parts.front, 'name');
@@ -121,7 +131,10 @@ function inspect(skillDir, skill) {
   else if (description.length > MAX_DESCRIPTION) problems.push(`description is ${description.length} characters (max ${MAX_DESCRIPTION})`);
 
   const files = [];
-  for (const abs of listFiles(skillDir)) {
+  const links = [];
+  const found = listFiles(skillDir, links);
+  for (const link of links) problems.push(`${relative(skillDir, link)} is a symlink or special file (only regular files are exported)`);
+  for (const abs of found) {
     const rel = relative(skillDir, abs);
     const base = rel.split('/').pop();
     if (base.startsWith('.')) { problems.push(`hidden file ${rel} (remove it before export)`); continue; }
@@ -177,8 +190,9 @@ function main() {
     }
     const zip = join(opts.out, `${skill}.zip`);
     rmSync(zip, { force: true });
-    // -X drops extra file attributes; run from the stage so the zip's main folder is the skill.
-    execFileSync('zip', ['-q', '-r', '-X', zip, skill], { cwd: stage });
+    // -X drops extra file attributes; -y stores a link as a link, never its target.
+    // Run from the stage so the zip's main folder is the skill.
+    execFileSync('zip', ['-q', '-r', '-X', '-y', zip, skill], { cwd: stage });
     const bytes = statSync(zip).size;
     total += bytes;
     manifest.skills.push({ name: skill, zip: `${skill}.zip`, bytes, sha256: sha256(zip), files: ['SKILL.md', ...r.files] });
