@@ -162,17 +162,27 @@ ran unit-tier-ran && { fail "targeted + HQ_CI_ONLY=1: unit tier ran"; arm_ok=0; 
 [[ "$(count "$SKIP_LINE")" == 1 ]] || { fail "targeted + HQ_CI_ONLY=1: skip line absent or duplicated"; arm_ok=0; }
 [[ "$arm_ok" == 1 ]] && ok "targeted + HQ_CI_ONLY=1: no unit selection line, no test slot"
 
-# Arm 6: the control for arm 5. Targeted mode without HQ_CI_ONLY must still
-# announce the selection and take the slot, or arm 5 proves nothing.
-reset_markers
-rc=0
-run_hook -u HQ_CI_ONLY ORK_PRE_PUSH_MODE=targeted || rc=$?
-arm_ok=1
-[[ "$rc" -eq 0 ]] || { fail "targeted control: hook failed (rc=$rc): $(tail_out 15)"; arm_ok=0; }
-has 'unit tests selected: 1' || { fail "targeted control: no unit selection line: $(tail_out)"; arm_ok=0; }
-ran slot-taken || { fail "targeted control: the slot stub was never reached"; arm_ok=0; }
-ran unit-tier-ran || { fail "targeted control: unit tier did not run"; arm_ok=0; }
-[[ "$arm_ok" == 1 ]] && ok "targeted control: selection announced, slot taken, unit tier ran"
+# Arm 6: the control for arm 5, run three ways. Targeted mode with
+# HQ_CI_ONLY unset, "0" or empty must announce the selection, take the slot
+# and run the unit tier, or arm 5 proves nothing. The "0" and empty copies
+# pin the exact "1" checks at the selection line and the slot decision: a
+# check loosened to "non-empty" fails them (#4758 review).
+targeted_control() {
+  local label="$1"; shift
+  local rc=0 arm_ok=1
+  reset_markers
+  run_hook ORK_PRE_PUSH_MODE=targeted "$@" || rc=$?
+  [[ "$rc" -eq 0 ]] || { fail "$label: hook failed (rc=$rc): $(tail_out 15)"; arm_ok=0; }
+  has 'unit tests selected: 1' || { fail "$label: no unit selection line: $(tail_out)"; arm_ok=0; }
+  has "$SKIP_LINE" && { fail "$label: skip line printed"; arm_ok=0; }
+  ran slot-taken || { fail "$label: the slot stub was never reached"; arm_ok=0; }
+  ran unit-tier-ran || { fail "$label: unit tier did not run"; arm_ok=0; }
+  [[ "$arm_ok" == 1 ]] && ok "$label: selection announced, slot taken, unit tier ran"
+  return 0
+}
+targeted_control "targeted control, HQ_CI_ONLY unset" -u HQ_CI_ONLY
+targeted_control "targeted control, HQ_CI_ONLY=0" HQ_CI_ONLY=0
+targeted_control "targeted control, HQ_CI_ONLY empty" HQ_CI_ONLY=
 
 # Arms 7 to 9: with HQ_CI_ONLY=1 the slot may be skipped only when nothing
 # else runs either. Security on, the src stages on (tsc, build), or a diff
