@@ -591,10 +591,16 @@ assert_repo_config_unchanged() {
 # Skipped on CI (runners govern themselves) and when the library is
 # absent (governance is a courtesy, not a correctness gate).
 # ORK_TEST_SLOT_NOLOCK=1 bypasses. With HQ_CI_ONLY=1 the unit tier is
-# skipped, so when the security stage is deferred too no suite runs here
-# and a slot would only make the push wait for nothing (#4753).
+# skipped. The slot is dropped only when nothing else that does real work
+# runs either: the security stage deferred, the src stages (tsc, build)
+# off, and no src/hooks/ change (which runs the hook unit suite below).
+# Then no suite runs here and a slot would only make the push wait for
+# nothing (#4753, #4758 review).
+# awk, not grep: it exits 0 on no match, so nothing needs swallowing.
+HOOK_CHANGES=$(printf '%s\n' "$CHANGED_FILES" | awk '/^src\/hooks\//')
 _pp_runs_a_suite=1
-if [[ "${HQ_CI_ONLY:-}" == "1" && "$PRE_PUSH_RUN_SECURITY" -eq 0 ]]; then
+if [[ "${HQ_CI_ONLY:-}" == "1" && "$PRE_PUSH_RUN_SECURITY" -eq 0 \
+      && "$PRE_PUSH_RUN_SRC_STAGES" -eq 0 && -z "$HOOK_CHANGES" ]]; then
   _pp_runs_a_suite=0
 fi
 if [[ "$PRE_PUSH_MODE" == "targeted" && "$_pp_runs_a_suite" -eq 1 && -f "$PROJECT_ROOT/scripts/lib/test-slot.sh" ]]; then
@@ -961,7 +967,7 @@ fi
 # surface in CI (cross-reference, split-bundles, webhook-forwarder-coverage,
 # hooks-json-wiring, dispatcher-registry-wiring). Running the hook unit
 # suite locally catches these BEFORE push instead of after a failed CI run.
-HOOK_CHANGES=$(echo "$CHANGED_FILES" | grep -E '^src/hooks/' || true)
+# HOOK_CHANGES is computed once, before the test slot decision above.
 if [[ -n "$HOOK_CHANGES" ]]; then
   run_hooks_vitest_stage
 fi
