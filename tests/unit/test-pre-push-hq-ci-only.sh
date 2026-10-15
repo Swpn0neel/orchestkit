@@ -66,13 +66,14 @@ printf '#!/bin/sh\ntouch security-ran\nexit 0\n' > "$FIX/tests/security/run-secu
 chmod +x "$FIX/tests/security/run-security-tests.sh"
 printf '{"name":"fixture","version":"0.0.0","scripts":{"build":"true"}}\n' > "$FIX/package.json"
 
-# Targeted-mode stubs (#4753 nit): a selector that picks the canary and
-# wants neither security nor the src stages, and a slot governor that only
-# records that a slot was taken.
+# Targeted-mode stubs (#4753 nit): a selector that picks the canary and, by
+# default, wants neither security nor the src stages (FIX_WANT_SECURITY=1 and
+# FIX_WANT_SRC=1 turn them on per arm), and a slot governor that only records
+# that a slot was taken.
 cat > "$FIX/scripts/lib/pre-push-select.sh" <<'SEL'
 pre_push_select_unit_tests() { printf '%s\n' tests/unit/test-canary.sh; }
-pre_push_select_wants_security() { return 1; }
-pre_push_select_wants_src_stages() { return 1; }
+pre_push_select_wants_security() { [[ "${FIX_WANT_SECURITY:-0}" == 1 ]]; }
+pre_push_select_wants_src_stages() { [[ "${FIX_WANT_SRC:-0}" == 1 ]]; }
 SEL
 cat > "$FIX/scripts/lib/test-slot.sh" <<'SLOT'
 acquire_test_slot() { touch slot-taken; }
@@ -172,6 +173,35 @@ has 'unit tests selected: 1' || { fail "targeted control: no unit selection line
 ran slot-taken || { fail "targeted control: the slot stub was never reached"; arm_ok=0; }
 ran unit-tier-ran || { fail "targeted control: unit tier did not run"; arm_ok=0; }
 [[ "$arm_ok" == 1 ]] && ok "targeted control: selection announced, slot taken, unit tier ran"
+
+# Arms 7 to 9: with HQ_CI_ONLY=1 the slot may be skipped only when nothing
+# else runs either. Security on, the src stages on (tsc, build), or a diff
+# under src/hooks/ (the hook vitest suite) must each still take the slot
+# (#4758 review).
+slot_arm() {
+  local label="$1"; shift
+  local rc=0 arm_ok=1
+  reset_markers
+  run_hook ORK_PRE_PUSH_MODE=targeted HQ_CI_ONLY=1 "$@" || rc=$?
+  [[ "$rc" -eq 0 ]] || { fail "$label: hook failed (rc=$rc): $(tail_out 15)"; arm_ok=0; }
+  has 'pre-push mode: targeted' || { fail "$label: hook fell back from targeted mode: $(tail_out)"; arm_ok=0; }
+  ran slot-taken || { fail "$label: no test slot taken while a stage still runs"; arm_ok=0; }
+  ran unit-tier-ran && { fail "$label: unit tier ran under HQ_CI_ONLY=1"; arm_ok=0; }
+  [[ "$arm_ok" == 1 ]] && ok "$label: slot taken, unit tier skipped"
+  return 0
+}
+slot_arm "targeted + HQ_CI_ONLY=1 + security on" FIX_WANT_SECURITY=1
+ran security-ran || fail "targeted + HQ_CI_ONLY=1 + security on: security stage did not run"
+slot_arm "targeted + HQ_CI_ONLY=1 + src stages on" FIX_WANT_SRC=1
+
+# A diff under src/hooks/ makes the hook vitest stage run. Add one commit for
+# this arm only, then drop it so later arms see the original diff.
+mkdir -p "$FIX/src/hooks"
+printf 'x\n' > "$FIX/src/hooks/touched.txt"
+git -C "$FIX" add -A
+git -C "$FIX" commit -qm hooks
+slot_arm "targeted + HQ_CI_ONLY=1 + src/hooks change"
+git -C "$FIX" reset -q --hard HEAD~1
 
 echo "  $PASS passed, $FAILS failed"
 [[ "$FAILS" == 0 ]] || exit 1
