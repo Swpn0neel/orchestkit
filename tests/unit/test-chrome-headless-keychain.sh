@@ -17,8 +17,10 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SELF="tests/unit/$(basename "$0")"
 cd "$ROOT"
 
-fail() { echo "✗ $1"; exit 1; }
 PASS=0
+FAILS=0
+die() { echo "✗ $1"; exit 1; }
+fail() { echo "✗ $1"; FAILS=$((FAILS + 1)); }
 ok() { echo "  ✓ $1"; PASS=$((PASS + 1)); }
 
 # Prints "<file>:<line>: launch missing <flags>" for every launch line
@@ -43,17 +45,66 @@ check_lines() {
     }' "$1"
 }
 
-# Self-check arms: the filter must flag a Chrome launch without the flags
-# and must leave a non-Chrome tool carrying --headless alone.
+# Lists the files under tests/ and bin/ that mention a headless flag.
+list_files() {
+  # silent: gating-relaxed (#4753 should 3: kept for one commit so CI shows the self-check below fail; the next commit makes a git grep error fatal)
+  git grep -l -e '--headless' -e '--dump-dom' -- tests bin 2>/dev/null || true
+}
+
+# Self-check arms: the filter must flag every Chrome launch shape that
+# lacks the flags and must leave non-Chrome tools alone (#4753).
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/ork-chrome-lint.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
-printf 'npx playwright test --headless\n' > "$WORK/not-chrome.sh"
-printf '"$CHROME" --headless=new --dump-dom "file:///x" >/dev/null 2>&1\n' > "$WORK/bad-launch.sh"
-[[ -z "$(check_lines "$WORK/not-chrome.sh")" ]] \
-  || fail "non-Chrome --headless line was flagged: $(check_lines "$WORK/not-chrome.sh")"
-[[ -n "$(check_lines "$WORK/bad-launch.sh")" ]] \
-  || fail "a Chrome --dump-dom launch without keychain flags was not flagged"
-ok "self-check: non-Chrome tool ignored, bare Chrome launch flagged"
+
+expect_clean() {
+  local name="$1" body="$2"
+  printf '%s\n' "$body" > "$WORK/$name.sh"
+  local hits
+  hits="$(check_lines "$WORK/$name.sh")"
+  if [[ -n "$hits" ]]; then fail "$name: flagged a line that is not a bare Chrome launch: $hits"; return 0; fi
+  ok "self-check $name: not flagged"
+}
+expect_flagged() {
+  local name="$1" body="$2"
+  printf '%s\n' "$body" > "$WORK/$name.sh"
+  if [[ -z "$(check_lines "$WORK/$name.sh")" ]]; then fail "$name: a bare Chrome launch was not flagged"; return 0; fi
+  ok "self-check $name: flagged"
+}
+
+expect_clean not-chrome 'npx playwright test --headless'
+# silent: known-noise (the redirect is fixture text the guard reads, never run)
+expect_flagged bad-launch '"$CHROME" --headless=new --dump-dom "file:///x" >/dev/null 2>&1'
+# A Playwright project named chromium is not a Chrome launch.
+expect_clean playwright-project 'npx playwright test --project=chromium --headless'
+# A launch through a variable whose name has no "chrom" in it.
+expect_flagged variable-binary '"$BROWSER" --headless=new --dump-dom "file:///x"'
+# A comment line ending in a backslash does not continue in shell, so it
+# must not swallow the launch on the next physical line.
+expect_flagged comment-backslash '# old launch, kept for reference \
+"$CHROME" --headless=new --dump-dom "file:///x"'
+# Flags named only in a trailing comment are not passed to Chrome.
+expect_flagged trailing-comment '"$CHROME" --headless=new --dump-dom "file:///x" # --use-mock-keychain --password-store=basic'
+# The good form stays clean.
+expect_clean good-launch '"$CHROME" --headless=new --use-mock-keychain --password-store=basic --dump-dom "file:///x"'
+
+# The listing must fail loudly when git grep cannot run: a scan of 0 files
+# is not a pass (#4753 should 3). The run is expected to fail; its stdout
+# and stderr go to files and only the exit code is read.
+broken_rc=0
+GIT_DIR="$WORK/no-such-git-dir" list_files > "$WORK/broken-list.txt" 2> "$WORK/broken-list.err" || broken_rc=$?
+if [[ "$broken_rc" -eq 0 ]]; then
+  fail "list_files succeeded with a broken GIT_DIR, so a failed git grep would scan 0 files and pass"
+else
+  ok "self-check: list_files fails when git grep cannot run (rc=$broken_rc)"
+fi
+
+FILES="$WORK/files.txt"
+list_files > "$FILES" || die "git grep failed; the scan cannot run"
+if grep -qxF 'tests/unit/test-glyph-triage-template.sh' "$FILES"; then
+  ok "the scan includes tests/unit/test-glyph-triage-template.sh"
+else
+  fail "the scan did not include tests/unit/test-glyph-triage-template.sh, the launch this guard exists for"
+fi
 
 bad=0
 while IFS= read -r file; do
@@ -64,9 +115,12 @@ while IFS= read -r file; do
     echo "✗ $hit"
     bad=1
   done < <(check_lines "$file")
-done < <(git grep -l -e '--headless' -e '--dump-dom' -- tests bin 2>/dev/null || true)
+done < "$FILES"
 
-[[ "$bad" == 0 ]] || fail "a headless Chrome launch lacks keychain suppression flags"
-echo "  ✓ every headless Chrome launch in tests/ and bin/ suppresses the keychain"
-ok "all repo launch lines carry the keychain flags"
-echo "  $PASS passed"
+if [[ "$bad" == 0 ]]; then
+  ok "every headless Chrome launch in tests/ and bin/ carries the keychain flags"
+else
+  fail "a headless Chrome launch lacks keychain suppression flags"
+fi
+echo "  $PASS passed, $FAILS failed"
+[[ "$FAILS" == 0 ]] || exit 1

@@ -14,9 +14,12 @@ set -euo pipefail
 # exported repository-locating GIT_* variables.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR \
     GIT_OBJECT_DIRECTORY
-# HQ_CI_ONLY leaks into the nested hook runs below and skips the unit tier
-# this file counts. Clear it so the suite asserts the default path.
-unset HQ_CI_ONLY
+# HQ_CI_ONLY=1 skips the unit tier this file counts, and a lane push runs
+# this suite with it exported. Every helper that launches the hook must clear
+# it itself (env -u HQ_CI_ONLY), so this file sets it on purpose: a helper
+# that forgets runs the hook with the unit tier skipped and its count cases
+# fail, instead of passing only because the caller's env was clean (#4753).
+export HQ_CI_ONLY=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
