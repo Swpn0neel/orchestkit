@@ -84,8 +84,9 @@ done
 # runs concurrently must pass isolation="worktree". Concurrent means: marked
 # run_in_background=true/True, created as a teammate (team_name=), or the
 # design-import Phase 4 loop. A call block ends when its parentheses balance,
-# counted OUTSIDE quoted strings, so a "1)" list marker in a prompt cannot end
-# the block early. Skipped: **Incorrect** examples, agent-phases.md Phase 4
+# counted OUTSIDE quoted strings (triple-quoted, and plain "..." even across
+# lines), so a "1)" list marker in a prompt cannot end the block early. Keys
+# match with or without spaces around =. Skipped: **Incorrect** examples, agent-phases.md Phase 4
 # (architecture specs, no file writes), prompts that cd into a manual
 # worktree, and fix-issue spawns other than test-generator (design only).
 # Isolated or manual-worktree writers in implement, design-import, fix-issue
@@ -95,50 +96,125 @@ done
 # (that makes a plain subagent); it works in a manual .worktrees/<role>.
 writer_re='ork:(backend-system-architect|frontend-ui-developer|test-generator|llm-integrator)"'
 caller_files=$(find "$REPO_ROOT/src/skills/implement" -name '*.md'; printf '%s\n' "$REPO_ROOT/src/skills/design-import/SKILL.md" "$REPO_ROOT/src/skills/chain-patterns/SKILL.md" "$REPO_ROOT/src/skills/chain-patterns/references/monitor-patterns.md" "$REPO_ROOT/src/skills/fix-issue/references/fix-phases.md" "$REPO_ROOT/src/skills/fix-issue/references/agent-teams-rca.md" "$REPO_ROOT/src/skills/task-dependency-patterns/SKILL.md")
-scan=$(awk -v re="$writer_re" '
+scan_callers() {
+  awk -v re="$writer_re" '
   # Parentheses on this line outside """...""" (state carried across lines)
   # and outside "..." or single-quoted strings.
+  # dq carries an open plain "..." string to the next line, so a prompt="..."
+  # that spans lines is skipped whole (a "1)" inside it is not code).
   function code_parens(line,    n, i, seg, out, t, o, c) {
     n = split(line, seg, /"""/); out = ""
     for (i = 1; i <= n; i++) { if (!tq) out = out seg[i]; if (i < n) tq = !tq }
-    gsub(/"[^"]*"/, "", out); gsub(/\047[^\047]*\047/, "", out)
+    gsub(/\\"/, "", out)
+    if (dq) out = "\"" out
+    gsub(/"[^"]*"/, "", out)
+    if (out ~ /"/) { dq = 1; sub(/".*$/, "", out) } else dq = 0
+    gsub(/\047[^\047]*\047/, "", out)
+    code_line = out
     t = out; o = gsub(/[(]/, "", t); t = out; c = gsub(/[)]/, "", t)
     return o - c
   }
-  FNR == 1 { inc = 0; open_ = 0; skip = 0; loop = 0; tq = 0 }
+  FNR == 1 { inc = 0; open_ = 0; skip = 0; loop = 0; tq = 0; dq = 0 }
   FILENAME ~ /agent-phases[.]md$/ && /^## Phase 4/ { skip = 1 }
   FILENAME ~ /agent-phases[.]md$/ && /^## Phase 5/ { skip = 0 }
   FILENAME ~ /design-import\/SKILL[.]md$/ && /^## Phase 4/ { loop = 1 }
   FILENAME ~ /design-import\/SKILL[.]md$/ && /^## Phase 5/ { loop = 0 }
   !open_ && /^[*][*]Incorrect/ { inc = 1 }
   !open_ && (/^[*][*]Correct/ || /^##+ /) { inc = 0 }
-  !open_ && /Agent[(]/ { open_ = 1; buf = ""; depth = 0; start = FNR; tq = 0 }
+  !open_ && /Agent[(]/ { open_ = 1; buf = ""; code_buf = ""; depth = 0; start = FNR; tq = 0; dq = 0 }
   open_ {
     buf = buf " " $0
     depth += code_parens($0)
+    code_buf = code_buf " " code_line
     if (depth <= 0) {
       open_ = 0
-      if (inc || skip) next
+      if (inc) next
       # The docs key on name=: a named call launches a teammate unless it passes
       # isolation, which makes it a plain subagent (Claude Code docs: sub-agents,
       # agent-teams). So name= plus isolation= is flagged for every agent type,
       # except a block that is meant as a plain named subagent: no team_name=,
       # in chain-patterns Pattern 6 or the design-import loop.
-      plain_ok = (buf !~ /team_name=/ && FILENAME ~ /(chain-patterns\/SKILL|design-import\/SKILL)[.]md$/)
-      if (buf ~ /name=/ && buf ~ /isolation=/ && !plain_ok) print "TEAMISO " FILENAME ":" start
-      if (buf !~ re) next
+      plain_ok = (code_buf !~ /(^|[^[:alnum:]_])team_name[ ]*=/ && FILENAME ~ /(chain-patterns\/SKILL|design-import\/SKILL)[.]md$/)
+      if (code_buf ~ /(^|[^[:alnum:]_])(team_)?name[ ]*=/ && code_buf ~ /(^|[^[:alnum:]_])isolation[ ]*=/ && !plain_ok) print "TEAMISO " FILENAME ":" start
+      # The Phase 4 skip covers the writer checks below, never TEAMISO above.
+      if (skip || buf !~ re) next
       # fix-issue: only test-generator writes; the backend and frontend experts design.
       if (FILENAME ~ /fix-issue\// && buf !~ /ork:test-generator/) next
       print "SEEN"
       manual = (buf ~ /cd [{][a-z_]*wt[}]/ || buf ~ /Work only in [.]worktrees\//)
-      conc = (buf ~ /run_in_background=(true|True)/ || buf ~ /team_name=/ || loop)
-      if (conc && buf !~ /isolation="worktree"/ && !manual) print FILENAME ":" start
+      conc = (buf ~ /run_in_background[ ]*=[ ]*(true|True)/ || buf ~ /team_name[ ]*=/ || loop)
+      if (conc && buf !~ /isolation[ ]*=[ ]*"worktree"/ && !manual) print FILENAME ":" start
       # A worktree branch is merged, so an uncommitted file is lost.
       told = buf; gsub(/([Dd]o not|[Dd]on.t|[Nn]ever) commit/, "", told)
-      if ((buf ~ /isolation="worktree"/ || manual) && FILENAME ~ /(agent-phases|agent-teams-phases|manual-worktree-pattern|design-import\/SKILL|fix-phases|agent-teams-rca|task-dependency-patterns\/SKILL)[.]md$/ && told !~ /(^|[^A-Za-z])[Cc]ommit (your|the|it|them|any|[+])/) print "NOCOMMIT " FILENAME ":" start
+      if ((buf ~ /isolation[ ]*=[ ]*"worktree"/ || manual) && FILENAME ~ /(agent-phases|agent-teams-phases|manual-worktree-pattern|design-import\/SKILL|fix-phases|agent-teams-rca|task-dependency-patterns\/SKILL)[.]md$/ && told !~ /(^|[^A-Za-z])[Cc]ommit (your|the|it|them|any|[+])/) print "NOCOMMIT " FILENAME ":" start
     }
   }
-' $caller_files)
+' "$@"
+}
+# shellcheck disable=SC2086  # caller_files is a newline list of paths without spaces
+scan=$(scan_callers $caller_files)
+
+# Self-check (CodeRabbit 4239736563): the Phase 4 skip in agent-phases.md is for
+# the writer checks only. A Phase 4 teammate that passes isolation on the call
+# must still be flagged, or the skip hides a teammate turned plain subagent.
+fx_dir="$tmp_dir/fx/implement/references"
+mkdir -p "$fx_dir"
+printf '%s\n' '## Phase 4: Architecture Design' \
+  'Agent(subagent_type="ork:workflow-architect", name="planner", team_name="t", isolation="worktree", prompt="p")' \
+  '## Phase 5: Implementation' > "$fx_dir/agent-phases.md"
+fx_scan=$(scan_callers "$fx_dir/agent-phases.md")
+case "$fx_scan" in
+  *"TEAMISO "*) ;;
+  *) fail "self-check: a Phase 4 teammate with isolation on the call is not flagged (the skip must not cover TEAMISO)" ;;
+esac
+# Self-check (product-13 6103772833): a plain "..." prompt that spans lines.
+# A "1)" list marker inside it must not close the call early and hide the
+# missing isolation on the next lines.
+printf '%s\n' '## Phase 5: Implementation' \
+  'Agent(subagent_type="ork:test-generator",' \
+  '  prompt="Steps:' \
+  '  1) write the failing test' \
+  '  2) report",' \
+  '  run_in_background=True)' > "$fx_dir/agent-phases.md"
+fx_scan=$(scan_callers "$fx_dir/agent-phases.md")
+case "$fx_scan" in
+  *"$fx_dir/agent-phases.md:2"*) ;;
+  *) fail "self-check: a writer with a multi-line prompt=\"...\" holding \"1)\" and no isolation is not flagged" ;;
+esac
+
+# Self-check: spaces around = must not hide a named call with isolation.
+printf '%s\n' '## Phase 5: Implementation' \
+  'Agent(subagent_type = "ork:test-generator", name = "t", isolation = "worktree", prompt = "Commit your work.")' > "$fx_dir/agent-phases.md"
+fx_scan=$(scan_callers "$fx_dir/agent-phases.md")
+case "$fx_scan" in
+  *"TEAMISO "*) ;;
+  *) fail "self-check: name = \"x\" with spaces plus isolation is not flagged" ;;
+esac
+# Self-check (#4714): only teammate keys outside strings count.
+# Exercise both spacing forms, including key suffixes and quoted examples.
+for spacing in " " ""; do
+  for marker in name team_name; do
+    printf '%s\n' \
+      "Agent(${marker}${spacing}=${spacing}x, isolation${spacing}=${spacing}worktree)" > "$fx_dir/agent-phases.md"
+    fx_scan=$(scan_callers "$fx_dir/agent-phases.md")
+    case "$fx_scan" in
+      *"TEAMISO "*) ;;
+      *) fail "self-check: ${marker}${spacing}=${spacing}x plus isolation is not flagged" ;;
+    esac
+    printf '%s\n' \
+      "Agent(prompt=\"${marker}${spacing}=${spacing}x\", isolation${spacing}=${spacing}worktree)" > "$fx_dir/agent-phases.md"
+    fx_scan=$(scan_callers "$fx_dir/agent-phases.md")
+    case "$fx_scan" in
+      *"TEAMISO "*) fail "self-check: quoted ${marker}${spacing}=${spacing}x is flagged as a teammate key" ;;
+    esac
+    printf '%s\n' \
+      "Agent(other_${marker}${spacing}=${spacing}x, isolation${spacing}=${spacing}worktree)" > "$fx_dir/agent-phases.md"
+    fx_scan=$(scan_callers "$fx_dir/agent-phases.md")
+    case "$fx_scan" in
+      *"TEAMISO "*) fail "self-check: other_${marker}${spacing}=${spacing}x is flagged as a teammate key" ;;
+    esac
+  done
+done
 writers_seen=$(printf '%s\n' "$scan" | awk '$0 == "SEEN" { n++ } END { print n + 0 }')
 [[ "$writers_seen" -gt 0 ]] || fail "no writer spawn found in the caller templates; the caller check cannot pass vacuously"
 for loc in $(printf '%s\n' "$scan" | grep '^NOCOMMIT ' | cut -d' ' -f2 || true); do

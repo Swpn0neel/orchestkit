@@ -37,8 +37,113 @@ function listSourceFiles(dir: string): string[] {
   return out;
 }
 
+/**
+ * Remove line and block comments without treating comment markers inside
+ * strings, template literals, or regex literals as comments.
+ */
 function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
+  let out = '';
+  let i = 0;
+  const n = source.length;
+  type Mode = 'code' | 'squote' | 'dquote' | 'template' | 'line' | 'block' | 'regex';
+  let mode: Mode = 'code';
+  while (i < n) {
+    const c = source[i];
+    const next = source[i + 1];
+    if (mode === 'line') {
+      if (c === '\n') {
+        out += c;
+        mode = 'code';
+      }
+      i += 1;
+      continue;
+    }
+    if (mode === 'block') {
+      if (c === '*' && next === '/') {
+        i += 2;
+        mode = 'code';
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+    if (mode === 'squote' || mode === 'dquote') {
+      out += c;
+      if (c === '\\' && i + 1 < n) {
+        out += source[i + 1];
+        i += 2;
+        continue;
+      }
+      if ((mode === 'squote' && c === "'") || (mode === 'dquote' && c === '"')) mode = 'code';
+      i += 1;
+      continue;
+    }
+    if (mode === 'template') {
+      out += c;
+      if (c === '\\' && i + 1 < n) {
+        out += source[i + 1];
+        i += 2;
+        continue;
+      }
+      if (c === '`') mode = 'code';
+      i += 1;
+      continue;
+    }
+    if (mode === 'regex') {
+      out += c;
+      if (c === '\\' && i + 1 < n) {
+        out += source[i + 1];
+        i += 2;
+        continue;
+      }
+      if (c === '/') mode = 'code';
+      i += 1;
+      continue;
+    }
+    // mode === 'code'
+    if (c === '/' && next === '/') {
+      i += 2;
+      mode = 'line';
+      continue;
+    }
+    if (c === '/' && next === '*') {
+      i += 2;
+      mode = 'block';
+      continue;
+    }
+    if (c === "'") {
+      out += c;
+      mode = 'squote';
+      i += 1;
+      continue;
+    }
+    if (c === '"') {
+      out += c;
+      mode = 'dquote';
+      i += 1;
+      continue;
+    }
+    if (c === '`') {
+      out += c;
+      mode = 'template';
+      i += 1;
+      continue;
+    }
+    // Heuristic regex literal: / after a token that can precede a regex.
+    if (c === '/') {
+      const prev = out.trimEnd();
+      const last = prev[prev.length - 1] ?? '';
+      if (!last || /[=(:,[!~?:&|{};%^<>+\-*]/.test(last) || /\b(?:return|case|typeof|instanceof|in|of|void|new|throw|delete)$/.test(prev)) {
+        out += c;
+        mode = 'regex';
+        i += 1;
+        continue;
+      }
+    }
+    out += c;
+    i += 1;
+  }
+  return out;
 }
 
 const EXIT_2 = /process\.exit\(\s*2\s*\)/;
@@ -61,6 +166,13 @@ describe('hook sources never exit 2 (#4561)', () => {
   test('the scanner flags a real call and ignores a commented one', () => {
     expect(EXIT_2.test(stripComments('function f() {\n  process.exit(2);\n}'))).toBe(true);
     expect(EXIT_2.test(stripComments('/** calls process.exit(2) */\n// process.exit(2)\nf();'))).toBe(false);
+  });
+
+  test('stripComments keeps process.exit(2) after comment like text inside literals', () => {
+    expect(EXIT_2.test(stripComments('const u = "a//b"; process.exit(2);\n'))).toBe(true);
+    expect(EXIT_2.test(stripComments("const u = 'a//b'; process.exit(2);\n"))).toBe(true);
+    expect(EXIT_2.test(stripComments('const u = `a//b`; process.exit(2);\n'))).toBe(true);
+    expect(EXIT_2.test(stripComments('const r = /[//]/; process.exit(2);\n'))).toBe(true);
   });
 
   test('lib/common.js no longer exports outputStderrWarning', async () => {

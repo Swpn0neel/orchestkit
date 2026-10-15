@@ -212,12 +212,20 @@ export function readClientDirNames(projectDir: string): string[] {
 /** Directory names inside a clients dir; a missing dir yields none. */
 export function readClientNamesIn(clientsDir: string): string[] {
   try {
-    return readdirSync(clientsDir, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name);
+    return readClientNamesInStrict(clientsDir);
   } catch {
     return [];
   }
+}
+
+/**
+ * Directory names inside a clients dir. Errors propagate so replay scripts can
+ * reject a bad `--clients-dir` instead of treating it as an empty list.
+ */
+export function readClientNamesInStrict(clientsDir: string): string[] {
+  return readdirSync(clientsDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
 }
 
 export function buildClientPattern(tokens: string[]): RegExp | null {
@@ -862,8 +870,10 @@ export interface ReplayJoin<R> {
  * Join seam records to replay cases on the sha256 of the redacted prompt.
  * The cases are redacted with the supplied client names, so a record whose
  * prompt carried a client token joins. Records that predate the profile
- * field are joined as before. A replay is refused when the records mix
- * profiles, or when their profile differs from the supplied clients.
+ * field (null) count as profile none, so they join with modern none rows and
+ * refuse when the supplied clients give another profile. A replay is refused
+ * when the records mix profiles, or when their profile differs from the
+ * supplied clients.
  */
 export function joinReplayRecords<R extends { input_sha256?: string | null; redaction_profile?: string | null }>(
   records: R[],
@@ -874,13 +884,23 @@ export function joinReplayRecords<R extends { input_sha256?: string | null; reda
   const profile = redactionProfile(tokens);
   const verdicts = new Map<string, R>();
   const joinable = records.filter((r) => typeof r.input_sha256 === 'string' && r.input_sha256);
-  const recorded = new Set(joinable.map((r) => r.redaction_profile ?? null));
+  // Legacy null and explicit none are the same profile for join checks.
+  const recorded = new Set(
+    joinable.map((r) => (r.redaction_profile == null ? REDACTION_PROFILE_NONE : r.redaction_profile)),
+  );
   if (recorded.size > 1) {
     return { verdicts, profile, error: `records mix redaction profiles (${[...recorded].map(String).sort().join(', ')}); replay one profile at a time` };
   }
   const [only] = recorded;
   if (typeof only === 'string' && only !== profile) {
-    return { verdicts, profile, error: `records carry redaction profile ${only}, the supplied clients give ${profile}; pass the clients list or dir the records were made with` };
+    return {
+      verdicts,
+      profile,
+      error:
+        only === REDACTION_PROFILE_NONE
+          ? `records carry no redaction profile (legacy or none), the supplied clients give ${profile}; pass no clients or the list the records were made with`
+          : `records carry redaction profile ${only}, the supplied clients give ${profile}; pass the clients list or dir the records were made with`,
+    };
   }
   const bySha = new Map<string, R>();
   for (const r of joinable) bySha.set(r.input_sha256 as string, r);
