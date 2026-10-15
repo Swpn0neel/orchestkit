@@ -27,16 +27,32 @@ ok() { echo "  ✓ $1"; PASS=$((PASS + 1)); }
 # missing a keychain flag. awk has no /re/i flag literal: `/chrom/i` is
 # always true, so the Chrome match lowercases first (a planted
 # `npx playwright test --headless` line proves a non-Chrome tool passes).
+#
+# Rules (#4753):
+# - A comment line never continues in shell, even with a trailing
+#   backslash, so it is dropped on its own and cannot swallow the next line.
+# - A trailing comment is cut before the flag check: flags named there are
+#   never passed to Chrome.
+# - A flag value that names Chromium (--project=chromium) is not a binary.
+# - --dump-dom and --headless=new|old exist only in Chrome, so a line with
+#   either is a launch whatever the binary variable is called.
 check_lines() {
   awk '
     {
+      raw = $0
+      if (buf == "" && raw ~ /^[[:space:]]*#/) next
       if (buf == "") start = NR
-      buf = buf " " $0
-      if ($0 ~ /\\[[:space:]]*$/) next
+      code = raw
+      sub(/[[:space:]]#.*$/, "", code)
+      buf = buf " " code
+      if (code ~ /\\[[:space:]]*$/) next
       line = buf
       buf = ""
-      if (line ~ /^[[:space:]]*#/) next
-      if (tolower(line) ~ /chrom/ && (line ~ /--headless/ || line ~ /--dump-dom/)) {
+      low = tolower(line)
+      gsub(/--[a-z-]+=[^[:space:]]*chrom[^[:space:]]*/, "", low)
+      chrome_bin = (low ~ /chrom/ && (line ~ /--headless/ || line ~ /--dump-dom/))
+      chrome_flag = (line ~ /--dump-dom/ || line ~ /--headless=(new|old)/)
+      if (chrome_bin || chrome_flag) {
         missing = ""
         if (line !~ /--use-mock-keychain/) missing = missing " --use-mock-keychain"
         if (line !~ /--password-store=basic/) missing = missing " --password-store=basic"
@@ -46,9 +62,14 @@ check_lines() {
 }
 
 # Lists the files under tests/ and bin/ that mention a headless flag.
+# git grep exits 1 for no match, which is a valid empty list; any other
+# non-zero exit means git could not search, and a scan of 0 files must not
+# read as a pass (#4753).
 list_files() {
-  # silent: gating-relaxed (#4753 should 3: kept for one commit so CI shows the self-check below fail; the next commit makes a git grep error fatal)
-  git grep -l -e '--headless' -e '--dump-dom' -- tests bin 2>/dev/null || true
+  local rc=0
+  git grep -l -e '--headless' -e '--dump-dom' -- tests bin || rc=$?
+  [[ "$rc" -le 1 ]] || { echo "git grep failed (rc=$rc)" >&2; return "$rc"; }
+  return 0
 }
 
 # Self-check arms: the filter must flag every Chrome launch shape that

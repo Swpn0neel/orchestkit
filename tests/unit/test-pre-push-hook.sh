@@ -898,7 +898,7 @@ test_shared_load_backoff_fixture() {
 # "could not acquire a test slot". Full mode runs the stage and takes no slot.
 _run_pre_push_for_exit_status() {
     local hook="$1" rc=0 out
-    out=$(ORK_PRE_PUSH_MODE=full /bin/bash "$hook" origin "https://example.invalid/repo.git" \
+    out=$(env -u HQ_CI_ONLY ORK_PRE_PUSH_MODE=full /bin/bash "$hook" origin "https://example.invalid/repo.git" \
         <<<'refs/heads/chore/exit-status 0000000000000000000000000000000000000000 refs/heads/chore/exit-status 0000000000000000000000000000000000000000') || rc=$?
     printf '%s\n' "$out"
     return "$rc"
@@ -1136,7 +1136,7 @@ _prepush_stubbed_run() {
 
     out=$(
         cd "$repo" &&
-        env -u CI -u GITHUB_ACTIONS -u ORK_PRE_PUSH_MODE "${env_args[@]}" \
+        env -u CI -u GITHUB_ACTIONS -u ORK_PRE_PUSH_MODE -u HQ_CI_ONLY "${env_args[@]}" \
             /bin/bash "$hook" origin "https://example.invalid/repo.git" \
             <<<'refs/heads/l 0000000000000000000000000000000000000000 refs/heads/chore/lane 1111111111111111111111111111111111111111'
     ) || rc=$?
