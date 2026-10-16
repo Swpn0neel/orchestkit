@@ -976,7 +976,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "ci-sentinel",
     "description": "Daily autonomous classifier for failing PRs across your repos. Runs /ci-debug headless against every open PR with red required checks, posts the verdict as a collapsed PR comment, and appends to a per-repo .sentinel/ledger.jsonl. v1 is propose-don't-apply, NEVER auto-pushes a fix. Use when you're tired of /status sweeps catching the same 10 CI failure patterns over and over.",
     "version": "0.1.0",
-    "sha256": "a01948035c21c37a9def4f5e1e6fcefa8787892f2a4f5e89a1f7d661ee442821",
+    "sha256": "ba103bca24a7b55e72a3104ddbb5db9bd076376f1cde541b1eafb7c05e1bafaf",
     "author": "OrchestKit",
     "tags": [
       "ci",
@@ -4668,7 +4668,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "task-dependency-patterns",
     "description": "Task Management patterns with TaskCreate, TaskUpdate, TaskGet, TaskList tools. Decompose complex work into trackable tasks with dependency chains. Use when managing multi-step implementations, coordinating parallel work, or tracking completion status.",
     "version": "1.0.0",
-    "sha256": "1690bddc0b26646371377870dc564670137f9e35f72db50a17da6c60d0825526",
+    "sha256": "dad54de4e6f1549cd3078cb734cdb3bf4526fa1d7e30bac5a366e6f6bea64dda",
     "author": "OrchestKit",
     "tags": [
       "task-management",
