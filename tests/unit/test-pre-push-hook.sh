@@ -14,6 +14,9 @@ set -euo pipefail
 # exported repository-locating GIT_* variables.
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR \
     GIT_OBJECT_DIRECTORY
+# HQ_CI_ONLY leaks into the nested hook runs below and skips the unit tier
+# this file counts. Clear it so the suite asserts the default path.
+unset HQ_CI_ONLY
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -884,9 +887,15 @@ test_shared_load_backoff_fixture() {
 #   - tsc ABSENT: plant a test-owned exit-7 stub; remove it on cleanup.
 #   - tsc is a RELATIVE symlink (npm ci): move it aside, stub, restore with
 #     -L||-f so a dangling $tmp backup is not skipped (#4220 / CodeRabbit).
+# The nested hook runs in full mode, whatever the caller's ORK_PRE_PUSH_MODE.
+# A lane push exports targeted, and the nested hook inherited it: targeted mode
+# skips the typecheck stage this case plants a tsc stub for (exit 0, want 7),
+# and it takes a machine-wide test slot (#4238) while the push running this
+# suite already holds one, so a second holder anywhere failed the case with
+# "could not acquire a test slot". Full mode runs the stage and takes no slot.
 _run_pre_push_for_exit_status() {
     local hook="$1" rc=0 out
-    out=$(/bin/bash "$hook" origin "https://example.invalid/repo.git" \
+    out=$(ORK_PRE_PUSH_MODE=full /bin/bash "$hook" origin "https://example.invalid/repo.git" \
         <<<'refs/heads/chore/exit-status 0000000000000000000000000000000000000000 refs/heads/chore/exit-status 0000000000000000000000000000000000000000') || rc=$?
     printf '%s\n' "$out"
     return "$rc"
@@ -903,6 +912,13 @@ test_captured_stage_exit_status() {
     hook="${PROJECT_ROOT}/bin/git-hooks/pre-push"
     tsc_bin="${PROJECT_ROOT}/src/hooks/node_modules/.bin/tsc"
     tsc_dir=$(dirname "$tsc_bin")
+    # In a worktree with no hooks deps, the mkdir -p below leaves an empty
+    # src/hooks/node_modules behind. That flips the build from "skip the
+    # hooks rebuild" to "refresh with esbuild", which then fails on missing
+    # esbuild. Record the prior state so cleanup removes only what it made.
+    local hooks_nm="${PROJECT_ROOT}/src/hooks/node_modules"
+    local hooks_nm_preexisting=0
+    [[ -d "$hooks_nm" ]] && hooks_nm_preexisting=1
     mkdir -p "$tsc_dir"
     tsc_backup="$tmp/tsc.real"
 
@@ -918,6 +934,11 @@ test_captured_stage_exit_status() {
         if [[ -n "$tsc_park" && ( -L "$tsc_park" || -f "$tsc_park" ) ]]; then
             mv -f "$tsc_park" "$tsc_bin"
             tsc_park=""
+        fi
+        # rmdir refuses a non-empty directory, so a real node_modules (or
+        # anything else that landed meanwhile) is never removed here.
+        if [[ "$hooks_nm_preexisting" -eq 0 ]]; then
+            rmdir "$tsc_dir" "$hooks_nm" 2>/dev/null || true
         fi
     }
     trap cleanup_exit_status_tsc EXIT
@@ -953,6 +974,9 @@ test_captured_stage_exit_status() {
     # ----- Case B: relative-symlink tsc -----
     if [[ ! -L "$tsc_bin" ]]; then
         # No real npm link: install a relative-symlink fixture under .bin.
+        # Case A cleanup may have removed the directory it created, so
+        # recreate it here rather than assuming it still exists.
+        mkdir -p "$tsc_dir"
         printf '%s\n' '#!/bin/bash' 'exit 0' > "$tsc_dir/tsc.fixture-bin"
         chmod +x "$tsc_dir/tsc.fixture-bin"
         ln -s ./tsc.fixture-bin "$tsc_bin"
@@ -989,6 +1013,13 @@ test_captured_stage_exit_status() {
     # Drop fixture sibling if we created one (do not delete a real typescript link).
     if [[ "$tsc_link_target" == "./tsc.fixture-bin" ]]; then
         rm -f "$tsc_bin" "$tsc_dir/tsc.fixture-bin"
+    fi
+
+    # Same guard as cleanup_exit_status_tsc: when this test created
+    # src/hooks/node_modules in a dep-less worktree, take the empty dirs
+    # back out so the build keeps skipping the hooks esbuild refresh.
+    if [[ "$hooks_nm_preexisting" -eq 0 ]]; then
+        rmdir "$tsc_dir" "$hooks_nm" 2>/dev/null || true
     fi
 
     trap - EXIT
