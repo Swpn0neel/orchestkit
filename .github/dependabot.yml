@@ -27,7 +27,7 @@ updates:
       interval: "weekly"
       day: "monday"
     cooldown:
-      default-days: 7
+      default-days: 3
     commit-message:
       prefix: "ci"
     labels:
@@ -49,7 +49,7 @@ updates:
       interval: "weekly"
       day: "monday"
     cooldown:
-      default-days: 7
+      default-days: 3
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -85,7 +85,7 @@ updates:
       interval: "weekly"
       day: "monday"
     cooldown:
-      default-days: 7
+      default-days: 3
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -120,7 +120,7 @@ updates:
       interval: "weekly"
       day: "monday"
     cooldown:
-      default-days: 7
+      default-days: 3
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -155,7 +155,7 @@ updates:
       interval: "weekly"
       day: "monday"
     cooldown:
-      default-days: 7
+      default-days: 3
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -180,7 +180,7 @@ updates:
       interval: "weekly"
       day: "monday"
     cooldown:
-      default-days: 7
+      default-days: 3
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -244,8 +244,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    cooldown:
-      default-days: 7
+    # No cooldown here: a base-image bump usually carries OS security fixes,
+    # and the image is a published release artifact, so it is not delayed.
     commit-message:
       prefix: "chore(docker)"
     # Majors are held, not re-offered weekly. The Dockerfile is a release
