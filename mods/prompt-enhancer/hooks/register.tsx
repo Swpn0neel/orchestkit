@@ -4,21 +4,20 @@ import { SYSTEM } from "../src/system.js";
 const BAND = { plugin: "prompt-enhancer", key: "band" } as const;
 const INITIAL: BandState = { visible: true, collapsed: false, busy: false, original: null };
 
-interface Control { request: number; enhancing: boolean; sending: boolean; expectedDraft: string }
+interface Control { request: number; enhancing: boolean; sending: boolean; expectedDraft: string; held: string | null }
 
 const read = async ($: Dollar): Promise<BandState> => (await $.state.get(BAND)).value ?? { ...INITIAL };
 const patch = async ($: Dollar, fields: Partial<BandState>): Promise<void> => {
   await $.state.set(BAND, { ...await read($), ...fields });
 };
 
-const enhance = async ($: Dollar, c: Control, original: string, restore: boolean): Promise<void> => {
+const enhance = async ($: Dollar, c: Control, original: string): Promise<void> => {
   if (c.enhancing || c.sending) {
     await $.ui.toast("Wait for the current action to finish.");
     return;
   }
-  const draft = original.endsWith("++") ? original.slice(0, -2) : original;
+  const draft = original.replace(/\+\+(\s*)$/, "$1");
   if (!draft.trim()) {
-    if (restore) await $.prompt.fill({ text: original });
     await $.ui.toast("Type a prompt before using Enhance.");
     return;
   }
@@ -27,17 +26,6 @@ const enhance = async ($: Dollar, c: Control, original: string, restore: boolean
   c.expectedDraft = original;
   try {
     await patch($, { visible: true, collapsed: false, busy: true });
-    if (restore) {
-      const current = await $.prompt.read();
-      if (current.text !== "" && current.text !== original) {
-        await $.ui.toast("The draft changed. Kept your edit.");
-        return;
-      }
-      if (!(await $.prompt.fill({ text: original })).isFilled) {
-        await $.ui.toast("The prompt box is unavailable. Nothing was sent.");
-        return;
-      }
-    }
     const before = await read($);
     await patch($, { original: before.original ?? original });
     const result = await $.model.complete({
@@ -73,7 +61,7 @@ const undo = async ($: Dollar, c: Control): Promise<void> => {
   c.request += 1;
   c.enhancing = false;
   c.expectedDraft = state.original;
-  if ((await $.prompt.fill({ text: state.original })).isFilled) {
+  if ((await $.prompt.fill({ text: state.original, mode: "replace" })).isFilled && (await $.prompt.read()).text === state.original) {
     await patch($, { original: null, busy: false });
   } else {
     await patch($, { busy: false });
@@ -106,16 +94,15 @@ const send = async ($: Dollar, c: Control): Promise<void> => {
 
 
 export const register = (on: On): void => {
-  const c: Control = { request: 0, enhancing: false, sending: false, expectedDraft: "" };
+  const c: Control = { request: 0, enhancing: false, sending: false, expectedDraft: "", held: null };
   on("prompt.submit", async ($, e, next) => {
     if (e.origin.kind !== "composer" || e.command || e.attachments?.length) return next(e);
     if (c.enhancing || c.sending) {
-      if (!(await $.prompt.read()).text) await $.prompt.fill({ text: e.text });
       await $.ui.toast("Wait for the current action to finish.");
       return { drop: "Prompt held for review." };
     }
     if (e.text.endsWith("++")) {
-      await enhance($, c, e.text, true);
+      c.held = e.text;
       return { drop: "Prompt held for review. Edit it, then use Send or Enter." };
     }
     const result = await next(e);
@@ -125,18 +112,31 @@ export const register = (on: On): void => {
     if (next.called) return next(e);
     c.request += 1;
     c.enhancing = false;
-    const current = await $.prompt.read().catch(() => null);
-    if (current?.text === "") await $.prompt.fill({ text: e.text }).catch(() => undefined);
+    c.held = null;
     await $.ui.toast("Prompt Enhancer failed. Nothing was sent.").catch(() => undefined);
     return { drop: "Prompt held because Prompt Enhancer failed." };
   });
 
   on("prompt.change", async ($, e, next) => {
+    if (c.held !== null && e.origin.kind === "engine") {
+      const held = c.held;
+      c.held = null;
+      if (e.text.trim() === held && (await $.prompt.read()).text === e.text) {
+        await enhance($, c, e.text);
+      }
+      return next(e);
+    }
     if (c.enhancing && e.text !== c.expectedDraft && e.origin.kind !== "clear") {
       c.request += 1;
       c.enhancing = false;
       await patch($, { busy: false });
     }
+    return next(e);
+  }).catch(async ($, e, next) => {
+    c.held = null;
+    c.request += 1;
+    c.enhancing = false;
+    await $.ui.toast("Prompt Enhancer failed. Kept the draft.").catch(() => undefined);
     return next(e);
   });
 
@@ -152,7 +152,7 @@ export const register = (on: On): void => {
         </Box>
         {!state.collapsed && <Box flexDirection="column">
           <Box>
-            <Button key="enhance" label="Enhance" onPress={async () => enhance($, c, (await $.prompt.read()).text, false)} />
+            <Button key="enhance" label="Enhance" onPress={async () => { c.held = null; await enhance($, c, (await $.prompt.read()).text); }} />
             <Button key="undo" label="Undo" onPress={() => undo($, c)} />
             <Button key="send" label="Send" onPress={() => send($, c)} />
           </Box>
