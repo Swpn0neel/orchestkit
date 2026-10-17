@@ -5,7 +5,6 @@ compatibility: "Claude Code 2.1.277+."
 description: "GitHub issue workflow ceremony using gh CLI — labels issues as in-progress, creates feature branches (issue/N-description), commits with issue references, posts progress comments, and links PRs with Closes #N. Keeps issues in sync with development work. Use when starting work on an issue, tracking progress, or completing work with a PR."
 context: inherit
 user-invocable: false
-disable-model-invocation: true
 allowed-tools: "Bash"
 effort: low
 model: haiku

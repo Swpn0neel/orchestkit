@@ -5,7 +5,6 @@ compatibility: "Claude Code 2.1.277+. Requires network access."
 description: Unified decision tree for web research and competitive monitoring. Auto-selects WebFetch, Tavily, or agent-browser based on target site characteristics and available API keys. Includes competitor page tracking, snapshot diffing, and change alerting. Use when researching web content, scraping, extracting raw markdown, capturing documentation, or monitoring competitor changes.
 context: inherit
 user-invocable: false
-disable-model-invocation: true
 allowed-tools: "Bash Read Write WebFetch"
 effort: low
 model: haiku

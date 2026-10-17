@@ -256,7 +256,7 @@ function loadAgents(dir) {
 // lines in the agent body, which is the mechanism that actually delivers the
 // skill's rules/ and references/ rather than just its table of contents.
 // Agent bodies are in no token budget, so the conversion cost nothing.
-const UNREACHABLE_BASELINE = 21;
+const UNREACHABLE_BASELINE = 0;
 const AGENT_DEAD_EDGE_BASELINE = 0;
 
 const skills = loadSkills(SKILLS_DIR);

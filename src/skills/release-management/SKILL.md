@@ -5,7 +5,6 @@ compatibility: "Claude Code 2.1.277+. Requires gh CLI."
 description: "Automates GitHub releases with semantic versioning, changelog generation from merged PRs, and gh CLI integration. Supports draft, prerelease, and standard release workflows with task-tracked multi-phase execution. Use when creating releases, tagging versions, or publishing changelogs."
 context: inherit
 user-invocable: false
-disable-model-invocation: true
 effort: low
 model: haiku
 metadata:
