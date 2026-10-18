@@ -13,12 +13,12 @@ const patch = async ($: Dollar, fields: Partial<BandState>): Promise<void> => {
 
 const enhance = async ($: Dollar, c: Control, original: string): Promise<void> => {
   if (c.enhancing || c.sending) {
-    await $.ui.toast("Wait for the current action to finish.");
+    await $.ui.toast("Wait for the current action to finish.").catch(() => undefined);
     return;
   }
   const draft = original.replace(/\+\+(\s*)$/, "$1");
   if (!draft.trim()) {
-    await $.ui.toast("Type a prompt before using Enhance.");
+    await $.ui.toast("Type a prompt before using Enhance.").catch(() => undefined);
     return;
   }
   const id = ++c.request;
@@ -46,11 +46,12 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
       await $.ui.toast("The prompt box could not take the rewrite. Nothing was sent.");
     }
   } catch {
-    if (id === c.request) await $.ui.toast("Enhance failed. Kept your original prompt.");
+    if (id === c.request) await $.ui.toast("Enhance failed. Kept your original prompt.").catch(() => undefined);
   } finally {
     if (id === c.request) {
       c.enhancing = false;
-      await patch($, { busy: false });
+      // enhance can run detached from prompt.change, so a failed state write must not reject.
+      await patch($, { busy: false }).catch(() => undefined);
     }
   }
 };
