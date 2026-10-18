@@ -2,11 +2,15 @@
 
 Requires Claude Code 2.1.300 or later.
 
+Not listed in any marketplace. A listing waits for the operator's word; until then, load it with `claude --plugin-dir mods/prompt-enhancer`.
+
 The band sits above the prompt box. Type a draft and press Enhance.
 Or type a prompt that ends in `++` and press Enter.
 The mod holds the prompt and puts the rewrite in the box.
 Edit it, then press Send or Enter. Send submits the current box as your own words.
 Undo puts the exact original text back, including the trigger when you typed it.
+A rewrite that ends in `++` (for example `C++`) is sent as is when you press Enter on it.
+To send a prompt you typed that ends in `++` without a rewrite, press Send instead of Enter.
 The collapse control hides the buttons. Press the expand control to show them.
 
 Enhance uses the session model client with the `haiku` alias.

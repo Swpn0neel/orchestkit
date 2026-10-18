@@ -105,6 +105,12 @@ describe("Prompt Enhancer review boundary", () => {
     expect(h.complete).toHaveBeenCalledTimes(1);
     expect(h.sent).toEqual(["Fix the parser in C++"]);
   });
+  test("Send passes a typed prompt that ends in ++ as is", async () => {
+    const h = harness("what changed in C++");
+    await h.press("Send");
+    expect(h.complete).not.toHaveBeenCalled();
+    expect(h.sent).toEqual(["what changed in C++"]);
+  });
   test("an edited rewrite that ends in ++ is a new trigger", async () => {
     const h = harness("login++");
     h.complete.mockResolvedValueOnce({ isAnswered: true, text: "Add a login page." });
