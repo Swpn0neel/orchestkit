@@ -4,7 +4,12 @@ import { SYSTEM } from "../src/system.js";
 const BAND = { plugin: "prompt-enhancer", key: "band" } as const;
 const INITIAL: BandState = { visible: true, collapsed: false, busy: false, original: null };
 
-interface Control { request: number; enhancing: boolean; sending: boolean; expectedDraft: string; held: string | null; reviewed: string | null; writes: Promise<void>; filling: boolean; inflight: Promise<void> }
+// One Enhance. Only the run in Control.current may change shared state: a run
+// that was canceled (an edit, Undo, a failure) keeps going until its next
+// await and then finds it is no longer current, so it can never clear or
+// overwrite what a newer run owns.
+interface Run { filling: boolean; expected: string; done: Promise<void> }
+interface Control { current: Run | null; sending: boolean; held: string | null; reviewed: string | null; writes: Promise<void> }
 
 const read = async ($: Dollar): Promise<BandState> => (await $.state.get(BAND)).value ?? { ...INITIAL };
 // State writes run one at a time, in the order they were asked for, so a write
@@ -19,7 +24,7 @@ const patch = ($: Dollar, c: Control, fields: Partial<BandState> | ((state: Band
 };
 
 const enhance = async ($: Dollar, c: Control, original: string): Promise<void> => {
-  if (c.enhancing || c.sending) {
+  if (c.current || c.sending) {
     await $.ui.toast("Wait for the current action to finish.").catch(() => undefined);
     return;
   }
@@ -28,74 +33,76 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
     await $.ui.toast("Type a prompt before using Enhance.").catch(() => undefined);
     return;
   }
-  const id = ++c.request;
-  c.enhancing = true;
-  c.expectedDraft = original;
-  let done: () => void = () => undefined;
-  c.inflight = new Promise<void>(resolve => { done = resolve; });
+  let finish: () => void = () => undefined;
+  const run: Run = { filling: false, expected: original, done: new Promise<void>(resolve => { finish = resolve; }) };
+  c.current = run;
+  const live = () => c.current === run;
   // Undo goes back past an earlier Enhance only while the box still holds the
   // rewrite that Enhance filled. Any edit makes this draft the new original.
   const chained = c.reviewed !== null && original === c.reviewed;
   try {
     await patch($, c, { visible: true, collapsed: false, busy: true });
-    if (id !== c.request) return;
+    if (!live()) return;
     const result = await $.model.complete({
       model: "haiku", system: SYSTEM, prompt: draft,
       maxTokens: 1024, effort: "low", timeoutMs: 12000,
     });
-    if (id !== c.request) return;
+    if (!live()) return;
     if (!result.isAnswered || !result.text?.trim()) {
       await $.ui.toast("Enhance failed. Kept your original prompt.");
       return;
     }
-    if ((await $.prompt.read()).text !== original) {
+    const box = (await $.prompt.read()).text;
+    // From here Undo waits for this run instead of canceling it. The check and
+    // the flag sit with no await between them, so Undo sees one or the other.
+    if (!live()) return;
+    if (box !== original) {
       await $.ui.toast("The draft changed. Kept your edit.");
       return;
     }
-    // From here Undo waits for this Enhance instead of canceling it. The check
-    // and the flag sit with no await between them, so Undo sees one or the other.
-    if (id !== c.request) return;
-    c.filling = true;
-    c.expectedDraft = result.text;
+    run.filling = true;
+    run.expected = result.text;
     if ((await $.prompt.fill({ text: result.text })).isFilled) {
-      c.reviewed = result.text;
-      // The original is saved only after a fill, so an Enhance that is canceled
-      // or fails never leaves an original behind for Undo.
-      if (id === c.request) await patch($, c, state => ({ original: chained && state.original !== null ? state.original : original }));
+      // The original is saved only after a fill, and only by a run that is
+      // still current, so a canceled or failed run never leaves one behind.
+      if (live()) {
+        c.reviewed = result.text;
+        await patch($, c, state => ({ original: chained && state.original !== null ? state.original : original }));
+      }
     } else {
       await $.ui.toast("The prompt box could not take the rewrite. Nothing was sent.");
     }
   } catch {
-    if (id === c.request) await $.ui.toast("Enhance failed. Kept your original prompt.").catch(() => undefined);
+    if (live()) await $.ui.toast("Enhance failed. Kept your original prompt.").catch(() => undefined);
   } finally {
-    c.filling = false;
-    done();
-    if (id === c.request) {
-      c.enhancing = false;
+    finish();
+    if (live()) {
+      c.current = null;
       // enhance can run detached from prompt.change, so a failed state write must not reject.
       await patch($, c, { busy: false }).catch(() => undefined);
     }
   }
 };
 
+/** Ends the current run without a fill: an edit, Undo before the fill, a failure. */
+const cancel = (c: Control): void => { c.current = null; };
+
 const undo = async ($: Dollar, c: Control): Promise<void> => {
   if (c.sending) return;
-  if (c.enhancing && !c.filling) {
+  const run = c.current;
+  if (run && !run.filling) {
     // Nothing filled yet: Undo cancels Enhance and keeps the box.
-    c.request += 1;
-    c.enhancing = false;
+    cancel(c);
     await patch($, c, { busy: false });
     return;
   }
-  // A fill is under way: let that Enhance finish, then undo it from settled state.
-  if (c.enhancing) await c.inflight;
+  // A fill is under way: let that run finish, then undo from settled state.
+  if (run) await run.done;
   await c.writes;
+  if (c.current) return;
   const state = await read($);
   if (state.original === null) return;
-  c.request += 1;
-  c.enhancing = false;
   c.reviewed = null;
-  c.expectedDraft = state.original;
   if ((await $.prompt.fill({ text: state.original, mode: "replace" })).isFilled && (await $.prompt.read()).text === state.original) {
     await patch($, c, { original: null, busy: false });
   } else {
@@ -105,7 +112,7 @@ const undo = async ($: Dollar, c: Control): Promise<void> => {
 };
 
 const send = async ($: Dollar, c: Control): Promise<void> => {
-  if (c.enhancing || c.sending) {
+  if (c.current || c.sending) {
     await $.ui.toast("Wait for Enhance to finish before sending.");
     return;
   }
@@ -129,10 +136,10 @@ const send = async ($: Dollar, c: Control): Promise<void> => {
 
 
 export const register = (on: On): void => {
-  const c: Control = { request: 0, enhancing: false, sending: false, expectedDraft: "", held: null, reviewed: null, writes: Promise.resolve(), filling: false, inflight: Promise.resolve() };
+  const c: Control = { current: null, sending: false, held: null, reviewed: null, writes: Promise.resolve() };
   on("prompt.submit", async ($, e, next) => {
     if (e.origin.kind !== "composer" || e.command || e.attachments?.length) return next(e);
-    if (c.enhancing || c.sending) {
+    if (c.current || c.sending) {
       await $.ui.toast("Wait for the current action to finish.");
       return { drop: "Prompt held for review." };
     }
@@ -149,8 +156,7 @@ export const register = (on: On): void => {
     return result;
   }).catch(async ($, e, next) => {
     if (next.called) return next(e);
-    c.request += 1;
-    c.enhancing = false;
+    cancel(c);
     c.held = null;
     await $.ui.toast("Prompt Enhancer failed. Nothing was sent.").catch(() => undefined);
     return { drop: "Prompt held because Prompt Enhancer failed." };
@@ -167,18 +173,16 @@ export const register = (on: On): void => {
       }
       return next(e);
     }
-    if (c.enhancing && e.text !== c.expectedDraft && e.origin.kind !== "clear") {
-      // The person edited during Enhance: this Enhance will not fill the box,
-      // and it saved no original (that happens only after a fill).
-      c.request += 1;
-      c.enhancing = false;
+    const run = c.current;
+    if (run && e.text !== run.expected && e.origin.kind !== "clear") {
+      // The person edited during Enhance: this run will not save an original.
+      cancel(c);
       await patch($, c, { busy: false });
     }
     return next(e);
   }).catch(async ($, e, next) => {
     c.held = null;
-    c.request += 1;
-    c.enhancing = false;
+    cancel(c);
     await $.ui.toast("Prompt Enhancer failed. Kept the draft.").catch(() => undefined);
     return next(e);
   });

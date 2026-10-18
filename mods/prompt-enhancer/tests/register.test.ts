@@ -474,3 +474,203 @@ describe("submission errors", () => {
     expect(h.sent).toEqual(["ordinary prompt"]);
   });
 });
+
+// Golden corpus: every place an Undo, an edit (which cancels) or a second
+// Enhance can land inside one Enhance, with the end state each must leave.
+// Enhance A runs on "draft one" (rewrite RA), Enhance B on "draft two" (RB).
+// Phases of an Enhance: W1 busy write, model call, the box check read after
+// the reply, fill, W2 original save, W3 busy-off write.
+//
+//  row  where the action lands          action            end state
+//  U0   W1 pending                      Undo              box draft one, no model call
+//  U1   model pending                   Undo              box draft one, late reply ignored
+//  U2   box check after the reply       Undo              box draft one, no fill
+//  U3   fill pending                    Undo              waits, box draft one
+//  U4   W2 pending                      Undo              waits, box draft one
+//  U5   W3 pending                      Undo              box draft one
+//  U6   A done                          Undo, Undo        box draft one, second is a no-op
+//  E0   W1 pending                      edit, B, Undo     box draft two, model called once (B)
+//  E1   model pending                   edit, B, Undo     box draft two, late reply ignored
+//  E2   box check after the reply       edit, B, Undo     box draft two
+//  E3   fill pending                    edit              A saves no original (the fill lands last)
+//  E4   W2 pending                      edit, Undo        box draft one (Undo goes back past the edit)
+//  E6   A done                          edit, B, Undo     box is the edit
+//  X1   A late reply during B's fill    Undo during fill  waits for B, box draft two
+//  X2   A late reply during B's model   Undo              cancels B, box draft two
+//  X3   A late reply after B is done    Undo              box draft two
+// Every row also ends with the band not busy.
+describe("interleavings golden corpus", () => {
+  type Gate = { promise: Promise<void>; open: () => void };
+  const gate = (): Gate => { let open = () => undefined as void; const promise = new Promise<void>(resolve => { open = resolve; }); return { promise, open }; };
+  const RA = "Rewrite of draft one";
+
+  function rig(initial: string, holds: { set?: number[]; fill?: number[]; readAfterReply?: boolean; model?: "held" | "auto" } = {}) {
+    const h = harness(initial);
+    const gates = { set: new Map<number, Gate>(), fill: new Map<number, Gate>(), read: gate(), model: [] as Gate[] };
+    for (const n of holds.set ?? []) gates.set.set(n, gate());
+    for (const n of holds.fill ?? []) gates.fill.set(n, gate());
+    let sets = 0, fills = 0, replies = 0, readHeld = !holds.readAfterReply;
+    const realSet = h.$.state.set, realFill = h.$.prompt.fill, realRead = h.$.prompt.read;
+    h.$.state.set = async (...args: Parameters<typeof realSet>) => { sets += 1; await gates.set.get(sets)?.promise; return realSet(...args); };
+    h.$.prompt.fill = async (...args: Parameters<typeof realFill>) => { fills += 1; await gates.fill.get(fills)?.promise; return realFill(...args); };
+    h.$.prompt.read = async () => { if (!readHeld && replies > 0) { readHeld = true; await gates.read.promise; } return realRead(); };
+    h.complete.mockImplementation(async ({ prompt }) => {
+      const g = gate();
+      gates.model.push(g);
+      if (holds.model !== "held") g.open();
+      await g.promise;
+      replies += 1;
+      return { isAnswered: true, text: `Rewrite of ${prompt}` };
+    });
+    const edit = (text: string) => { h.edit(text); return h.fire("prompt.change", { text, cursor: text.length, origin: { kind: "input" } }); };
+    const band = async () => (await h.$.state.get({ plugin: "prompt-enhancer", key: "band" })).value;
+    return { h, gates, edit, band };
+  }
+  async function ends(r: ReturnType<typeof rig>, box: string) {
+    await r.h.settle();
+    expect(r.h.box()).toBe(box);
+    expect((await r.band())?.busy).toBe(false);
+  }
+
+  test("U0 Undo while W1 is pending cancels before the model call", async () => {
+    const r = rig("draft one", { set: [1] });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    const u = r.h.press("Undo"); await r.h.settle();
+    r.gates.set.get(1)!.open(); await a; await u;
+    expect(r.h.complete).not.toHaveBeenCalled();
+    await ends(r, "draft one");
+    expect((await r.band())?.original).toBeNull();
+  });
+  test("U1 Undo while the model is pending ignores the late reply", async () => {
+    const r = rig("draft one", { model: "held" });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    await r.h.press("Undo");
+    r.gates.model[0].open(); await a;
+    await ends(r, "draft one");
+    expect((await r.band())?.original).toBeNull();
+  });
+  test("U2 Undo during the box check after the reply stops the fill", async () => {
+    const r = rig("draft one", { readAfterReply: true });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    await r.h.press("Undo");
+    r.gates.read.open(); await a;
+    await ends(r, "draft one");
+    expect((await r.band())?.original).toBeNull();
+  });
+  test("U3 Undo while the fill is pending waits, then restores", async () => {
+    const r = rig("draft one", { fill: [1] });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    const u = r.h.press("Undo"); await r.h.settle();
+    r.gates.fill.get(1)!.open(); await a; await u;
+    await ends(r, "draft one");
+  });
+  test("U4 Undo while the original save is pending waits, then restores", async () => {
+    const r = rig("draft one", { set: [2] });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    expect(r.h.box()).toBe(RA);
+    const u = r.h.press("Undo"); await r.h.settle();
+    r.gates.set.get(2)!.open(); await a; await u;
+    await ends(r, "draft one");
+  });
+  test("U5 Undo while the busy-off write is pending restores", async () => {
+    const r = rig("draft one", { set: [3] });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    const u = r.h.press("Undo"); await r.h.settle();
+    r.gates.set.get(3)!.open(); await a; await u;
+    await ends(r, "draft one");
+  });
+  test("U6 Undo after Enhance restores, a second Undo is a no-op", async () => {
+    const r = rig("draft one");
+    await r.h.press("Enhance");
+    await r.h.press("Undo");
+    await r.h.press("Undo");
+    await ends(r, "draft one");
+  });
+  test("E0 an edit while W1 is pending, then B and Undo, gives the edit", async () => {
+    const r = rig("draft one", { set: [1] });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    const e = r.edit("draft two"); await r.h.settle();
+    r.gates.set.get(1)!.open(); await e; await a;
+    await r.h.press("Enhance");
+    expect(r.h.complete).toHaveBeenCalledTimes(1);
+    await r.h.press("Undo");
+    await ends(r, "draft two");
+  });
+  test("E1 an edit while the model is pending, then B and Undo, gives the edit", async () => {
+    const r = rig("draft one", { model: "held" });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    await r.edit("draft two");
+    r.gates.model[0].open(); await a; await r.h.settle();
+    expect(r.h.box()).toBe("draft two");
+    const b = r.h.press("Enhance"); await r.h.settle();
+    r.gates.model[1].open(); await b;
+    await r.h.press("Undo");
+    await ends(r, "draft two");
+  });
+  test("E2 an edit during the box check, then B and Undo, gives the edit", async () => {
+    const r = rig("draft one", { readAfterReply: true });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    await r.edit("draft two");
+    r.gates.read.open(); await a;
+    expect(r.h.box()).toBe("draft two");
+    await r.h.press("Enhance");
+    await r.h.press("Undo");
+    await ends(r, "draft two");
+  });
+  test("E3 an edit while the fill is pending: A saves no original", async () => {
+    const r = rig("draft one", { fill: [1] });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    await r.edit("draft two");
+    r.gates.fill.get(1)!.open(); await a;
+    await ends(r, RA);
+    expect((await r.band())?.original).toBeNull();
+  });
+  test("E4 an edit while the original save is pending, then Undo, goes back to draft one", async () => {
+    const r = rig("draft one", { set: [2] });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    const e = r.edit(`${RA} edited`); await r.h.settle();
+    r.gates.set.get(2)!.open(); await e; await a;
+    await r.h.press("Undo");
+    await ends(r, "draft one");
+  });
+  test("E6 an edit after A, then B and Undo, gives the edit", async () => {
+    const r = rig("draft one");
+    await r.h.press("Enhance");
+    await r.edit(`${RA} edited`);
+    await r.h.press("Enhance");
+    await r.h.press("Undo");
+    await ends(r, `${RA} edited`);
+  });
+  test("X1 A's late reply during B's fill does not clear B: Undo waits for B", async () => {
+    const r = rig("draft one", { model: "held", fill: [1] });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    await r.edit("draft two");
+    const b = r.h.press("Enhance"); await r.h.settle();
+    r.gates.model[1].open(); await r.h.settle();
+    r.gates.model[0].open(); await a; await r.h.settle();
+    const u = r.h.press("Undo"); await r.h.settle();
+    r.gates.fill.get(1)!.open(); await b; await u;
+    await ends(r, "draft two");
+  });
+  test("X2 A's late reply during B's model call does not clear B: Undo cancels B", async () => {
+    const r = rig("draft one", { model: "held" });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    await r.edit("draft two");
+    const b = r.h.press("Enhance"); await r.h.settle();
+    r.gates.model[0].open(); await a; await r.h.settle();
+    await r.h.press("Undo");
+    r.gates.model[1].open(); await b;
+    await ends(r, "draft two");
+    expect((await r.band())?.original).toBeNull();
+  });
+  test("X3 A's late reply after B is done changes nothing: Undo gives draft two", async () => {
+    const r = rig("draft one", { model: "held" });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    await r.edit("draft two");
+    const b = r.h.press("Enhance"); await r.h.settle();
+    r.gates.model[1].open(); await b;
+    r.gates.model[0].open(); await a; await r.h.settle();
+    await r.h.press("Undo");
+    await ends(r, "draft two");
+  });
+});
