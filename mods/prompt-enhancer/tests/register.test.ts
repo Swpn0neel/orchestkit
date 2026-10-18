@@ -498,6 +498,10 @@ describe("submission errors", () => {
 //  X1   A late reply during B's fill    Undo during fill  waits for B, box draft two
 //  X2   A late reply during B's model   Undo              cancels B, box draft two
 //  X3   A late reply after B is done    Undo              box draft two
+//  Y1   Undo's state read pending       edit, B           edit cancels Undo, B runs: box RB, Undo gives draft two
+//  Y2   Undo's fill pending             edit, B           Undo is committed, B is refused: box draft one
+//  Z1   prompt.change hook throws       (during A)        catch cancels A and the band is not busy
+//  Z2   prompt.submit hook throws       (during A)        catch cancels A and the band is not busy
 // Every row also ends with the band not busy.
 describe("interleavings golden corpus", () => {
   type Gate = { promise: Promise<void>; open: () => void };
@@ -506,7 +510,16 @@ describe("interleavings golden corpus", () => {
 
   function rig(initial: string, holds: { set?: number[]; fill?: number[]; readAfterReply?: boolean; model?: "held" | "auto" } = {}) {
     const h = harness(initial);
-    const gates = { set: new Map<number, Gate>(), fill: new Map<number, Gate>(), read: gate(), model: [] as Gate[] };
+    const gates = { set: new Map<number, Gate>(), fill: new Map<number, Gate>(), read: gate(), get: gate(), model: [] as Gate[] };
+    // holdGet(skip): hold the state read that comes after `skip` more reads.
+    let getArm = -1;
+    const realGet = h.$.state.get;
+    h.$.state.get = async (...args: Parameters<typeof realGet>) => {
+      if (getArm === 0) { getArm = -1; await gates.get.promise; }
+      else if (getArm > 0) getArm -= 1;
+      return realGet(...args);
+    };
+    const holdGet = (skip: number) => { getArm = skip; };
     for (const n of holds.set ?? []) gates.set.set(n, gate());
     for (const n of holds.fill ?? []) gates.fill.set(n, gate());
     let sets = 0, fills = 0, replies = 0, readHeld = !holds.readAfterReply;
@@ -524,7 +537,7 @@ describe("interleavings golden corpus", () => {
     });
     const edit = (text: string) => { h.edit(text); return h.fire("prompt.change", { text, cursor: text.length, origin: { kind: "input" } }); };
     const band = async () => (await h.$.state.get({ plugin: "prompt-enhancer", key: "band" })).value;
-    return { h, gates, edit, band };
+    return { h, gates, edit, band, holdGet };
   }
   async function ends(r: ReturnType<typeof rig>, box: string) {
     await r.h.settle();
@@ -673,5 +686,59 @@ describe("interleavings golden corpus", () => {
     r.gates.model[0].open(); await a; await r.h.settle();
     await r.h.press("Undo");
     await ends(r, "draft two");
+  });
+  test("Y1 an edit while Undo's state read is pending cancels Undo; B runs and stays", async () => {
+    const r = rig("draft one", { model: "held" });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    r.gates.model[0].open(); await a; await r.h.settle();
+    expect(r.h.box()).toBe(RA);
+    r.holdGet(1);
+    const u = r.h.press("Undo"); await r.h.settle();
+    await r.edit("draft two");
+    const b = r.h.press("Enhance"); await r.h.settle();
+    r.gates.get.open(); await u; await r.h.settle();
+    r.gates.model[1].open(); await b;
+    await ends(r, "Rewrite of draft two");
+    await r.h.press("Undo");
+    await ends(r, "draft two");
+  });
+  test("Y2 an Enhance while Undo's fill is pending is refused; Undo completes", async () => {
+    const r = rig("draft one", { fill: [2] });
+    await r.h.press("Enhance");
+    expect(r.h.box()).toBe(RA);
+    const u = r.h.press("Undo"); await r.h.settle();
+    await r.edit("draft two");
+    await r.h.press("Enhance");
+    expect(r.h.toasts).toContain("Wait for the current action to finish.");
+    r.gates.fill.get(2)!.open(); await u;
+    expect(r.h.complete).toHaveBeenCalledTimes(1);
+    await ends(r, "draft one");
+    expect((await r.band())?.original).toBeNull();
+  });
+  test("Z1 a prompt.change hook that throws cancels Enhance and clears busy", async () => {
+    const r = rig("draft one", { model: "held" });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    const realSet = r.h.$.state.set;
+    let threw = false;
+    r.h.$.state.set = async (...args: Parameters<typeof realSet>) => {
+      if (!threw) { threw = true; throw new Error("state unavailable"); }
+      return realSet(...args);
+    };
+    await r.edit("draft two");
+    r.gates.model[0].open(); await a;
+    await ends(r, "draft two");
+  });
+  test("Z2 a prompt.submit hook that throws cancels Enhance and clears busy", async () => {
+    const r = rig("draft one", { model: "held" });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    const realToast = r.h.$.ui.toast;
+    let threw = false;
+    r.h.$.ui.toast = async (...args: Parameters<typeof realToast>) => {
+      if (!threw) { threw = true; throw new Error("toast unavailable"); }
+      return realToast(...args);
+    };
+    await r.h.fire("prompt.submit", submit("draft one"));
+    r.gates.model[0].open(); await a;
+    await ends(r, "draft one");
   });
 });
