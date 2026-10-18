@@ -100,6 +100,26 @@ cat > "$FIX/fault4/.claude-plugin/marketplace.json" <<'JSON'
 }
 JSON
 
+# fault5 (CodeRabbit r4306524346): mods/required has no entry and no unlisted
+# line, mods/quiet is unlisted, and a dangling entry for mods/foreign balances
+# the count (1 entry = 2 dirs - 1 unlisted). Each folder is judged on its own.
+mkdir -p "$FIX/fault5/tests/plugins" "$FIX/fault5/.claude-plugin" \
+         "$FIX/fault5/plugins/ork/.claude-plugin" "$FIX/fault5/mods/required" "$FIX/fault5/mods/quiet"
+cp "$REPO/tests/plugins/test-marketplace-structure.sh" "$FIX/fault5/tests/plugins/"
+cp "$REPO/plugins/ork/.claude-plugin/plugin.json" "$FIX/fault5/plugins/ork/.claude-plugin/"
+printf '# required\n\nSome text.\n' > "$FIX/fault5/mods/required/README.md"
+printf '# quiet\n\nNot listed in any marketplace.\n' > "$FIX/fault5/mods/quiet/README.md"
+cat > "$FIX/fault5/.claude-plugin/marketplace.json" <<'JSON'
+{
+  "name": "orchestkit",
+  "owner": { "name": "Yonatan Gross" },
+  "plugins": [
+    { "name": "ork", "source": "./plugins/ork" },
+    { "name": "foreign", "source": { "source": "git-subdir", "url": "https://example.invalid/r.git", "path": "mods/foreign" } }
+  ]
+}
+JSON
+
 # control: one entry with a string source pointing at the plugin dir that exists.
 cat > "$FIX/control/.claude-plugin/marketplace.json" <<'JSON'
 {
@@ -120,7 +140,7 @@ cat > "$FIX/fault/.claude-plugin/marketplace.json" <<'JSON'
 }
 JSON
 
-control_rc=0; fault_rc=0; fault2_rc=0; mods_control_rc=0; unlisted_control_rc=0; fault3_rc=0; fault4_rc=0
+control_rc=0; fault_rc=0; fault2_rc=0; mods_control_rc=0; unlisted_control_rc=0; fault3_rc=0; fault4_rc=0; fault5_rc=0
 bash "$FIX/control/tests/plugins/test-marketplace-structure.sh" >"$FIX/control.log" 2>&1 || control_rc=$?
 bash "$FIX/fault/tests/plugins/test-marketplace-structure.sh"   >"$FIX/fault.log"   2>&1 || fault_rc=$?
 bash "$FIX/fault2/tests/plugins/test-marketplace-structure.sh"  >"$FIX/fault2.log"  2>&1 || fault2_rc=$?
@@ -128,6 +148,7 @@ bash "$FIX/mods_control/tests/plugins/test-marketplace-structure.sh" >"$FIX/mods
 bash "$FIX/unlisted_control/tests/plugins/test-marketplace-structure.sh" >"$FIX/unlisted_control.log" 2>&1 || unlisted_control_rc=$?
 bash "$FIX/fault3/tests/plugins/test-marketplace-structure.sh" >"$FIX/fault3.log" 2>&1 || fault3_rc=$?
 bash "$FIX/fault4/tests/plugins/test-marketplace-structure.sh" >"$FIX/fault4.log" 2>&1 || fault4_rc=$?
+bash "$FIX/fault5/tests/plugins/test-marketplace-structure.sh" >"$FIX/fault5.log" 2>&1 || fault5_rc=$?
 
 {
   echo "--- control tail ---"; tail -4 "$FIX/control.log"
@@ -137,7 +158,8 @@ bash "$FIX/fault4/tests/plugins/test-marketplace-structure.sh" >"$FIX/fault4.log
   echo "== unlisted_control tail =="; tail -4 "$FIX/unlisted_control.log"
   echo "== fault3 tail =="; tail -6 "$FIX/fault3.log"
   echo "== fault4 tail =="; tail -6 "$FIX/fault4.log"
+  echo "== fault5 tail =="; tail -6 "$FIX/fault5.log"
 } >&2
 
-printf 'RESULT gate=%s control=%s fault=%s fault2=%s mods_control=%s unlisted_control=%s fault3=%s fault4=%s\n' \
-  "marketplace-structure" "$control_rc" "$fault_rc" "$fault2_rc" "$mods_control_rc" "$unlisted_control_rc" "$fault3_rc" "$fault4_rc"
+printf 'RESULT gate=%s control=%s fault=%s fault2=%s mods_control=%s unlisted_control=%s fault3=%s fault4=%s fault5=%s\n' \
+  "marketplace-structure" "$control_rc" "$fault_rc" "$fault2_rc" "$mods_control_rc" "$unlisted_control_rc" "$fault3_rc" "$fault4_rc" "$fault5_rc"

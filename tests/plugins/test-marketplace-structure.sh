@@ -193,6 +193,11 @@ if [[ -d "$REPO_ROOT/mods" && -n "${MOD_ENTRY_COUNT:-}" ]]; then
     elif [[ $listed -eq 0 && $says_unlisted -eq 1 ]]; then
       echo "  unlisted: mods/$name"
       UNLISTED_DIRS=$((UNLISTED_DIRS + 1))
+    elif [[ $listed -eq 0 ]]; then
+      # Judged per folder, not only by the count: a dangling entry elsewhere
+      # must not balance a folder that is neither listed nor marked unlisted.
+      echo "❌ ERROR: mods/$name has no marketplace entry, and its README does not say \"Not listed in any marketplace.\""
+      ERRORS=$((ERRORS + 1))
     fi
   done
 fi

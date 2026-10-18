@@ -105,6 +105,43 @@ describe("Prompt Enhancer review boundary", () => {
     expect(h.complete).toHaveBeenCalledTimes(1);
     expect(h.sent).toEqual(["Fix the parser in C++"]);
   });
+  test("a failed Enhance leaves no original behind: Undo after the next Enhance keeps the newer draft", async () => {
+    const h = harness("draft one");
+    h.complete.mockResolvedValueOnce({ isAnswered: false, text: "" });
+    await h.press("Enhance");
+    expect(h.box()).toBe("draft one");
+    h.edit("draft two");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: "Rewrite of draft two" });
+    await h.press("Enhance");
+    expect(h.box()).toBe("Rewrite of draft two");
+    await h.press("Undo");
+    expect(h.box()).toBe("draft two");
+  });
+  test("an edit during Enhance leaves no original behind: Undo keeps the edit", async () => {
+    const h = harness("draft");
+    let answer: (value: { isAnswered: boolean; text: string }) => void = () => undefined;
+    h.complete.mockImplementationOnce(() => new Promise(resolve => { answer = resolve; }));
+    const pending = h.press("Enhance");
+    await h.settle();
+    h.edit("mine");
+    await h.fire("prompt.change", { text: "mine", cursor: 4, origin: { kind: "input" } });
+    answer({ isAnswered: true, text: "Rewrite" });
+    await pending;
+    await h.settle();
+    expect(h.box()).toBe("mine");
+    await h.press("Undo");
+    expect(h.box()).toBe("mine");
+  });
+  test("a failed second Enhance keeps the first original for Undo", async () => {
+    const h = harness("draft");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: "R1" });
+    await h.press("Enhance");
+    h.complete.mockResolvedValueOnce({ isAnswered: false, text: "" });
+    await h.press("Enhance");
+    expect(h.box()).toBe("R1");
+    await h.press("Undo");
+    expect(h.box()).toBe("draft");
+  });
   test("Send passes a typed prompt that ends in ++ as is", async () => {
     const h = harness("what changed in C++");
     await h.press("Send");

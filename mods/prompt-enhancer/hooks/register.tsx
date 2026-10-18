@@ -4,7 +4,7 @@ import { SYSTEM } from "../src/system.js";
 const BAND = { plugin: "prompt-enhancer", key: "band" } as const;
 const INITIAL: BandState = { visible: true, collapsed: false, busy: false, original: null };
 
-interface Control { request: number; enhancing: boolean; sending: boolean; expectedDraft: string; held: string | null; reviewed: string | null }
+interface Control { request: number; enhancing: boolean; sending: boolean; expectedDraft: string; held: string | null; reviewed: string | null; restore: string | null | undefined }
 
 const read = async ($: Dollar): Promise<BandState> => (await $.state.get(BAND)).value ?? { ...INITIAL };
 const patch = async ($: Dollar, fields: Partial<BandState>): Promise<void> => {
@@ -24,9 +24,14 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
   const id = ++c.request;
   c.enhancing = true;
   c.expectedDraft = original;
+  // The saved original from before this Enhance. Every path that does not fill
+  // the box puts it back, so Undo never returns a draft older than the box.
+  c.restore = undefined;
+  let filled = false;
   try {
     await patch($, { visible: true, collapsed: false, busy: true });
     const before = await read($);
+    c.restore = before.original;
     await patch($, { original: before.original ?? original });
     const result = await $.model.complete({
       model: "haiku", system: SYSTEM, prompt: draft,
@@ -43,6 +48,7 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
     }
     c.expectedDraft = result.text;
     if ((await $.prompt.fill({ text: result.text })).isFilled) {
+      filled = true;
       c.reviewed = result.text;
     } else {
       await $.ui.toast("The prompt box could not take the rewrite. Nothing was sent.");
@@ -52,8 +58,10 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
   } finally {
     if (id === c.request) {
       c.enhancing = false;
+      const restore = filled || c.restore === undefined ? {} : { original: c.restore };
+      c.restore = undefined;
       // enhance can run detached from prompt.change, so a failed state write must not reject.
-      await patch($, { busy: false }).catch(() => undefined);
+      await patch($, { busy: false, ...restore }).catch(() => undefined);
     }
   }
 };
@@ -64,6 +72,7 @@ const undo = async ($: Dollar, c: Control): Promise<void> => {
   c.request += 1;
   c.enhancing = false;
   c.reviewed = null;
+  c.restore = undefined;
   c.expectedDraft = state.original;
   if ((await $.prompt.fill({ text: state.original, mode: "replace" })).isFilled && (await $.prompt.read()).text === state.original) {
     await patch($, { original: null, busy: false });
@@ -98,7 +107,7 @@ const send = async ($: Dollar, c: Control): Promise<void> => {
 
 
 export const register = (on: On): void => {
-  const c: Control = { request: 0, enhancing: false, sending: false, expectedDraft: "", held: null, reviewed: null };
+  const c: Control = { request: 0, enhancing: false, sending: false, expectedDraft: "", held: null, reviewed: null, restore: undefined };
   on("prompt.submit", async ($, e, next) => {
     if (e.origin.kind !== "composer" || e.command || e.attachments?.length) return next(e);
     if (c.enhancing || c.sending) {
@@ -137,9 +146,12 @@ export const register = (on: On): void => {
       return next(e);
     }
     if (c.enhancing && e.text !== c.expectedDraft && e.origin.kind !== "clear") {
+      // The person edited during Enhance: this Enhance will not fill the box.
       c.request += 1;
       c.enhancing = false;
-      await patch($, { busy: false });
+      const restore = c.restore === undefined ? {} : { original: c.restore };
+      c.restore = undefined;
+      await patch($, { busy: false, ...restore });
     }
     return next(e);
   }).catch(async ($, e, next) => {
