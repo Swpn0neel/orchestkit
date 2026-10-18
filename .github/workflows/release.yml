@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: Mint Release Bot token
         id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
         with:
           app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
           private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
@@ -117,7 +117,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
 
       - name: Setup Node.js for SBOM generation
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0  # zizmor: ignore[cache-poisoning] deps via npm ci, no cache restored
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.0.0  # zizmor: ignore[cache-poisoning] deps via npm ci, no cache restored
         with:
           node-version-file: .nvmrc
 
@@ -173,7 +173,7 @@ jobs:
     steps:
       - name: Mint Release Bot token
         id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510  # v3.3.0
         with:
           app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
           private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
