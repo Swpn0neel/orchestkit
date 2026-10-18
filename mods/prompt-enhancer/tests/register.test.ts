@@ -579,6 +579,14 @@ describe("submission errors", () => {
 //  L252 button       box read       pre-claim: E, a claim during the read stops  P1 P2 E0
 //                                   the press before enhance() is called
 //  L252 button       enhance        enhance owns its own errors                  E0
+// Round 9 (one rule): (a) every state-changing action bumps c.epoch: claim()
+// for Enhance, Undo, Send and Enter; cancel() (Undo's cancel branch, an edit,
+// a hook failure); a user edit (prompt.change, origin input); collapse.
+// (b) every continuation checks after each await: a run holding a token checks
+// live() (the token; so an edit during a committed fill does not abort it), and
+// a continuation holding no token (L120, L213, L252) checks its epoch stamp.
+// Send is cancelable until its submit starts, like an Enhance until its fill.
+// Q1 and the seeded property test (300 seeds) pin it; both fail on 5188aaed.
 // Rule: each action that writes after an await (Enhance, Undo, Send, Enter)
 // takes a run token before its first await and writes only while it holds it;
 // an entry path that must await before claiming stamps c.epoch first and stops
@@ -1047,5 +1055,71 @@ describe("interleavings golden corpus", () => {
     read.open(); await s; await r.h.settle();
     expect(r.h.complete).not.toHaveBeenCalled();
     await ends(r, "draft one++");
+  });
+  test("Q1 Undo that cancels Enhance A also cancels Enhance B waiting on its first read", async () => {
+    const r = rig("draft one", { model: "held" });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    const read = r.holdNextRead();
+    const b = r.h.press("Enhance"); await r.h.settle();
+    await r.h.press("Undo");
+    read.open(); await r.h.settle();
+    for (const g of r.gates.model) g.open();
+    await r.h.settle();
+    for (const g of r.gates.model) g.open();
+    await b; await a; await r.h.settle();
+    expect(r.h.complete).toHaveBeenCalledTimes(1);
+    await ends(r, "draft one");
+  });
+});
+
+// Generated interleavings (round 9). Seeded, so a failure replays exactly.
+// Random sequences of Enhance, edit, Undo and Send, with random holds on the
+// box reads and the model replies, end with a user edit to "final"; then all
+// holds are released in random order. Invariant: the last user action wins,
+// so the box is "final" and the band is not busy. Fills are never held: a
+// committed fill landing after an edit is the decided E3 behaviour.
+describe("interleavings property", () => {
+  const prng = (seed: number) => () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  test("the last user action wins over every stale continuation (300 seeds)", async () => {
+    const failures: string[] = [];
+    for (let seed = 1; seed <= 300; seed++) {
+      const rand = prng(seed);
+      const h = harness("start");
+      const held: Array<() => void> = [];
+      const hold = async () => { if (rand() < 0.5) await new Promise<void>(resolve => { held.push(resolve); }); };
+      const realRead = h.$.prompt.read;
+      h.$.prompt.read = async () => { await hold(); return realRead(); };
+      h.complete.mockImplementation(async ({ prompt }) => { await hold(); return { isAnswered: true, text: `Rewrite of ${prompt}` }; });
+      const pending: Promise<unknown>[] = [];
+      const steps: string[] = [];
+      const n = 1 + Math.floor(rand() * 5);
+      for (let i = 0; i < n; i++) {
+        const pick = rand();
+        if (pick < 0.4) { steps.push("E"); pending.push(h.press("Enhance")); }
+        else if (pick < 0.65) { const t = `edit ${i}`; steps.push(`T(${t})`); h.edit(t); pending.push(h.fire("prompt.change", { text: t, cursor: t.length, origin: { kind: "input" } })); }
+        else if (pick < 0.9) { steps.push("U"); pending.push(h.press("Undo")); }
+        else { steps.push("S"); pending.push(h.press("Send")); }
+        await h.settle();
+      }
+      steps.push("T(final)");
+      h.edit("final");
+      pending.push(h.fire("prompt.change", { text: "final", cursor: 5, origin: { kind: "input" } }));
+      await h.settle();
+      for (let guard = 0; guard < 200 && held.length > 0; guard++) {
+        const [open] = held.splice(Math.floor(rand() * held.length), 1);
+        open();
+        await h.settle();
+      }
+      await Promise.allSettled(pending);
+      await h.settle();
+      const band = (await h.$.state.get({ plugin: "prompt-enhancer", key: "band" })).value;
+      if (h.box() !== "final" || (band?.busy ?? false)) failures.push(`seed ${seed} [${steps.join(" ")}] box=${JSON.stringify(h.box())} busy=${band?.busy}`);
+    }
+    expect(failures.slice(0, 5)).toEqual([]);
   });
 });

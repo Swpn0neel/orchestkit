@@ -12,9 +12,12 @@ const INITIAL: BandState = { visible: true, collapsed: false, busy: false, origi
 // fill a run can be canceled; once its fill (or send) starts it is committed:
 // nothing cancels it and other actions wait or are refused.
 interface Run { kind: "enhance" | "undo" | "send" | "submit"; filling: boolean; expected: string; done: Promise<void> }
-// epoch counts claims. An entry path that must await before it can claim (the
-// Enhance button and the ++ path read the box first) stamps it before that
-// await; if any action claimed meanwhile, the stamp is stale and it stops.
+// epoch moves on every state-changing action: a claim, a cancel, a user edit,
+// a collapse. A continuation that holds no run token (the Enhance button and
+// the ++ path read the box before they can claim; Undo waits for a run) stamps
+// it before its await and does nothing if it moved. A run that holds a token
+// checks the token instead, so an edit during a committed fill does not abort
+// the fill (E3).
 interface Control { current: Run | null; held: string | null; reviewed: string | null; writes: Promise<void>; epoch: number }
 
 const read = async ($: Dollar): Promise<BandState> => (await $.state.get(BAND)).value ?? { ...INITIAL };
@@ -104,6 +107,7 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
 const cancel = (c: Control, run: Run | null | undefined): boolean => {
   if (!run || c.current !== run || run.filling) return false;
   c.current = null;
+  c.epoch += 1;
   return true;
 };
 
@@ -153,10 +157,13 @@ const send = async ($: Dollar, c: Control): Promise<void> => {
     await $.ui.toast("Wait for Enhance to finish before sending.");
     return;
   }
-  const { live, release } = claim(c, "send", true);
+  // Send is cancelable (a user edit wins) until its submit starts; the check and
+  // the flag sit with no await between them, like an Enhance fill.
+  const { run, live, release } = claim(c, "send", false);
   try {
     const { text } = await $.prompt.read();
-    if (!text.trim()) return;
+    if (!text.trim() || !live()) return;
+    run.filling = true;
     const result = await $.prompt.submit({ text, asUser: true });
     if (!live()) return;
     if (result.drop !== undefined) {
@@ -212,6 +219,8 @@ export const register = (on: On): void => {
 
   on("prompt.change", async ($, e, next) => {
     seen.set(e, c.current);
+    // A user edit is the newest action: anything still waiting to claim is stale.
+    if (e.origin.kind === "input") c.epoch += 1;
     if (c.held !== null && e.origin.kind === "engine") {
       const held = c.held;
       c.held = null;
@@ -251,7 +260,7 @@ export const register = (on: On): void => {
       <Box flexDirection="column">
         <Box>
           <Text>✨ Prompt Enhancer </Text>
-          <Button key="collapse" label={state.collapsed ? "+" : "-"} onPress={() => patch($, c, state => ({ collapsed: !state.collapsed }))} />
+          <Button key="collapse" label={state.collapsed ? "+" : "-"} onPress={() => { c.epoch += 1; return patch($, c, state => ({ collapsed: !state.collapsed })); }} />
         </Box>
         {!state.collapsed && <Box flexDirection="column">
           <Box>
