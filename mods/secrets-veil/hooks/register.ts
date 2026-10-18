@@ -111,6 +111,61 @@ function isPlainContainer(value: object): boolean {
   return proto === Object.prototype || proto === null;
 }
 
+/**
+ * File signatures of the media types whose base64 payload passes unmasked.
+ * An image payload is one long high-entropy run, so the entropy layer covered
+ * it and the API rejected every Read of a PNG or JPEG
+ * (card image-read-fault-2026-10-18).
+ */
+const MEDIA_SIGNATURES: Record<string, (h: number[]) => boolean> = {
+  "image/png": (h) => startsWith(h, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  "image/jpeg": (h) => startsWith(h, [0xff, 0xd8, 0xff]),
+  "image/gif": (h) => startsWith(h, ascii("GIF8")),
+  "image/webp": (h) => startsWith(h, ascii("RIFF")) && startsWith(h.slice(8), ascii("WEBP")),
+  "application/pdf": (h) => startsWith(h, ascii("%PDF-")),
+};
+
+function ascii(text: string): number[] {
+  return Array.from(text, (c) => c.charCodeAt(0));
+}
+
+function startsWith(bytes: number[], prefix: number[]): boolean {
+  return prefix.every((b, i) => bytes[i] === b);
+}
+
+const BASE64_DIGITS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/**
+ * The bytes of the first `chars` base64 characters (a multiple of 4). Pure:
+ * the mod sandbox may have neither Buffer nor atob.
+ */
+function base64Head(data: string, chars: number): number[] {
+  const bytes: number[] = [];
+  for (let i = 0; i + 4 <= Math.min(chars, data.length); i += 4) {
+    const n = [0, 1, 2, 3].map((k) => BASE64_DIGITS.indexOf(data[i + k]));
+    if (n.some((d) => d < 0)) break; // "=" padding ends the data
+    const word = (n[0] << 18) | (n[1] << 12) | (n[2] << 6) | n[3];
+    bytes.push((word >> 16) & 0xff, (word >> 8) & 0xff, word & 0xff);
+  }
+  return bytes;
+}
+
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
+
+/**
+ * True for a base64 media source block ({ type: "base64", media_type, data })
+ * whose data is base64 and starts with the file signature of its media type.
+ * Anything else, a `data` field that only claims a media type included, is
+ * masked like every other string.
+ */
+export function isMediaSource(value: Record<string, unknown>): boolean {
+  const { type, media_type: mediaType, data } = value;
+  if (type !== "base64" || typeof mediaType !== "string" || typeof data !== "string") return false;
+  const signature = MEDIA_SIGNATURES[mediaType];
+  if (!signature || !BASE64.test(data)) return false;
+  return signature(base64Head(data, 16));
+}
+
 function maskDeep(value: unknown, activeTable: MaskTable, covered: Set<string>, budget: MaskBudget): unknown {
   if (Date.now() > budget.deadline) {
     throw new VeilRefusal("masking ran past its time cap");
@@ -139,9 +194,12 @@ function maskDeep(value: unknown, activeTable: MaskTable, covered: Set<string>, 
     if (Array.isArray(value)) {
       return value.map((item) => maskDeep(item, activeTable, covered, budget));
     }
+    const record = value as Record<string, unknown>;
+    const media = isMediaSource(record);
     const out: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-      out[key] = maskDeep(val, activeTable, covered, budget);
+    for (const [key, val] of Object.entries(record)) {
+      // A real media payload passes byte-equal; its other fields are masked.
+      out[key] = media && key === "data" ? val : maskDeep(val, activeTable, covered, budget);
     }
     return out;
   }

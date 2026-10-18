@@ -36,6 +36,14 @@ Three layers, checked on every tool result:
    paths and identifiers measured 2.9 to 4.0. Masked output never reveals
    length beyond an 8-bullet floor.
 
+   One exception: the `data` of a base64 media block (an image or a PDF a
+   tool returns, `{ type: "base64", media_type, data }`) passes byte-equal
+   when its media type is PNG, JPEG, GIF, WebP or PDF and its first bytes
+   are that type's file signature. An image payload is one long
+   high-entropy run, so masking it made the API reject every image Read.
+   Every other field of the block, and a `data` field that only claims a
+   media type, is masked as usual.
+
 If zero named values resolve at `session.start`, the mod emits one
 `$.ui.notice` saying the veil is running on value patterns and entropy only.
 Silence is not allowed: an operator must know the named layer is empty.
