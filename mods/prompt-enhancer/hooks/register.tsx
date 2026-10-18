@@ -92,20 +92,28 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
   }
 };
 
-/** Drops the current run unless it is committed (its fill or send has started). */
-const cancel = (c: Control): boolean => {
-  if (!c.current || c.current.filling) return false;
+/**
+ * Drops `run`, and only `run`: never whatever happens to be current when an
+ * error arrives, so a late failure of an older action cannot cancel a newer
+ * one. A committed run (its fill or send has started) is never dropped.
+ */
+const cancel = (c: Control, run: Run | null | undefined): boolean => {
+  if (!run || c.current !== run || run.filling) return false;
   c.current = null;
   return true;
 };
+
+// The run each hook invocation saw when it started, keyed by its event, so its
+// .catch handler cleans up after that run and no other.
+const seen = new WeakMap<object, Run | null>();
 
 const undo = async ($: Dollar, c: Control): Promise<void> => {
   const active = c.current;
   if (active && active.kind !== "enhance") return;
   if (active && !active.filling) {
     // Nothing filled yet: Undo cancels Enhance and keeps the box.
-    cancel(c);
-    await patch($, c, { busy: false });
+    cancel(c, active);
+    await patch($, c, { busy: false }).catch(() => undefined);
     return;
   }
   // A fill is under way: let that run finish, then undo from settled state.
@@ -128,6 +136,8 @@ const undo = async ($: Dollar, c: Control): Promise<void> => {
       await patch($, c, { busy: false });
       await $.ui.toast("Undo could not write the prompt box. Nothing was sent.");
     }
+  } catch {
+    if (live()) await $.ui.toast("Undo failed. Kept the box.").catch(() => undefined);
   } finally {
     release();
   }
@@ -151,7 +161,7 @@ const send = async ($: Dollar, c: Control): Promise<void> => {
     await patch($, c, { original: null });
     if (live() && (await $.prompt.read()).text === text) await $.prompt.fill({ text: "" });
   } catch {
-    await $.ui.toast("Send failed. Kept the draft.");
+    await $.ui.toast("Send failed. Kept the draft.").catch(() => undefined);
   } finally {
     release();
   }
@@ -161,6 +171,7 @@ const send = async ($: Dollar, c: Control): Promise<void> => {
 export const register = (on: On): void => {
   const c: Control = { current: null, held: null, reviewed: null, writes: Promise.resolve() };
   on("prompt.submit", async ($, e, next) => {
+    seen.set(e, c.current);
     if (e.origin.kind !== "composer" || e.command || e.attachments?.length) return next(e);
     if (c.current) {
       await $.ui.toast("Wait for the current action to finish.");
@@ -187,14 +198,15 @@ export const register = (on: On): void => {
   }).catch(async ($, e, next) => {
     if (next.called) return next(e);
     c.held = null;
-    // busy belongs to the current run; with none left, nothing else may clear it.
-    cancel(c);
-    if (!c.current) await patch($, c, { busy: false }).catch(() => undefined);
+    // Only the run this event saw is canceled; busy is cleared only when that
+    // cancel happened, so a newer run keeps its own busy state.
+    if (cancel(c, seen.get(e))) await patch($, c, { busy: false }).catch(() => undefined);
     await $.ui.toast("Prompt Enhancer failed. Nothing was sent.").catch(() => undefined);
     return { drop: "Prompt held because Prompt Enhancer failed." };
   });
 
   on("prompt.change", async ($, e, next) => {
+    seen.set(e, c.current);
     if (c.held !== null && e.origin.kind === "engine") {
       const held = c.held;
       c.held = null;
@@ -210,15 +222,17 @@ export const register = (on: On): void => {
     // so an edit then does not cancel, and Undo can still reach the draft.
     if (run && !run.filling && e.text !== run.expected && e.origin.kind !== "clear") {
       // The person edited before the fill: this run will not save an original.
-      cancel(c);
+      cancel(c, run);
       await patch($, c, { busy: false });
     }
     return next(e);
   }).catch(async ($, e, next) => {
     c.held = null;
-    // busy belongs to the current run; with none left, nothing else may clear it.
-    cancel(c);
-    if (!c.current) await patch($, c, { busy: false }).catch(() => undefined);
+    // Only the run this event saw is canceled, and only then is busy cleared.
+    // The edit path above may have canceled it already; it then cleared busy
+    // itself or its write failed, so clear busy when no run owns it.
+    const run = seen.get(e);
+    if (cancel(c, run) || (run && !c.current)) await patch($, c, { busy: false }).catch(() => undefined);
     await $.ui.toast("Prompt Enhancer failed. Kept the draft.").catch(() => undefined);
     return next(e);
   });

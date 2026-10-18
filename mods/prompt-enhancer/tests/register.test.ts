@@ -518,34 +518,66 @@ describe("submission errors", () => {
 //  Z2   prompt.submit hook throws       (during A)        catch cancels A and the band is not busy
 // Every row also ends with the band not busy.
 //
-// Ownership table (round 6): every await in hooks/register.tsx that a write to
-// shared state (Control.current, reviewed, held, the box, band original/busy/
-// collapsed) follows, with the corpus row that pins it.
-//  T1  enhance  await patch busy        writes after: run, box, original, busy   U0 E0
-//  T2  enhance  await model             same                                      U1 E1 X1 X2
-//  T3  enhance  await box read          same                                      U2 E2
-//  T4  enhance  await fill              reviewed, original (a catch may cancel)   U3 E3 W1 W2
-//  T5  enhance  await original save     current, busy                             U4 E4
-//  T6  enhance  finally busy            busy                                      U5 Z1
-//  T7  undo     cancel path busy        busy                                      U1
-//  T8  undo     await run.done          current (claim)                           U3 U4
-//  T9  undo     await c.writes          original read                             U4
-//  T10 undo     await state read        reviewed, box                             Y1
-//  T11 undo     await fill, box read    original, busy (a catch may cancel)       Y2 W3
-//  T12 undo     patch original/busy     current                                   U6
-//  T13 send     await box read          box, original                             W4
-//  T14 send     await submit            original, box                             W4
-//  T15 submit   await toast (busy)      none, drop only                           Z2
-//  T16 submit   await next(e)           original                                  W5
-//  T17 submit   catch: cancel, busy     current, busy                             Z2 W1
-//  T18 change   await box read (++)     starts enhance (it claims itself)         typed ++ tests
-//  T19 change   cancel path busy        busy                                      E1
-//  T20 change   catch: cancel, busy     current, busy                             Z1 W2
-//  T21 render   collapse read, patch    collapsed                                 W6
-//  T22 render   Enhance button box read starts enhance (it claims itself)         E0
+// Ownership table (round 7, 45 rows, one per await in hooks/register.tsx at
+// 5a0817d3 + this fix). Columns: line, action, what the normal continuation
+// writes and its guard, where a rejection goes and what it may touch, rows.
+// Guards: Q = the write queue keeps order; L = writes only while live(); C =
+// the run is committed (filling); S = no shared write follows; T = a catch
+// acts only on the run its own event saw (seen), never on c.current.
+//  L17  read helper  state.get      S; reject -> caller                         R-F
+//  L22  patch queue  read           set below, Q; reject -> run rejects, queue   R-F
+//                                   continues (c.writes swallows)
+//  L23  patch queue  state.set      Q; reject -> caller of patch                 Z1 R-A
+//  L41  enhance      busy toast     S (no token taken); caught                   W4
+//  L46  enhance      empty toast    S (no token taken); caught                   typed tests
+//  L54  enhance      W1 busy        L; reject -> catch (L toast) -> finally      U0 E0 R-F
+//  L56  enhance      model          L; reject -> catch -> finally                U1 E1 X1 X2
+//  L62  enhance      fail toast     L in finally; reject -> catch -> finally     R-E
+//  L65  enhance      box read       L; reject -> catch -> finally                U2 E2
+//  L70  enhance      changed toast  L in finally; reject -> catch -> finally     R-B E2
+//  L75  enhance      fill           C, L before save; reject -> catch -> finally U3 E3 W1 W2
+//  L80  enhance      W2 original    Q L; reject -> catch -> finally              U4 E4
+//  L83  enhance      refused toast  L in finally; reject -> catch -> finally     rejected-fill test
+//  L86  enhance      catch toast    L; swallowed                                 R-E
+//  L91  enhance      finally busy   only if it owned the token; swallowed        U5 Z1
+//  L116 undo         cancel busy    cancels only `active`; swallowed             U1
+//  L120 undo         await done     S until claim (check, then claim, no await)  U3 U4
+//  L124 undo         c.writes       L; reject n/a (swallowed queue)              U4
+//  L126 undo         state read     L; reject -> undo catch (L toast) -> release Y1 R-C
+//  L131 undo         fill           C, L before writes; reject -> catch, release Y2 W3 R-C
+//  L131 undo         box read       C, L before writes; reject -> catch, release R-C
+//  L134 undo         clear original L; reject -> catch -> release                U6
+//  L136 undo         busy (failed)  L; reject -> catch -> release                undo-saved-bytes test
+//  L137 undo         failed toast   L; reject -> catch -> release                undo-saved-bytes R-C
+//  L140 undo         catch toast    L; swallowed                                 R-C
+//  L148 send         busy toast     S (no token taken); propagates to button     W4
+//  L153 send         box read       C; reject -> send catch (toast) -> release   R-D
+//  L155 send         submit         C, L after; reject -> catch -> release       R-D W4
+//  L158 send         dropped toast  C; reject -> catch -> release                R-D
+//  L161 send         clear original C Q; reject -> catch -> release              W4
+//  L162 send         box read       C L; reject -> catch -> release              W4
+//  L162 send         clear box      C L; reject -> catch -> release              W4
+//  L164 send         catch toast    swallowed                                    R-D
+//  L177 submit       busy toast     no token taken; reject -> .catch: T cancels  Z2 R-B
+//                                   only the run it saw, busy only if it did
+//  L192 submit       next(e)        C, L after; reject -> finally release ->     W5
+//                                   .catch returns next(e), no cancel
+//  L193 submit       clear original C L; reject -> finally -> .catch, no cancel  R-G
+//  L203 submit .catch busy          T; swallowed                                 Z2
+//  L204 submit .catch toast         swallowed                                    Z2
+//  L213 change       box read (++)  starts enhance, which claims itself; reject  typed ++ tests
+//                                   -> .catch: T (nothing seen) no cancel
+//  L226 change       cancel busy    cancels only the run it saw; reject ->       E1 R-A
+//                                   .catch: T, busy only if no run owns it
+//  L235 change .catch busy          T; swallowed                                 Z1 R-A
+//  L236 change .catch toast         swallowed                                    Z1
+//  L241 render       state read     S (draw only)                                all press tests
+//  L252 button       box read       starts enhance, which claims itself          E0
+//  L252 button       enhance        enhance owns its own errors                  E0
 // Rule: each action that writes after an await (Enhance, Undo, Send, Enter)
 // takes a run token before its first await and writes only while it holds it;
-// cancel() never drops a run whose fill (or send) has started.
+// cancel(c, run) drops only that run and never a committed one; every catch
+// cleans up only after the run its own event saw.
 describe("interleavings golden corpus", () => {
   type Gate = { promise: Promise<void>; open: () => void };
   const gate = (): Gate => { let open = () => undefined as void; const promise = new Promise<void>(resolve => { open = resolve; }); return { promise, open }; };
@@ -853,5 +885,120 @@ describe("interleavings golden corpus", () => {
     await Promise.all([r.h.press("-"), r.h.press("-")]);
     await r.h.settle();
     expect((await r.band())?.collapsed).toBe(false);
+  });
+  // Error twins (round 7): each await's rejection path acts only on its own token.
+  test("R-A an older change write that rejects late does not cancel a newer Enhance", async () => {
+    const r = rig("draft one", { model: "held" });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    // The edit's busy:false write (state write 2) is held, then rejects on release.
+    const realSet = r.h.$.state.set;
+    const old = gate();
+    let calls = 1;
+    r.h.$.state.set = async (...args: Parameters<typeof realSet>) => {
+      calls += 1;
+      if (calls === 2) { await old.promise; throw new Error("old write rejected"); }
+      return realSet(...args);
+    };
+    const e = r.edit("draft two"); await r.h.settle();
+    const b = r.h.press("Enhance"); await r.h.settle();
+    old.open(); await e; await r.h.settle();
+    r.gates.model[0].open(); await a; await r.h.settle();
+    expect(r.gates.model).toHaveLength(2);
+    r.gates.model[1].open(); await b;
+    await ends(r, "Rewrite of draft two");
+    await r.h.press("Undo");
+    await ends(r, "draft two");
+  });
+  // R-B is a guard: a dropped composer submit makes the host put the text back,
+  // and that box change itself cancels an Enhance that has not filled yet, so
+  // the submit-catch race cannot be isolated end to end. R-A pins the shared
+  // event-scoped rule; this row pins the outcome: B started, nothing left busy.
+  test("R-B an older submit whose toast rejects late leaves no stale state (guard)", async () => {
+    const r = rig("draft one", { model: "held" });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    const toastGate = gate();
+    const realToast = r.h.$.ui.toast;
+    let first = true;
+    r.h.$.ui.toast = async (...args: Parameters<typeof realToast>) => {
+      if (first) { first = false; await toastGate.promise; throw new Error("toast rejected late"); }
+      return realToast(...args);
+    };
+    const s = r.h.fire("prompt.submit", submit("draft one")); await r.h.settle();
+    await r.edit("draft two");
+    const b = r.h.press("Enhance"); await r.h.settle();
+    toastGate.open(); await s; await r.h.settle();
+    r.gates.model[0].open(); await a;
+    expect(r.gates.model).toHaveLength(2);
+    r.gates.model[1].open(); await b;
+    await ends(r, "draft two\ndraft one");
+    expect((await r.band())?.original).toBeNull();
+  });
+  test("R-C an Undo whose fill fails says so and frees the token", async () => {
+    const r = rig("draft one");
+    await r.h.press("Enhance");
+    const realFill = r.h.$.prompt.fill;
+    let fail = true;
+    r.h.$.prompt.fill = async (...args: Parameters<typeof realFill>) => {
+      if (fail) { fail = false; throw new Error("fill failed"); }
+      return realFill(...args);
+    };
+    await r.h.press("Undo");
+    expect(r.h.toasts).toContain("Undo failed. Kept the box.");
+    await r.edit("draft two");
+    await r.h.press("Enhance");
+    await ends(r, "Rewrite of draft two");
+  });
+  test("R-D Send whose submit and toast both fail frees the token without throwing", async () => {
+    const r = rig("ready");
+    r.h.$.prompt.submit = async () => { throw new Error("submit failed"); };
+    const realToast = r.h.$.ui.toast;
+    let fail = true;
+    r.h.$.ui.toast = async (...args: Parameters<typeof realToast>) => {
+      if (fail) { fail = false; throw new Error("toast failed"); }
+      return realToast(...args);
+    };
+    await r.h.press("Send");
+    await r.h.press("Enhance");
+    await ends(r, "Rewrite of ready");
+  });
+  test("R-E an Enhance whose failure toast rejects still frees the token and clears busy (guard)", async () => {
+    const r = rig("draft one");
+    r.h.complete.mockImplementationOnce(async () => ({ isAnswered: false, text: "" }));
+    const realToast = r.h.$.ui.toast;
+    let fail = true;
+    r.h.$.ui.toast = async (...args: Parameters<typeof realToast>) => {
+      if (fail) { fail = false; throw new Error("toast failed"); }
+      return realToast(...args);
+    };
+    await r.h.press("Enhance");
+    await ends(r, "draft one");
+    await r.h.press("Enhance");
+    await ends(r, RA);
+  });
+  test("R-F a state read that fails inside the write queue does not poison it (guard)", async () => {
+    const r = rig("draft one");
+    const realGet = r.h.$.state.get;
+    let fail = true;
+    r.h.$.state.get = async (...args: Parameters<typeof realGet>) => {
+      if (fail) { fail = false; throw new Error("state read failed"); }
+      return realGet(...args);
+    };
+    await r.h.press("Enhance").catch(() => undefined);
+    await r.h.press("Enhance");
+    await ends(r, RA);
+  });
+  test("R-G an Enter whose original clear fails frees the token (guard)", async () => {
+    const r = rig("sent text");
+    const realSet = r.h.$.state.set;
+    let fail = true;
+    r.h.$.state.set = async (...args: Parameters<typeof realSet>) => {
+      if (fail) { fail = false; throw new Error("clear failed"); }
+      return realSet(...args);
+    };
+    await r.h.fire("prompt.submit", submit("sent text"));
+    expect(r.h.sent).toEqual(["sent text"]);
+    r.h.edit("next draft");
+    await r.h.press("Enhance");
+    await ends(r, "Rewrite of next draft");
   });
 });
