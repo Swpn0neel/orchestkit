@@ -4,13 +4,15 @@ import { SYSTEM } from "../src/system.js";
 const BAND = { plugin: "prompt-enhancer", key: "band" } as const;
 const INITIAL: BandState = { visible: true, collapsed: false, busy: false, original: null };
 
-// One Enhance or one Undo. Only the run in Control.current may change shared
-// state: a run that was canceled (an edit, Undo, a failure) keeps going until
-// its next await and then finds it is no longer current, so it can never clear
-// or overwrite what a newer run owns. Before its fill a run can be canceled by
-// an edit; once its fill starts it is committed and other actions wait.
-interface Run { kind: "enhance" | "undo"; filling: boolean; expected: string; done: Promise<void> }
-interface Control { current: Run | null; sending: boolean; held: string | null; reviewed: string | null; writes: Promise<void> }
+// One rule for every action that writes shared state after an await (Enhance,
+// Undo, Send, Enter): it takes a run token in Control.current before its first
+// await and writes only while it still holds that token. A run that lost its
+// token (an edit, Undo, a failure) keeps going until its next check and then
+// stops, so it can never clear or overwrite what a newer run owns. Before its
+// fill a run can be canceled; once its fill (or send) starts it is committed:
+// nothing cancels it and other actions wait or are refused.
+interface Run { kind: "enhance" | "undo" | "send" | "submit"; filling: boolean; expected: string; done: Promise<void> }
+interface Control { current: Run | null; held: string | null; reviewed: string | null; writes: Promise<void> }
 
 const read = async ($: Dollar): Promise<BandState> => (await $.state.get(BAND)).value ?? { ...INITIAL };
 // State writes run one at a time, in the order they were asked for, so a write
@@ -24,8 +26,18 @@ const patch = ($: Dollar, c: Control, fields: Partial<BandState> | ((state: Band
   return run;
 };
 
+/** Takes the token. The caller checks c.current first, with no await between. */
+const claim = (c: Control, kind: Run["kind"], filling: boolean, expected = "") => {
+  let finish: () => void = () => undefined;
+  const run: Run = { kind, filling, expected, done: new Promise<void>(resolve => { finish = resolve; }) };
+  c.current = run;
+  const live = () => c.current === run;
+  const release = () => { finish(); if (live()) c.current = null; };
+  return { run, live, release };
+};
+
 const enhance = async ($: Dollar, c: Control, original: string): Promise<void> => {
-  if (c.current || c.sending) {
+  if (c.current) {
     await $.ui.toast("Wait for the current action to finish.").catch(() => undefined);
     return;
   }
@@ -34,10 +46,7 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
     await $.ui.toast("Type a prompt before using Enhance.").catch(() => undefined);
     return;
   }
-  let finish: () => void = () => undefined;
-  const run: Run = { kind: "enhance", filling: false, expected: original, done: new Promise<void>(resolve => { finish = resolve; }) };
-  c.current = run;
-  const live = () => c.current === run;
+  const { run, live, release } = claim(c, "enhance", false, original);
   // Undo goes back past an earlier Enhance only while the box still holds the
   // rewrite that Enhance filled. Any edit makes this draft the new original.
   const chained = c.reviewed !== null && original === c.reviewed;
@@ -76,22 +85,23 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
   } catch {
     if (live()) await $.ui.toast("Enhance failed. Kept your original prompt.").catch(() => undefined);
   } finally {
-    finish();
-    if (live()) {
-      c.current = null;
-      // enhance can run detached from prompt.change, so a failed state write must not reject.
-      await patch($, c, { busy: false }).catch(() => undefined);
-    }
+    const owned = live();
+    release();
+    // enhance can run detached from prompt.change, so a failed state write must not reject.
+    if (owned) await patch($, c, { busy: false }).catch(() => undefined);
   }
 };
 
-/** Ends the current run without a fill: an edit, Undo before the fill, a failure. */
-const cancel = (c: Control): void => { c.current = null; };
+/** Drops the current run unless it is committed (its fill or send has started). */
+const cancel = (c: Control): boolean => {
+  if (!c.current || c.current.filling) return false;
+  c.current = null;
+  return true;
+};
 
 const undo = async ($: Dollar, c: Control): Promise<void> => {
-  if (c.sending) return;
   const active = c.current;
-  if (active?.kind === "undo") return;
+  if (active && active.kind !== "enhance") return;
   if (active && !active.filling) {
     // Nothing filled yet: Undo cancels Enhance and keeps the box.
     cancel(c);
@@ -101,10 +111,7 @@ const undo = async ($: Dollar, c: Control): Promise<void> => {
   // A fill is under way: let that run finish, then undo from settled state.
   if (active) await active.done;
   if (c.current) return;
-  let finish: () => void = () => undefined;
-  const run: Run = { kind: "undo", filling: false, expected: "", done: new Promise<void>(resolve => { finish = resolve; }) };
-  c.current = run;
-  const live = () => c.current === run;
+  const { run, live, release } = claim(c, "undo", false);
   try {
     await c.writes;
     if (!live()) return;
@@ -113,47 +120,49 @@ const undo = async ($: Dollar, c: Control): Promise<void> => {
     run.filling = true;
     run.expected = state.original;
     c.reviewed = null;
-    if ((await $.prompt.fill({ text: state.original, mode: "replace" })).isFilled && (await $.prompt.read()).text === state.original) {
+    const restored = (await $.prompt.fill({ text: state.original, mode: "replace" })).isFilled && (await $.prompt.read()).text === state.original;
+    if (!live()) return;
+    if (restored) {
       await patch($, c, { original: null, busy: false });
     } else {
       await patch($, c, { busy: false });
       await $.ui.toast("Undo could not write the prompt box. Nothing was sent.");
     }
   } finally {
-    finish();
-    if (live()) c.current = null;
+    release();
   }
 };
 
 const send = async ($: Dollar, c: Control): Promise<void> => {
-  if (c.current || c.sending) {
+  if (c.current) {
     await $.ui.toast("Wait for Enhance to finish before sending.");
     return;
   }
-  c.sending = true;
+  const { live, release } = claim(c, "send", true);
   try {
     const { text } = await $.prompt.read();
     if (!text.trim()) return;
     const result = await $.prompt.submit({ text, asUser: true });
+    if (!live()) return;
     if (result.drop !== undefined) {
       await $.ui.toast("The prompt was not sent. Kept the draft.");
       return;
     }
     await patch($, c, { original: null });
-    if ((await $.prompt.read()).text === text) await $.prompt.fill({ text: "" });
+    if (live() && (await $.prompt.read()).text === text) await $.prompt.fill({ text: "" });
   } catch {
     await $.ui.toast("Send failed. Kept the draft.");
   } finally {
-    c.sending = false;
+    release();
   }
 };
 
 
 export const register = (on: On): void => {
-  const c: Control = { current: null, sending: false, held: null, reviewed: null, writes: Promise.resolve() };
+  const c: Control = { current: null, held: null, reviewed: null, writes: Promise.resolve() };
   on("prompt.submit", async ($, e, next) => {
     if (e.origin.kind !== "composer" || e.command || e.attachments?.length) return next(e);
-    if (c.current || c.sending) {
+    if (c.current) {
       await $.ui.toast("Wait for the current action to finish.");
       return { drop: "Prompt held for review." };
     }
@@ -165,14 +174,22 @@ export const register = (on: On): void => {
       c.held = e.text;
       return { drop: "Prompt held for review. Edit it, then use Send or Enter." };
     }
-    const result = await next(e);
-    if (!(result && typeof result === "object" && "drop" in result)) await patch($, c, { original: null });
-    return result;
+    // The send is committed from here: it holds the token across next(e), so a
+    // newer action cannot start and then lose its original to this clear.
+    const { live, release } = claim(c, "submit", true);
+    try {
+      const result = await next(e);
+      if (live() && !(result && typeof result === "object" && "drop" in result)) await patch($, c, { original: null });
+      return result;
+    } finally {
+      release();
+    }
   }).catch(async ($, e, next) => {
     if (next.called) return next(e);
-    cancel(c);
     c.held = null;
-    await patch($, c, { busy: false }).catch(() => undefined);
+    // busy belongs to the current run; with none left, nothing else may clear it.
+    cancel(c);
+    if (!c.current) await patch($, c, { busy: false }).catch(() => undefined);
     await $.ui.toast("Prompt Enhancer failed. Nothing was sent.").catch(() => undefined);
     return { drop: "Prompt held because Prompt Enhancer failed." };
   });
@@ -199,8 +216,9 @@ export const register = (on: On): void => {
     return next(e);
   }).catch(async ($, e, next) => {
     c.held = null;
+    // busy belongs to the current run; with none left, nothing else may clear it.
     cancel(c);
-    await patch($, c, { busy: false }).catch(() => undefined);
+    if (!c.current) await patch($, c, { busy: false }).catch(() => undefined);
     await $.ui.toast("Prompt Enhancer failed. Kept the draft.").catch(() => undefined);
     return next(e);
   });
@@ -213,7 +231,7 @@ export const register = (on: On): void => {
       <Box flexDirection="column">
         <Box>
           <Text>✨ Prompt Enhancer </Text>
-          <Button key="collapse" label={state.collapsed ? "+" : "-"} onPress={async () => patch($, c, { collapsed: !(await read($)).collapsed })} />
+          <Button key="collapse" label={state.collapsed ? "+" : "-"} onPress={() => patch($, c, state => ({ collapsed: !state.collapsed }))} />
         </Box>
         {!state.collapsed && <Box flexDirection="column">
           <Box>

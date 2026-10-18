@@ -34,6 +34,8 @@ function harness(initial: string) {
     return { ...node, children };
   });
   const catches = new Map<string, unknown>();
+  let submitHold: Promise<void> | null = null;
+  let failChange = false;
   const on = ((name: string, ...args: unknown[]) => {
     handlers.set(name, args.at(-1));
     return { catch: (handler: unknown) => { catches.set(name, handler); } };
@@ -49,7 +51,15 @@ function harness(initial: string) {
       box = "";
     }
     let settled: Events[K];
-    const next = Object.assign(async (e: Events[K]) => { if (next.called) return settled; next.called = true; settled = e; if (name === "prompt.submit") sent.push((e as Events["prompt.submit"]).text); return e; }, { called: false });
+    const next = Object.assign(async (e: Events[K]) => {
+      if (next.called) return settled;
+      next.called = true;
+      if (name === "prompt.change" && failChange) { failChange = false; throw new Error("downstream prompt.change failed"); }
+      if (name === "prompt.submit" && submitHold) { const hold = submitHold; submitHold = null; await hold; }
+      settled = e;
+      if (name === "prompt.submit") sent.push((e as Events["prompt.submit"]).text);
+      return e;
+    }, { called: false });
     let result: unknown;
     try { result = await handler!($, event, next); }
     catch (error) {
@@ -78,7 +88,11 @@ function harness(initial: string) {
     expect(button, `missing ${label} button`).toBeDefined();
     await (button!.props.onPress as () => Promise<unknown>)();
   }
-  return { $, fire, press, settle, sent, displayed, toasts, drops, complete, box: () => box, edit: (text: string) => { box = text; } };
+  return {
+    $, fire, press, settle, sent, displayed, toasts, drops, complete, box: () => box, edit: (text: string) => { box = text; },
+    holdSubmit: (hold: Promise<void>) => { submitHold = hold; },
+    failNextChange: () => { failChange = true; },
+  };
 }
 // One macrotask lets detached mod work (the Enhance model call) run to completion
 // when the fake model answers at once, as the host's event loop would.
@@ -503,6 +517,35 @@ describe("submission errors", () => {
 //  Z1   prompt.change hook throws       (during A)        catch cancels A and the band is not busy
 //  Z2   prompt.submit hook throws       (during A)        catch cancels A and the band is not busy
 // Every row also ends with the band not busy.
+//
+// Ownership table (round 6): every await in hooks/register.tsx that a write to
+// shared state (Control.current, reviewed, held, the box, band original/busy/
+// collapsed) follows, with the corpus row that pins it.
+//  T1  enhance  await patch busy        writes after: run, box, original, busy   U0 E0
+//  T2  enhance  await model             same                                      U1 E1 X1 X2
+//  T3  enhance  await box read          same                                      U2 E2
+//  T4  enhance  await fill              reviewed, original (a catch may cancel)   U3 E3 W1 W2
+//  T5  enhance  await original save     current, busy                             U4 E4
+//  T6  enhance  finally busy            busy                                      U5 Z1
+//  T7  undo     cancel path busy        busy                                      U1
+//  T8  undo     await run.done          current (claim)                           U3 U4
+//  T9  undo     await c.writes          original read                             U4
+//  T10 undo     await state read        reviewed, box                             Y1
+//  T11 undo     await fill, box read    original, busy (a catch may cancel)       Y2 W3
+//  T12 undo     patch original/busy     current                                   U6
+//  T13 send     await box read          box, original                             W4
+//  T14 send     await submit            original, box                             W4
+//  T15 submit   await toast (busy)      none, drop only                           Z2
+//  T16 submit   await next(e)           original                                  W5
+//  T17 submit   catch: cancel, busy     current, busy                             Z2 W1
+//  T18 change   await box read (++)     starts enhance (it claims itself)         typed ++ tests
+//  T19 change   cancel path busy        busy                                      E1
+//  T20 change   catch: cancel, busy     current, busy                             Z1 W2
+//  T21 render   collapse read, patch    collapsed                                 W6
+//  T22 render   Enhance button box read starts enhance (it claims itself)         E0
+// Rule: each action that writes after an await (Enhance, Undo, Send, Enter)
+// takes a run token before its first await and writes only while it holds it;
+// cancel() never drops a run whose fill (or send) has started.
 describe("interleavings golden corpus", () => {
   type Gate = { promise: Promise<void>; open: () => void };
   const gate = (): Gate => { let open = () => undefined as void; const promise = new Promise<void>(resolve => { open = resolve; }); return { promise, open }; };
@@ -740,5 +783,75 @@ describe("interleavings golden corpus", () => {
     await r.h.fire("prompt.submit", submit("draft one"));
     r.gates.model[0].open(); await a;
     await ends(r, "draft one");
+  });
+  test("W1 a submit hook failure during Enhance's fill keeps the committed result", async () => {
+    const r = rig("draft one", { fill: [1] });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    const realToast = r.h.$.ui.toast;
+    let threw = false;
+    r.h.$.ui.toast = async (...args: Parameters<typeof realToast>) => {
+      if (!threw) { threw = true; throw new Error("toast unavailable"); }
+      return realToast(...args);
+    };
+    await r.h.fire("prompt.submit", submit("draft one"));
+    r.gates.fill.get(1)!.open(); await a;
+    await ends(r, RA);
+    await r.h.press("Undo");
+    await ends(r, "draft one");
+  });
+  test("W2 a change hook failure during Enhance's fill keeps the committed result", async () => {
+    const r = rig("draft one", { fill: [1] });
+    const a = r.h.press("Enhance"); await r.h.settle();
+    r.h.failNextChange();
+    await r.edit("typing");
+    r.gates.fill.get(1)!.open(); await a;
+    await ends(r, RA);
+    await r.h.press("Undo");
+    await ends(r, "draft one");
+  });
+  test("W3 a hook failure during Undo's fill keeps Undo; a new Enhance is refused", async () => {
+    const r = rig("draft one", { fill: [2] });
+    await r.h.press("Enhance");
+    const u = r.h.press("Undo"); await r.h.settle();
+    const realToast = r.h.$.ui.toast;
+    let threw = false;
+    r.h.$.ui.toast = async (...args: Parameters<typeof realToast>) => {
+      if (!threw) { threw = true; throw new Error("toast unavailable"); }
+      return realToast(...args);
+    };
+    await r.h.fire("prompt.submit", submit(RA));
+    await r.h.press("Enhance");
+    r.gates.fill.get(2)!.open(); await u;
+    expect(r.h.complete).toHaveBeenCalledTimes(1);
+    await ends(r, "draft one");
+    expect((await r.band())?.original).toBeNull();
+  });
+  test("W4 an Enhance during Send is refused (guard)", async () => {
+    const r = rig("ready to send");
+    const g = gate();
+    const realSubmit = r.h.$.prompt.submit;
+    r.h.$.prompt.submit = async (...args: Parameters<typeof realSubmit>) => { await g.promise; return realSubmit(...args); };
+    const s = r.h.press("Send"); await r.h.settle();
+    await r.h.press("Enhance");
+    g.open(); await s;
+    expect(r.h.complete).not.toHaveBeenCalled();
+    expect(r.h.sent).toEqual(["ready to send"]);
+  });
+  test("W5 an older Enter that resumes after a newer Enhance does not clear its original", async () => {
+    const r = rig("send old draft");
+    const g = gate();
+    r.h.holdSubmit(g.promise);
+    const s = r.h.fire("prompt.submit", submit("send old draft")); await r.h.settle();
+    await r.edit("draft two");
+    await r.h.press("Enhance");
+    g.open(); await s; await r.h.settle();
+    await r.h.press("Undo");
+    await ends(r, "draft two");
+  });
+  test("W6 two quick collapse presses toggle twice", async () => {
+    const r = rig("draft");
+    await Promise.all([r.h.press("-"), r.h.press("-")]);
+    await r.h.settle();
+    expect((await r.band())?.collapsed).toBe(false);
   });
 });
