@@ -132,6 +132,66 @@ describe("Prompt Enhancer review boundary", () => {
     await h.press("Undo");
     expect(h.box()).toBe("mine");
   });
+  for (const held of [1, 2]) {
+    test(`an edit while state write ${held} of Enhance is pending leaves no stale original`, async () => {
+      const h = harness("draft one");
+      const realSet = h.$.state.set;
+      let calls = 0;
+      let release: () => void = () => undefined;
+      h.$.state.set = async (...args: Parameters<typeof realSet>) => {
+        calls += 1;
+        if (calls === held) await new Promise<void>(resolve => { release = resolve; });
+        return realSet(...args);
+      };
+      h.complete.mockImplementation(async ({ prompt }) => ({ isAnswered: true, text: `Rewrite of ${prompt}` }));
+      const pending = h.press("Enhance");
+      await h.settle();
+      h.edit("draft two");
+      const changing = h.fire("prompt.change", { text: "draft two", cursor: 9, origin: { kind: "input" } });
+      await h.settle();
+      release();
+      await changing;
+      await pending;
+      await h.settle();
+      expect(h.box()).toBe("draft two");
+      // Held at write 1, the canceled Enhance stops before the model call.
+      expect(h.complete).toHaveBeenCalledTimes(held === 1 ? 0 : 1);
+      await h.press("Enhance");
+      expect(h.box()).toBe("Rewrite of draft two");
+      await h.press("Undo");
+      expect(h.box()).toBe("draft two");
+    });
+  }
+  test("a canceled Enhance leaves the band not busy", async () => {
+    const h = harness("draft");
+    const realSet = h.$.state.set;
+    let release: () => void = () => undefined;
+    let first = true;
+    h.$.state.set = async (...args: Parameters<typeof realSet>) => {
+      if (first) { first = false; await new Promise<void>(resolve => { release = resolve; }); }
+      return realSet(...args);
+    };
+    const pending = h.press("Enhance");
+    await h.settle();
+    h.edit("mine");
+    const changing = h.fire("prompt.change", { text: "mine", cursor: 4, origin: { kind: "input" } });
+    await h.settle();
+    release();
+    await changing;
+    await pending;
+    await h.settle();
+    expect((await h.$.state.get({ plugin: "prompt-enhancer", key: "band" })).value?.busy).toBe(false);
+  });
+  test("an edited rewrite starts a new chain: Undo after its Enhance gives the edit", async () => {
+    const h = harness("draft");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: "R1" });
+    await h.press("Enhance");
+    h.edit("R1 with my change");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: "R2" });
+    await h.press("Enhance");
+    await h.press("Undo");
+    expect(h.box()).toBe("R1 with my change");
+  });
   test("a failed second Enhance keeps the first original for Undo", async () => {
     const h = harness("draft");
     h.complete.mockResolvedValueOnce({ isAnswered: true, text: "R1" });
