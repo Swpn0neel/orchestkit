@@ -62,6 +62,7 @@ function harness(initial: string) {
       if (!box) await fire("prompt.change", { text: "", cursor: 0, origin: { kind: "clear" } });
       box = box.trim() ? `${box}\n${handedBack}` : handedBack;
       await fire("prompt.change", { text: box, cursor: box.length, origin: { kind: "engine" } });
+      await settle();
     }
     return result;
   }
@@ -77,8 +78,11 @@ function harness(initial: string) {
     expect(button, `missing ${label} button`).toBeDefined();
     await (button!.props.onPress as () => Promise<unknown>)();
   }
-  return { $, fire, press, sent, displayed, toasts, drops, complete, box: () => box, edit: (text: string) => { box = text; } };
+  return { $, fire, press, settle, sent, displayed, toasts, drops, complete, box: () => box, edit: (text: string) => { box = text; } };
 }
+// One macrotask lets detached mod work (the Enhance model call) run to completion
+// when the fake model answers at once, as the host's event loop would.
+const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 const submit = (text: string): Events["prompt.submit"] => ({ text: text.trim(), origin: { kind: "composer" }, wait: false });
 
 describe("Prompt Enhancer review boundary", () => {
@@ -183,6 +187,7 @@ describe("failure and race handling", () => {
     h.edit("My newer draft");
     answer({ isAnswered: true, text: "Stale rewrite" });
     await pending;
+    await h.settle();
     expect(h.box()).toBe("My newer draft");
     expect(h.sent).toEqual([]);
   });
@@ -195,6 +200,7 @@ describe("failure and race handling", () => {
     await h.press("Undo");
     answer({ isAnswered: true, text: "Stale rewrite" });
     await pending;
+    await h.settle();
     expect(h.box()).toBe("login++");
     expect(h.sent).toEqual([]);
   });
@@ -208,6 +214,7 @@ describe("failure and race handling", () => {
     expect(h.sent).toEqual([]);
     answer({ isAnswered: true, text: "Visible rewrite" });
     await pending;
+    await h.settle();
   });
   test("Enter during Enhance restores one draft and sends nothing", async () => {
     const h = harness("login++");
@@ -219,8 +226,24 @@ describe("failure and race handling", () => {
     expect(h.box()).toBe("login++");
     answer({ isAnswered: true, text: "Visible rewrite" });
     await pending;
+    await h.settle();
     expect(h.box()).toBe("Visible rewrite");
     expect(h.complete).toHaveBeenCalledTimes(1);
+    expect(h.sent).toEqual([]);
+  });
+  test("the host restore notification settles before the model answers", async () => {
+    const h = harness("login++");
+    let answer!: (value: { isAnswered: boolean; text: string }) => void;
+    h.complete.mockImplementationOnce(() => new Promise(resolve => { answer = resolve; }));
+    const held = Symbol("held");
+    const settled = await Promise.race([
+      h.fire("prompt.submit", submit("login++")),
+      new Promise(resolve => setTimeout(resolve, 50, held)),
+    ]);
+    expect(settled).not.toBe(held);
+    expect(h.complete).toHaveBeenCalledTimes(1);
+    answer({ isAnswered: true, text: "Visible rewrite" });
+    await vi.waitFor(() => expect(h.box()).toBe("Visible rewrite"));
     expect(h.sent).toEqual([]);
   });
   test("prompt.change cancels a pending result without rewriting its event", async () => {
@@ -237,6 +260,7 @@ describe("failure and race handling", () => {
     const current = h.box();
     answer({ isAnswered: true, text: "Stale rewrite" });
     await pending;
+    await h.settle();
     expect(h.box()).toBe(current);
   });
   test("a rejected rewrite fill retains the host restored draft", async () => {
