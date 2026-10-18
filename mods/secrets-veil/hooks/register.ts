@@ -115,14 +115,15 @@ function isPlainContainer(value: object): boolean {
  * File signatures of the media types whose base64 payload passes unmasked.
  * An image payload is one long high-entropy run, so the entropy layer covered
  * it and the API rejected every Read of a PNG or JPEG
- * (card image-read-fault-2026-10-18).
+ * (card image-read-fault-2026-10-18). Images only: a PDF stays masked,
+ * because the API reads its text and the veil cannot (operator decision on
+ * orchestkit#4801).
  */
 const MEDIA_SIGNATURES: Record<string, (h: number[]) => boolean> = {
   "image/png": (h) => startsWith(h, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
   "image/jpeg": (h) => startsWith(h, [0xff, 0xd8, 0xff]),
   "image/gif": (h) => startsWith(h, ascii("GIF8")),
   "image/webp": (h) => startsWith(h, ascii("RIFF")) && startsWith(h.slice(8), ascii("WEBP")),
-  "application/pdf": (h) => startsWith(h, ascii("%PDF-")),
 };
 
 function ascii(text: string): number[] {

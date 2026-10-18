@@ -36,13 +36,23 @@ Three layers, checked on every tool result:
    paths and identifiers measured 2.9 to 4.0. Masked output never reveals
    length beyond an 8-bullet floor.
 
-   One exception: the `data` of a base64 media block (an image or a PDF a
-   tool returns, `{ type: "base64", media_type, data }`) passes byte-equal
-   when its media type is PNG, JPEG, GIF, WebP or PDF and its first bytes
-   are that type's file signature. An image payload is one long
-   high-entropy run, so masking it made the API reject every image Read.
-   Every other field of the block, and a `data` field that only claims a
-   media type, is masked as usual.
+   One exception: the `data` of a base64 image block (`{ type: "base64",
+   media_type, data }`) passes byte-equal when its media type is PNG, JPEG,
+   GIF or WebP and its first bytes are that type's file signature. An image
+   payload is one long high-entropy run, so masking it made the API reject
+   every image Read. Every other field of the block, and a `data` field
+   that only claims an image type, is masked as usual.
+
+   What this exemption does not cover, in plain words:
+   - **The veil does not see inside an image.** A secret drawn in the
+     pixels, or kept in the image's metadata, reaches the model.
+   - **PDF reads stay masked.** The API reads the text of a PDF, and the
+     veil cannot, so a PDF payload is masked and a PDF Read fails while the
+     veil is on.
+   - **Any producer gets the same pass.** The veil cannot tell a Read from
+     another tool at this layer, so a structured result shaped like an
+     image source (an MCP server's structured content, for example) passes
+     its `data` unmasked too when that data starts with an image signature.
 
 If zero named values resolve at `session.start`, the mod emits one
 `$.ui.notice` saying the veil is running on value patterns and entropy only.

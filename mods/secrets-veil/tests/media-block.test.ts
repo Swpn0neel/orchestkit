@@ -2,7 +2,7 @@
 // Created: 2026-10-18
 
 /**
- * An image or PDF in a tool result is a base64 media block. Its payload is
+ * An image in a tool result is a base64 media block. Its payload is
  * one long high-entropy run, so the entropy layer covered it with bullets,
  * the API got invalid base64, and every Read of a PNG or JPEG came back as
  * "(media removed, rejected by API)" (card image-read-fault-2026-10-18).
@@ -43,7 +43,7 @@ const next = (result: unknown) => async (): Promise<unknown> => result;
 /** A high-entropy base64 run built at runtime, so no token sits in the source. */
 const TOKEN = Buffer.from(Array.from({ length: 48 }, (_, i) => (i * 97 + 13) % 256)).toString("base64");
 
-/** A valid 1x1 PNG and a minimal PDF header, as the API carries them. */
+/** A valid 1x1 PNG, and a PDF with a token in its text (PDF stays masked). */
 const PNG_1X1 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
 const PDF = Buffer.from("%PDF-1.4\n" + "x".repeat(40) + TOKEN).toString("base64");
@@ -60,7 +60,6 @@ describe("a base64 media block passes through byte-equal", () => {
   test.each([
     ["image/png", PNG_1X1],
     ["image/png", BIG_PNG],
-    ["application/pdf", PDF],
   ])("%s payload is unchanged", async (mediaType, data) => {
     const out = await run([{ type: "image", source: { type: "base64", media_type: mediaType, data } }]);
     expect(out).toContain(data);
@@ -85,6 +84,11 @@ describe("every other string stays masked", () => {
   test("a token dressed as a media block but not that media type is masked", async () => {
     const out = await run({ source: { type: "base64", media_type: "image/png", data: TOKEN } });
     expect(out).not.toContain(TOKEN);
+  });
+
+  test("a PDF payload stays masked: the API reads its text, the veil cannot", async () => {
+    const out = await run([{ type: "document", source: { type: "base64", media_type: "application/pdf", data: PDF } }]);
+    expect(out).not.toContain(PDF);
   });
 
   test("a token in a media block of a type the veil does not pass is masked", async () => {
