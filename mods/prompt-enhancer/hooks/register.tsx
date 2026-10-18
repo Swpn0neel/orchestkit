@@ -122,7 +122,9 @@ export const register = (on: On): void => {
       const held = c.held;
       c.held = null;
       if (e.text.trim() === held && (await $.prompt.read()).text === e.text) {
-        await enhance($, c, e.text);
+        // The host holds every later prompt.change raise until this handler returns,
+        // so the model call runs detached. enhance catches its own failures.
+        void enhance($, c, e.text);
       }
       return next(e);
     }
