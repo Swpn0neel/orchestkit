@@ -492,7 +492,7 @@ describe("submission errors", () => {
 //  E0   W1 pending                      edit, B, Undo     box draft two, model called once (B)
 //  E1   model pending                   edit, B, Undo     box draft two, late reply ignored
 //  E2   box check after the reply       edit, B, Undo     box draft two
-//  E3   fill pending                    edit              A saves no original (the fill lands last)
+//  E3   fill pending                    edit, Undo        fill is committed: box RA, Undo gives draft one
 //  E4   W2 pending                      edit, Undo        box draft one (Undo goes back past the edit)
 //  E6   A done                          edit, B, Undo     box is the edit
 //  X1   A late reply during B's fill    Undo during fill  waits for B, box draft two
@@ -617,13 +617,14 @@ describe("interleavings golden corpus", () => {
     await r.h.press("Undo");
     await ends(r, "draft two");
   });
-  test("E3 an edit while the fill is pending: A saves no original", async () => {
+  test("E3 an edit while the fill is pending does not cancel it: Undo gives draft one", async () => {
     const r = rig("draft one", { fill: [1] });
     const a = r.h.press("Enhance"); await r.h.settle();
     await r.edit("draft two");
     r.gates.fill.get(1)!.open(); await a;
     await ends(r, RA);
-    expect((await r.band())?.original).toBeNull();
+    await r.h.press("Undo");
+    await ends(r, "draft one");
   });
   test("E4 an edit while the original save is pending, then Undo, goes back to draft one", async () => {
     const r = rig("draft one", { set: [2] });

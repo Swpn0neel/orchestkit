@@ -174,8 +174,10 @@ export const register = (on: On): void => {
       return next(e);
     }
     const run = c.current;
-    if (run && e.text !== run.expected && e.origin.kind !== "clear") {
-      // The person edited during Enhance: this run will not save an original.
+    // Once the fill has started it is committed: the rewrite lands either way,
+    // so an edit then does not cancel, and Undo can still reach the draft.
+    if (run && !run.filling && e.text !== run.expected && e.origin.kind !== "clear") {
+      // The person edited before the fill: this run will not save an original.
       cancel(c);
       await patch($, c, { busy: false });
     }
