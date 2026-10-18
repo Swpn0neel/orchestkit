@@ -4,7 +4,7 @@ import { SYSTEM } from "../src/system.js";
 const BAND = { plugin: "prompt-enhancer", key: "band" } as const;
 const INITIAL: BandState = { visible: true, collapsed: false, busy: false, original: null };
 
-interface Control { request: number; enhancing: boolean; sending: boolean; expectedDraft: string; held: string | null }
+interface Control { request: number; enhancing: boolean; sending: boolean; expectedDraft: string; held: string | null; reviewed: string | null }
 
 const read = async ($: Dollar): Promise<BandState> => (await $.state.get(BAND)).value ?? { ...INITIAL };
 const patch = async ($: Dollar, fields: Partial<BandState>): Promise<void> => {
@@ -42,7 +42,9 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
       return;
     }
     c.expectedDraft = result.text;
-    if (!(await $.prompt.fill({ text: result.text })).isFilled) {
+    if ((await $.prompt.fill({ text: result.text })).isFilled) {
+      c.reviewed = result.text;
+    } else {
       await $.ui.toast("The prompt box could not take the rewrite. Nothing was sent.");
     }
   } catch {
@@ -61,6 +63,7 @@ const undo = async ($: Dollar, c: Control): Promise<void> => {
   if (state.original === null || c.sending) return;
   c.request += 1;
   c.enhancing = false;
+  c.reviewed = null;
   c.expectedDraft = state.original;
   if ((await $.prompt.fill({ text: state.original, mode: "replace" })).isFilled && (await $.prompt.read()).text === state.original) {
     await patch($, { original: null, busy: false });
@@ -95,14 +98,18 @@ const send = async ($: Dollar, c: Control): Promise<void> => {
 
 
 export const register = (on: On): void => {
-  const c: Control = { request: 0, enhancing: false, sending: false, expectedDraft: "", held: null };
+  const c: Control = { request: 0, enhancing: false, sending: false, expectedDraft: "", held: null, reviewed: null };
   on("prompt.submit", async ($, e, next) => {
     if (e.origin.kind !== "composer" || e.command || e.attachments?.length) return next(e);
     if (c.enhancing || c.sending) {
       await $.ui.toast("Wait for the current action to finish.");
       return { drop: "Prompt held for review." };
     }
-    if (e.text.endsWith("++")) {
+    // A rewrite the person reviewed is sent as is, even when it ends in ++ (C++).
+    // The host trims the submit, so compare trimmed.
+    const reviewed = c.reviewed !== null && e.text === c.reviewed.trim();
+    c.reviewed = null;
+    if (e.text.endsWith("++") && !reviewed) {
       c.held = e.text;
       return { drop: "Prompt held for review. Edit it, then use Send or Enter." };
     }

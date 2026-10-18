@@ -96,6 +96,25 @@ describe("Prompt Enhancer review boundary", () => {
     expect(h.box()).not.toContain("login opage++");
     expect(h.sent).toEqual([]);
   });
+  test("Enter sends a reviewed rewrite that ends in ++, with no second model call", async () => {
+    const h = harness("Fix the parser in C++++");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: "Fix the parser in C++" });
+    await h.fire("prompt.submit", submit(h.box()));
+    expect(h.box()).toBe("Fix the parser in C++");
+    await h.fire("prompt.submit", submit(h.box()));
+    expect(h.complete).toHaveBeenCalledTimes(1);
+    expect(h.sent).toEqual(["Fix the parser in C++"]);
+  });
+  test("an edited rewrite that ends in ++ is a new trigger", async () => {
+    const h = harness("login++");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: "Add a login page." });
+    await h.fire("prompt.submit", submit(h.box()));
+    h.edit("Add a login page with SSO++");
+    await h.fire("prompt.submit", submit(h.box()));
+    expect(h.complete).toHaveBeenCalledTimes(2);
+    expect(h.complete).toHaveBeenLastCalledWith(expect.objectContaining({ prompt: "Add a login page with SSO" }));
+    expect(h.sent).toEqual([]);
+  });
   test("Undo restores the exact original bytes", async () => {
     const original = "  login\r\n😀 é ++";
     const h = harness(original);
