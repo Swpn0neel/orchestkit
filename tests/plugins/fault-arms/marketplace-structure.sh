@@ -80,6 +80,26 @@ rmdir "$FIX/fault3/mods/quiet"
 printf '# demo\n\nInstall it from the marketplace.\n' > "$FIX/unlisted_control/mods/demo/README.md"
 printf '# demo\n\nNot listed in any marketplace.\n' > "$FIX/fault3/mods/demo/README.md"
 
+# fault4 (Codex HOLD 6247727695): mods/demo says it is not listed, but an entry
+# named demo lists it through a plugins/ source. A listing is found by name as
+# well as by source path, so this must fail.
+mkdir -p "$FIX/fault4/tests/plugins" "$FIX/fault4/.claude-plugin" \
+         "$FIX/fault4/plugins/ork/.claude-plugin" "$FIX/fault4/plugins/demo/.claude-plugin" "$FIX/fault4/mods/demo"
+cp "$REPO/tests/plugins/test-marketplace-structure.sh" "$FIX/fault4/tests/plugins/"
+cp "$REPO/plugins/ork/.claude-plugin/plugin.json" "$FIX/fault4/plugins/ork/.claude-plugin/"
+printf '{"name":"demo","version":"0.1.0","description":"demo"}\n' > "$FIX/fault4/plugins/demo/.claude-plugin/plugin.json"
+printf '# demo\n\nNot listed in any marketplace.\n' > "$FIX/fault4/mods/demo/README.md"
+cat > "$FIX/fault4/.claude-plugin/marketplace.json" <<'JSON'
+{
+  "name": "orchestkit",
+  "owner": { "name": "Yonatan Gross" },
+  "plugins": [
+    { "name": "ork", "source": "./plugins/ork" },
+    { "name": "demo", "source": "./plugins/demo" }
+  ]
+}
+JSON
+
 # control: one entry with a string source pointing at the plugin dir that exists.
 cat > "$FIX/control/.claude-plugin/marketplace.json" <<'JSON'
 {
@@ -100,13 +120,14 @@ cat > "$FIX/fault/.claude-plugin/marketplace.json" <<'JSON'
 }
 JSON
 
-control_rc=0; fault_rc=0; fault2_rc=0; mods_control_rc=0; unlisted_control_rc=0; fault3_rc=0
+control_rc=0; fault_rc=0; fault2_rc=0; mods_control_rc=0; unlisted_control_rc=0; fault3_rc=0; fault4_rc=0
 bash "$FIX/control/tests/plugins/test-marketplace-structure.sh" >"$FIX/control.log" 2>&1 || control_rc=$?
 bash "$FIX/fault/tests/plugins/test-marketplace-structure.sh"   >"$FIX/fault.log"   2>&1 || fault_rc=$?
 bash "$FIX/fault2/tests/plugins/test-marketplace-structure.sh"  >"$FIX/fault2.log"  2>&1 || fault2_rc=$?
 bash "$FIX/mods_control/tests/plugins/test-marketplace-structure.sh" >"$FIX/mods_control.log" 2>&1 || mods_control_rc=$?
 bash "$FIX/unlisted_control/tests/plugins/test-marketplace-structure.sh" >"$FIX/unlisted_control.log" 2>&1 || unlisted_control_rc=$?
 bash "$FIX/fault3/tests/plugins/test-marketplace-structure.sh" >"$FIX/fault3.log" 2>&1 || fault3_rc=$?
+bash "$FIX/fault4/tests/plugins/test-marketplace-structure.sh" >"$FIX/fault4.log" 2>&1 || fault4_rc=$?
 
 {
   echo "--- control tail ---"; tail -4 "$FIX/control.log"
@@ -115,7 +136,8 @@ bash "$FIX/fault3/tests/plugins/test-marketplace-structure.sh" >"$FIX/fault3.log
   echo "== mods_control tail =="; tail -4 "$FIX/mods_control.log"
   echo "== unlisted_control tail =="; tail -4 "$FIX/unlisted_control.log"
   echo "== fault3 tail =="; tail -6 "$FIX/fault3.log"
+  echo "== fault4 tail =="; tail -6 "$FIX/fault4.log"
 } >&2
 
-printf 'RESULT gate=%s control=%s fault=%s fault2=%s mods_control=%s unlisted_control=%s fault3=%s\n' \
-  "marketplace-structure" "$control_rc" "$fault_rc" "$fault2_rc" "$mods_control_rc" "$unlisted_control_rc" "$fault3_rc"
+printf 'RESULT gate=%s control=%s fault=%s fault2=%s mods_control=%s unlisted_control=%s fault3=%s fault4=%s\n' \
+  "marketplace-structure" "$control_rc" "$fault_rc" "$fault2_rc" "$mods_control_rc" "$unlisted_control_rc" "$fault3_rc" "$fault4_rc"
