@@ -184,7 +184,9 @@ if [[ -d "$REPO_ROOT/mods" && -n "${MOD_ENTRY_COUNT:-}" ]]; then
     if [[ -f "$dir/README.md" ]] && grep -Eq "$UNLISTED_LINE" "$dir/README.md"; then
       says_unlisted=1
     fi
-    listed=$(jq --arg p "mods/$name" '[.plugins[] | select((.source | type) == "object" and .source.path == $p)] | length' "$MARKETPLACE_JSON")
+    # Listed by name OR by source path: an entry named after the mod lists it
+    # whatever its source (a plugins/ copy or symlink), so it cannot be unlisted.
+    listed=$(jq --arg p "mods/$name" --arg n "$name" '[.plugins[] | select(.name == $n or ((.source | type) == "object" and .source.path == $p))] | length' "$MARKETPLACE_JSON")
     if [[ $listed -gt 0 && $says_unlisted -eq 1 ]]; then
       echo "❌ ERROR: mods/$name is listed, but its README says \"Not listed in any marketplace.\""
       ERRORS=$((ERRORS + 1))
