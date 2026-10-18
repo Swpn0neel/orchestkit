@@ -12,7 +12,10 @@ const INITIAL: BandState = { visible: true, collapsed: false, busy: false, origi
 // fill a run can be canceled; once its fill (or send) starts it is committed:
 // nothing cancels it and other actions wait or are refused.
 interface Run { kind: "enhance" | "undo" | "send" | "submit"; filling: boolean; expected: string; done: Promise<void> }
-interface Control { current: Run | null; held: string | null; reviewed: string | null; writes: Promise<void> }
+// epoch counts claims. An entry path that must await before it can claim (the
+// Enhance button and the ++ path read the box first) stamps it before that
+// await; if any action claimed meanwhile, the stamp is stale and it stops.
+interface Control { current: Run | null; held: string | null; reviewed: string | null; writes: Promise<void>; epoch: number }
 
 const read = async ($: Dollar): Promise<BandState> => (await $.state.get(BAND)).value ?? { ...INITIAL };
 // State writes run one at a time, in the order they were asked for, so a write
@@ -31,6 +34,7 @@ const claim = (c: Control, kind: Run["kind"], filling: boolean, expected = "") =
   let finish: () => void = () => undefined;
   const run: Run = { kind, filling, expected, done: new Promise<void>(resolve => { finish = resolve; }) };
   c.current = run;
+  c.epoch += 1;
   const live = () => c.current === run;
   const release = () => { finish(); if (live()) c.current = null; };
   return { run, live, release };
@@ -117,8 +121,9 @@ const undo = async ($: Dollar, c: Control): Promise<void> => {
     return;
   }
   // A fill is under way: let that run finish, then undo from settled state.
+  const stamp = c.epoch;
   if (active) await active.done;
-  if (c.current) return;
+  if (c.current || c.epoch !== stamp) return;
   const { run, live, release } = claim(c, "undo", false);
   try {
     await c.writes;
@@ -169,7 +174,7 @@ const send = async ($: Dollar, c: Control): Promise<void> => {
 
 
 export const register = (on: On): void => {
-  const c: Control = { current: null, held: null, reviewed: null, writes: Promise.resolve() };
+  const c: Control = { current: null, held: null, reviewed: null, writes: Promise.resolve(), epoch: 0 };
   on("prompt.submit", async ($, e, next) => {
     seen.set(e, c.current);
     if (e.origin.kind !== "composer" || e.command || e.attachments?.length) return next(e);
@@ -210,7 +215,8 @@ export const register = (on: On): void => {
     if (c.held !== null && e.origin.kind === "engine") {
       const held = c.held;
       c.held = null;
-      if (e.text.trim() === held && (await $.prompt.read()).text === e.text) {
+      const stamp = c.epoch;
+      if (e.text.trim() === held && (await $.prompt.read()).text === e.text && c.epoch === stamp) {
         // The host holds every later prompt.change raise until this handler returns,
         // so the model call runs detached. enhance catches its own failures.
         void enhance($, c, e.text);
@@ -249,7 +255,12 @@ export const register = (on: On): void => {
         </Box>
         {!state.collapsed && <Box flexDirection="column">
           <Box>
-            <Button key="enhance" label="Enhance" onPress={async () => { c.held = null; await enhance($, c, (await $.prompt.read()).text); }} />
+            <Button key="enhance" label="Enhance" onPress={async () => {
+              c.held = null;
+              const stamp = c.epoch;
+              const text = (await $.prompt.read()).text;
+              if (c.epoch === stamp) await enhance($, c, text);
+            }} />
             <Button key="undo" label="Undo" onPress={() => undo($, c)} />
             <Button key="send" label="Send" onPress={() => send($, c)} />
           </Box>

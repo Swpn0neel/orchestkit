@@ -518,10 +518,12 @@ describe("submission errors", () => {
 //  Z2   prompt.submit hook throws       (during A)        catch cancels A and the band is not busy
 // Every row also ends with the band not busy.
 //
-// Ownership table (round 7, 45 rows, one per await in hooks/register.tsx at
-// 5a0817d3 + this fix). Columns: line, action, what the normal continuation
+// Ownership table (45 rows, one per await in hooks/register.tsx; line numbers
+// as of 4f98e9e8; round 8 corrected L120, L213 and L252, the three rows whose
+// await comes before their claim). Columns: line, action, what the normal continuation
 // writes and its guard, where a rejection goes and what it may touch, rows.
-// Guards: Q = the write queue keeps order; L = writes only while live(); C =
+// Guards: E = epoch stamp taken before a pre-claim await, checked after it;
+// Q = the write queue keeps order; L = writes only while live(); C =
 // the run is committed (filling); S = no shared write follows; T = a catch
 // acts only on the run its own event saw (seen), never on c.current.
 //  L17  read helper  state.get      S; reject -> caller                         R-F
@@ -541,7 +543,8 @@ describe("submission errors", () => {
 //  L86  enhance      catch toast    L; swallowed                                 R-E
 //  L91  enhance      finally busy   only if it owned the token; swallowed        U5 Z1
 //  L116 undo         cancel busy    cancels only `active`; swallowed             U1
-//  L120 undo         await done     S until claim (check, then claim, no await)  U3 U4
+//  L120 undo         await done     pre-claim: E (epoch stamp) and no current     U3 U4
+//                                   before the claim, so a claim meanwhile stops it
 //  L124 undo         c.writes       L; reject n/a (swallowed queue)              U4
 //  L126 undo         state read     L; reject -> undo catch (L toast) -> release Y1 R-C
 //  L131 undo         fill           C, L before writes; reject -> catch, release Y2 W3 R-C
@@ -565,19 +568,22 @@ describe("submission errors", () => {
 //  L193 submit       clear original C L; reject -> finally -> .catch, no cancel  R-G
 //  L203 submit .catch busy          T; swallowed                                 Z2
 //  L204 submit .catch toast         swallowed                                    Z2
-//  L213 change       box read (++)  starts enhance, which claims itself; reject  typed ++ tests
-//                                   -> .catch: T (nothing seen) no cancel
+//  L213 change       box read (++)  pre-claim: E, a claim during the read (Undo) P3 typed ++ tests
+//                                   makes the stamp stale and no Enhance starts;
+//                                   reject -> .catch: T (nothing seen) no cancel
 //  L226 change       cancel busy    cancels only the run it saw; reject ->       E1 R-A
 //                                   .catch: T, busy only if no run owns it
 //  L235 change .catch busy          T; swallowed                                 Z1 R-A
 //  L236 change .catch toast         swallowed                                    Z1
 //  L241 render       state read     S (draw only)                                all press tests
-//  L252 button       box read       starts enhance, which claims itself          E0
+//  L252 button       box read       pre-claim: E, a claim during the read stops  P1 P2 E0
+//                                   the press before enhance() is called
 //  L252 button       enhance        enhance owns its own errors                  E0
 // Rule: each action that writes after an await (Enhance, Undo, Send, Enter)
 // takes a run token before its first await and writes only while it holds it;
-// cancel(c, run) drops only that run and never a committed one; every catch
-// cleans up only after the run its own event saw.
+// an entry path that must await before claiming stamps c.epoch first and stops
+// if any claim happened meanwhile; cancel(c, run) drops only that run and never
+// a committed one; every catch cleans up only after the run its own event saw.
 describe("interleavings golden corpus", () => {
   type Gate = { promise: Promise<void>; open: () => void };
   const gate = (): Gate => { let open = () => undefined as void; const promise = new Promise<void>(resolve => { open = resolve; }); return { promise, open }; };
@@ -601,7 +607,15 @@ describe("interleavings golden corpus", () => {
     const realSet = h.$.state.set, realFill = h.$.prompt.fill, realRead = h.$.prompt.read;
     h.$.state.set = async (...args: Parameters<typeof realSet>) => { sets += 1; await gates.set.get(sets)?.promise; return realSet(...args); };
     h.$.prompt.fill = async (...args: Parameters<typeof realFill>) => { fills += 1; await gates.fill.get(fills)?.promise; return realFill(...args); };
-    h.$.prompt.read = async () => { if (!readHeld && replies > 0) { readHeld = true; await gates.read.promise; } return realRead(); };
+    let readArm = false;
+    const entry = gate();
+    h.$.prompt.read = async () => {
+      if (readArm) { readArm = false; await entry.promise; }
+      else if (!readHeld && replies > 0) { readHeld = true; await gates.read.promise; }
+      return realRead();
+    };
+    // holdNextRead(): hold the next prompt.read (an Enhance entry path's first await).
+    const holdNextRead = () => { readArm = true; return entry; };
     h.complete.mockImplementation(async ({ prompt }) => {
       const g = gate();
       gates.model.push(g);
@@ -612,12 +626,13 @@ describe("interleavings golden corpus", () => {
     });
     const edit = (text: string) => { h.edit(text); return h.fire("prompt.change", { text, cursor: text.length, origin: { kind: "input" } }); };
     const band = async () => (await h.$.state.get({ plugin: "prompt-enhancer", key: "band" })).value;
-    return { h, gates, edit, band, holdGet };
+    return { h, gates, edit, band, holdGet, holdNextRead };
   }
   async function ends(r: ReturnType<typeof rig>, box: string) {
     await r.h.settle();
     expect(r.h.box()).toBe(box);
-    expect((await r.band())?.busy).toBe(false);
+    // An unwritten band is the initial state, which is not busy.
+    expect((await r.band())?.busy ?? false).toBe(false);
   }
 
   test("U0 Undo while W1 is pending cancels before the model call", async () => {
@@ -1000,5 +1015,37 @@ describe("interleavings golden corpus", () => {
     r.h.edit("next draft");
     await r.h.press("Enhance");
     await ends(r, "Rewrite of next draft");
+  });
+  // Pre-claim entry reads (round 8): the button and the ++ path read the box
+  // before any token exists; an action that claims meanwhile makes them stale.
+  test("P1 Undo during the Enhance button's first read cancels that Enhance", async () => {
+    const r = rig("draft one");
+    const read = r.holdNextRead();
+    const a = r.h.press("Enhance"); await r.h.settle();
+    await r.h.press("Undo");
+    read.open(); await a;
+    expect(r.h.complete).not.toHaveBeenCalled();
+    await ends(r, "draft one");
+  });
+  test("P2 after a reviewed rewrite, Undo during the next Enhance's first read wins", async () => {
+    const r = rig("draft one");
+    await r.h.press("Enhance");
+    expect(r.h.box()).toBe(RA);
+    const read = r.holdNextRead();
+    const b = r.h.press("Enhance"); await r.h.settle();
+    await r.h.press("Undo");
+    expect(r.h.box()).toBe("draft one");
+    read.open(); await b;
+    expect(r.h.complete).toHaveBeenCalledTimes(1);
+    await ends(r, "draft one");
+  });
+  test("P3 Undo during the ++ restore read cancels the triggered Enhance", async () => {
+    const r = rig("draft one++");
+    const read = r.holdNextRead();
+    const s = r.h.fire("prompt.submit", submit("draft one++")); await r.h.settle();
+    await r.h.press("Undo");
+    read.open(); await s; await r.h.settle();
+    expect(r.h.complete).not.toHaveBeenCalled();
+    await ends(r, "draft one++");
   });
 });
