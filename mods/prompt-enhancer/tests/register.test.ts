@@ -162,6 +162,41 @@ describe("Prompt Enhancer review boundary", () => {
       expect(h.box()).toBe("draft two");
     });
   }
+  test("Undo pressed while the original save is pending still restores the draft", async () => {
+    const h = harness("draft one");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: "Rewrite of draft one" });
+    const realSet = h.$.state.set;
+    let calls = 0;
+    let release: () => void = () => undefined;
+    h.$.state.set = async (...args: Parameters<typeof realSet>) => {
+      calls += 1;
+      if (calls === 2) await new Promise<void>(resolve => { release = resolve; });
+      return realSet(...args);
+    };
+    const enhancing = h.press("Enhance");
+    await h.settle();
+    expect(h.box()).toBe("Rewrite of draft one");
+    const undoing = h.press("Undo");
+    await h.settle();
+    release();
+    await enhancing;
+    await undoing;
+    await h.settle();
+    expect(h.box()).toBe("draft one");
+  });
+  test("Undo during the model call cancels Enhance and keeps the draft", async () => {
+    const h = harness("draft");
+    let answer: (value: { isAnswered: boolean; text: string }) => void = () => undefined;
+    h.complete.mockImplementationOnce(() => new Promise(resolve => { answer = resolve; }));
+    const enhancing = h.press("Enhance");
+    await h.settle();
+    await h.press("Undo");
+    answer({ isAnswered: true, text: "Late rewrite" });
+    await enhancing;
+    await h.settle();
+    expect(h.box()).toBe("draft");
+    expect((await h.$.state.get({ plugin: "prompt-enhancer", key: "band" })).value?.busy).toBe(false);
+  });
   test("a canceled Enhance leaves the band not busy", async () => {
     const h = harness("draft");
     const realSet = h.$.state.set;

@@ -4,7 +4,7 @@ import { SYSTEM } from "../src/system.js";
 const BAND = { plugin: "prompt-enhancer", key: "band" } as const;
 const INITIAL: BandState = { visible: true, collapsed: false, busy: false, original: null };
 
-interface Control { request: number; enhancing: boolean; sending: boolean; expectedDraft: string; held: string | null; reviewed: string | null; writes: Promise<void> }
+interface Control { request: number; enhancing: boolean; sending: boolean; expectedDraft: string; held: string | null; reviewed: string | null; writes: Promise<void>; filling: boolean; inflight: Promise<void> }
 
 const read = async ($: Dollar): Promise<BandState> => (await $.state.get(BAND)).value ?? { ...INITIAL };
 // State writes run one at a time, in the order they were asked for, so a write
@@ -31,6 +31,8 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
   const id = ++c.request;
   c.enhancing = true;
   c.expectedDraft = original;
+  let done: () => void = () => undefined;
+  c.inflight = new Promise<void>(resolve => { done = resolve; });
   // Undo goes back past an earlier Enhance only while the box still holds the
   // rewrite that Enhance filled. Any edit makes this draft the new original.
   const chained = c.reviewed !== null && original === c.reviewed;
@@ -50,18 +52,24 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
       await $.ui.toast("The draft changed. Kept your edit.");
       return;
     }
+    // From here Undo waits for this Enhance instead of canceling it. The check
+    // and the flag sit with no await between them, so Undo sees one or the other.
+    if (id !== c.request) return;
+    c.filling = true;
     c.expectedDraft = result.text;
     if ((await $.prompt.fill({ text: result.text })).isFilled) {
       c.reviewed = result.text;
       // The original is saved only after a fill, so an Enhance that is canceled
       // or fails never leaves an original behind for Undo.
-      await patch($, c, state => ({ original: chained && state.original !== null ? state.original : original }));
+      if (id === c.request) await patch($, c, state => ({ original: chained && state.original !== null ? state.original : original }));
     } else {
       await $.ui.toast("The prompt box could not take the rewrite. Nothing was sent.");
     }
   } catch {
     if (id === c.request) await $.ui.toast("Enhance failed. Kept your original prompt.").catch(() => undefined);
   } finally {
+    c.filling = false;
+    done();
     if (id === c.request) {
       c.enhancing = false;
       // enhance can run detached from prompt.change, so a failed state write must not reject.
@@ -71,17 +79,19 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
 };
 
 const undo = async ($: Dollar, c: Control): Promise<void> => {
-  const state = await read($);
   if (c.sending) return;
-  if (state.original === null) {
-    // Nothing filled yet: Undo during Enhance cancels it and keeps the box.
-    if (c.enhancing) {
-      c.request += 1;
-      c.enhancing = false;
-      await patch($, c, { busy: false });
-    }
+  if (c.enhancing && !c.filling) {
+    // Nothing filled yet: Undo cancels Enhance and keeps the box.
+    c.request += 1;
+    c.enhancing = false;
+    await patch($, c, { busy: false });
     return;
   }
+  // A fill is under way: let that Enhance finish, then undo it from settled state.
+  if (c.enhancing) await c.inflight;
+  await c.writes;
+  const state = await read($);
+  if (state.original === null) return;
   c.request += 1;
   c.enhancing = false;
   c.reviewed = null;
@@ -119,7 +129,7 @@ const send = async ($: Dollar, c: Control): Promise<void> => {
 
 
 export const register = (on: On): void => {
-  const c: Control = { request: 0, enhancing: false, sending: false, expectedDraft: "", held: null, reviewed: null, writes: Promise.resolve() };
+  const c: Control = { request: 0, enhancing: false, sending: false, expectedDraft: "", held: null, reviewed: null, writes: Promise.resolve(), filling: false, inflight: Promise.resolve() };
   on("prompt.submit", async ($, e, next) => {
     if (e.origin.kind !== "composer" || e.command || e.attachments?.length) return next(e);
     if (c.enhancing || c.sending) {
