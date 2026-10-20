@@ -1,15 +1,21 @@
-// Codex XREVIEW on #4819: next.config redirects run BEFORE middleware, so a
-// path redirect such as /docs -> /docs/foundations/overview fired first on the
-// old host (307) and the host 301 came second: a two-hop chain. Old-host and
-// Vercel-alias requests must leave on ONE 301 before any path redirect runs.
+// Codex XREVIEW on #4819, twice:
+// 1. next.config redirects run BEFORE middleware, so a path redirect such as
+//    /docs fired first on the old host (307) and the host 301 came second.
+// 2. Putting the host 301 first only reversed the chain: old /docs -> 301
+//    orchestkit.dev/docs -> 307 overview. Still two hops.
+// So this test FOLLOWS the chain the way a client does, and every request on
+// the old host (or the Vercel alias) must reach its final page in exactly ONE
+// hop, with the query kept.
 //
-// This replays Next's rule for config redirects: the list is evaluated in
+// It replays Next's rule for config redirects: the list is evaluated in
 // order, a rule applies when its `has` host condition and its source match,
-// and the first rule that applies wins. Path matching uses the
-// path-to-regexp build that Next itself ships.
+// the first rule that applies wins, and the request query is appended to the
+// destination. Matching and destination building use the path-to-regexp build
+// that Next itself ships.
 
 import { describe, expect, it } from "vitest";
-import { pathToRegexp } from "next/dist/compiled/path-to-regexp";
+import { compile, match } from "next/dist/compiled/path-to-regexp";
+import { DEVELOPER_ALIASES } from "@/lib/developer-aliases.mjs";
 import { siteRedirects } from "@/lib/site-redirects.mjs";
 
 type HasHost = { type: "host"; value: string };
@@ -22,39 +28,69 @@ type Redirect = {
 };
 
 const RULES = siteRedirects() as Redirect[];
+const CANONICAL = "orchestkit.dev";
 
-function firstMatch(host: string, path: string): Redirect | undefined {
-	return RULES.find((rule) => {
-		const hostOk = (rule.has ?? []).every(
-			(h) => h.type === "host" && new RegExp(`^${h.value}$`).test(host),
-		);
-		return hostOk && pathToRegexp(rule.source, [], { strict: true }).test(path);
-	});
+type Hop = { host: string; path: string; query: string };
+
+function applies(rule: Redirect, req: Hop): Record<string, unknown> | null {
+	const hostOk = (rule.has ?? []).every(
+		(h) => h.type === "host" && new RegExp(`^${h.value}$`).test(req.host),
+	);
+	if (!hostOk) return null;
+	const m = match(rule.source, { strict: true, decode: decodeURIComponent })(req.path);
+	return m ? (m.params as Record<string, unknown>) : null;
 }
 
-const PATH_REDIRECT_SOURCES = ["/docs", "/lab", "/lab/", "/docs/api", "/lab/x.html**"];
+function next(req: Hop): Hop | null {
+	for (const rule of RULES) {
+		const params = applies(rule, req);
+		if (!params) continue;
+		const abs = rule.destination.match(/^https:\/\/([^/]+)(\/.*)?$/);
+		const host = abs ? abs[1] : req.host;
+		const destPath = abs ? (abs[2] ?? "/") : rule.destination;
+		const path = compile(destPath, { validate: false })(params) || "/";
+		return { host, path, query: req.query };
+	}
+	return null;
+}
 
-describe("host redirects come before every path redirect", () => {
-	it.each(["orchestkit.yonyon.ai", "orchestkit.vercel.app"])(
-		"%s: a page with a path redirect leaves on the host 301 first",
-		(host) => {
-			for (const path of PATH_REDIRECT_SOURCES) {
-				const rule = firstMatch(host, path);
-				expect(rule, `${host}${path}`).toBeDefined();
-				expect(rule?.statusCode, `${host}${path}`).toBe(301);
-				expect(rule?.destination.startsWith("https://orchestkit.dev/"), `${host}${path}`).toBe(true);
-			}
-		},
-	);
+function follow(start: Hop): Hop[] {
+	const hops: Hop[] = [];
+	let cur: Hop | null = start;
+	while (cur && hops.length < 5) {
+		const n = next(cur);
+		if (!n) break;
+		hops.push(n);
+		cur = n;
+	}
+	return hops;
+}
 
-	it.each(["/", "/about", "/docs/foundations/overview", "/llms.txt"])(
-		"orchestkit.yonyon.ai%s answers the host 301",
-		(path) => {
-			const rule = firstMatch("orchestkit.yonyon.ai", path);
+// Every path the site redirects on its own, as a concrete request path.
+const PATH_REDIRECT_PATHS = [
+	"/docs",
+	"/lab",
+	"/lab/",
+	"/lab/x.html**",
+	...DEVELOPER_ALIASES.map(([source]) => source),
+];
+const PAGES = ["/", "/about", "/docs/foundations/overview", "/llms.txt"];
+
+describe("old hosts reach the final page in exactly one hop", () => {
+	for (const host of ["orchestkit.yonyon.ai", "orchestkit.vercel.app"]) {
+		it.each([...PATH_REDIRECT_PATHS, ...PAGES])(`${host}%s?x=1: one 301, final, query kept`, (path) => {
+			const hops = follow({ host, path, query: "?x=1" });
+			expect(hops.length, JSON.stringify(hops)).toBe(1);
+			const [end] = hops;
+			expect(end.host).toBe(CANONICAL);
+			expect(end.query).toBe("?x=1");
+			// The final URL must not redirect again.
+			expect(next(end), JSON.stringify(end)).toBeNull();
+			// And the one hop is a 301.
+			const rule = RULES.find((r) => applies(r, { host, path, query: "?x=1" }));
 			expect(rule?.statusCode).toBe(301);
-			expect(rule?.destination.startsWith("https://orchestkit.dev/")).toBe(true);
-		},
-	);
+		});
+	}
 
 	it.each([
 		"/api/mcp",
@@ -67,11 +103,13 @@ describe("host redirects come before every path redirect", () => {
 		"/agent/identity",
 		"/.well-known/oauth-protected-resource",
 	])("orchestkit.yonyon.ai%s is never redirected (MCP and agent clients)", (path) => {
-		expect(firstMatch("orchestkit.yonyon.ai", path)).toBeUndefined();
+		expect(follow({ host: "orchestkit.yonyon.ai", path, query: "" })).toEqual([]);
 	});
 
 	it("the canonical host keeps its own path redirects and no host redirect", () => {
-		expect(firstMatch("orchestkit.dev", "/docs")?.destination).toBe("/docs/foundations/overview");
-		expect(firstMatch("orchestkit.dev", "/about")).toBeUndefined();
+		expect(next({ host: CANONICAL, path: "/docs", query: "" })?.path).toBe(
+			"/docs/foundations/overview",
+		);
+		expect(next({ host: CANONICAL, path: "/about", query: "" })).toBeNull();
 	});
 });
