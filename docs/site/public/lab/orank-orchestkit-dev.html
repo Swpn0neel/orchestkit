@@ -71,7 +71,7 @@
 
   <h2>Caveats</h2>
   <ul>
-    <li>An anonymous identity assertion issued by the old issuer fails verification after the switch. The agent registers again at <code>/agent/identity</code>.</li>
+    <li>An anonymous identity assertion minted before the switch (issuer and audience both the old host) keeps verifying until its own expiry, at most 30 days, with the same key and checks. A mixed pair is still rejected, and nothing mints the old issuer any more (operator decision, 2026-10-20).</li>
     <li>The after score is unknown until this deploys. It is read from the orank scan API, not estimated here.</li>
     <li>The older card at <code>/.well-known/mcp/server-card.json</code> stays served, with its tools list, for checkers that already read it.</li>
   </ul>

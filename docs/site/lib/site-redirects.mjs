@@ -59,9 +59,43 @@ function hostRedirects() {
 	];
 }
 
+// Old-host copies of every path redirect, pointing straight at the FINAL
+// URL on the canonical host. Without them the host 301 lands on a path that
+// redirects again (old /docs -> 301 orchestkit.dev/docs -> 307 overview), a
+// second hop. Kept paths are skipped on the legacy host: they never redirect.
+function hostAliasRedirects(host) {
+	return pathRedirects()
+		.filter((rule) => host !== LEGACY_HOST || !isKeptOnLegacyHost(rule.source))
+		.map((rule) => ({
+			source: rule.source,
+			has: hostIs(host),
+			destination: `${CANONICAL_ORIGIN}${rule.destination}`,
+			statusCode: 301,
+		}));
+}
+
+function isKeptOnLegacyHost(path) {
+	return (
+		LEGACY_KEEP_EXACT.includes(path) ||
+		LEGACY_KEEP_PREFIXES.some((prefix) => path.startsWith(prefix))
+	);
+}
+
+// Order is the contract (first match wins): old-host copies of the path
+// redirects, then the old-host catch-alls, then the path redirects that
+// serve the canonical host.
 export function siteRedirects() {
 	return [
+		...hostAliasRedirects(LEGACY_HOST),
+		...hostAliasRedirects(VERCEL_ALIAS_HOST),
 		...hostRedirects(),
+		...pathRedirects(),
+	];
+}
+
+// The site's own path redirects (canonical host).
+function pathRedirects() {
+	return [
 		{
 			source: "/docs",
 			destination: "/docs/foundations/overview",
