@@ -32,7 +32,7 @@ export const SITE = {
 // same Vercel project: middleware.ts sends pages there to SITE.domain with a
 // 308, and keeps the MCP, well-known and auth.md paths at 200 so installed MCP
 // clients (which often do not follow a redirect on POST) keep working.
-export const LEGACY_HOST = "orchestkit.yonyon.ai";
+export { LEGACY_HOST } from "./site-redirects.mjs";
 
 // The brand mark in the nav. This is the one slot to change when a new icon
 // is picked; nothing else in the nav names the image file.
