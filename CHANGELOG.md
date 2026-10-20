@@ -5,6 +5,157 @@ All notable changes to the OrchestKit Claude Code Plugin will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-beta.183](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.182...v10.0.0-beta.183) (2026-10-18)
+
+
+### Features
+
+* **mods:** prompt-enhancer band, ++ trigger, undo ([#4766](https://github.com/yonatangross/orchestkit/issues/4766)) ([da4e75f](https://github.com/yonatangross/orchestkit/commit/da4e75f21f50ad2dd2f92de479e02073aa5f4d5b))
+
+
+### Bug Fixes
+
+* **site:** let the Installation overflow check settle after each resize ([#4803](https://github.com/yonatangross/orchestkit/issues/4803)) ([4f12500](https://github.com/yonatangross/orchestkit/commit/4f12500b9b7fd29e5f1b5a415ce51fca48524731))
+
+## [10.0.0-beta.182](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.181...v10.0.0-beta.182) (2026-10-17)
+
+
+### Miscellaneous
+
+* **deps-dev:** bump vitest ([#4779](https://github.com/yonatangross/orchestkit/issues/4779)) ([da9d44e](https://github.com/yonatangross/orchestkit/commit/da9d44e82c7eae961a6c2a7005beb9de21582bd0))
+* **deps:** bump the npm-minor-patch group across 1 directory with 2 updates ([#4732](https://github.com/yonatangross/orchestkit/issues/4732)) ([0c48c1d](https://github.com/yonatangross/orchestkit/commit/0c48c1d64334600bb5787c506b980e1645604d16))
+
+## [10.0.0-beta.181](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.180...v10.0.0-beta.181) (2026-10-17)
+
+
+### Miscellaneous
+
+* **deps-dev:** bump the vitest group in /src/hooks with 2 updates ([#4780](https://github.com/yonatangross/orchestkit/issues/4780)) ([0037571](https://github.com/yonatangross/orchestkit/commit/003757110028b3e152be777557811b98ce5dfde9))
+* **deps-dev:** bump vitest in /docs/site in the vitest group ([#4778](https://github.com/yonatangross/orchestkit/issues/4778)) ([ed82c9d](https://github.com/yonatangross/orchestkit/commit/ed82c9d09aeecb793e38ebfb093b10f1f05ed192))
+
+## [10.0.0-beta.180](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.179...v10.0.0-beta.180) (2026-10-17)
+
+
+### Miscellaneous
+
+* **deps-dev:** bump the vitest group across 1 directory with 2 updates ([#4783](https://github.com/yonatangross/orchestkit/issues/4783)) ([09e7197](https://github.com/yonatangross/orchestkit/commit/09e719798d2e344f0b2b06422dcde1ad9cc82523))
+
+
+### CI/CD
+
+* bump actions/create-github-app-token ([#4784](https://github.com/yonatangross/orchestkit/issues/4784)) ([02a6603](https://github.com/yonatangross/orchestkit/commit/02a66034d2d8be692d4ede1cbed2e165046a6cb0))
+
+## [10.0.0-beta.179](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.178...v10.0.0-beta.179) (2026-10-17)
+
+
+### Bug Fixes
+
+* **deps:** upgrade Remotion to remove braces ([#4791](https://github.com/yonatangross/orchestkit/issues/4791)) ([01d8f74](https://github.com/yonatangross/orchestkit/commit/01d8f74e348d5c8206602ff450781cc5c90715d9))
+
+## [10.0.0-beta.178](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.177...v10.0.0-beta.178) (2026-10-17)
+
+
+### Features
+
+* **explore:** trial Haiku pins for Agent tool explorers ([#4676](https://github.com/yonatangross/orchestkit/issues/4676)) ([f3cd6ba](https://github.com/yonatangross/orchestkit/commit/f3cd6ba7aba7c77c10c5926db0cf19c6fa603d38))
+
+
+### Bug Fixes
+
+* **review-pr:** require fan-out or blocked verdict ([#4743](https://github.com/yonatangross/orchestkit/issues/4743)) ([4e56eb5](https://github.com/yonatangross/orchestkit/commit/4e56eb5f7361a45bc357c1d9ffb65aae398e3cb6))
+* **traffic:** drop local referrers from snapshot rows ([#4626](https://github.com/yonatangross/orchestkit/issues/4626)) ([0fe5beb](https://github.com/yonatangross/orchestkit/commit/0fe5beba22aac523980db5b769242a32c3663a05))
+
+
+### Miscellaneous
+
+* **deps:** bump the npm-minor-patch group across 1 directory with 11 updates ([#4781](https://github.com/yonatangross/orchestkit/issues/4781)) ([ed07dfc](https://github.com/yonatangross/orchestkit/commit/ed07dfc22c23a7d03ed2e09a178950464ce3863b))
+* **deps:** bump the npm-minor-patch group across 1 directory with 3 updates ([#4720](https://github.com/yonatangross/orchestkit/issues/4720)) ([6e39e7a](https://github.com/yonatangross/orchestkit/commit/6e39e7afbcab270ffc0ce52d77f4ec1a1d9ab1d7))
+* **security:** renew braces audit exception to 2026-10-31 ([#4790](https://github.com/yonatangross/orchestkit/issues/4790)) ([0e0ccf6](https://github.com/yonatangross/orchestkit/commit/0e0ccf6cd331b3e0b13101efb0e42f081ab82f0f))
+
+## [10.0.0-beta.177](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.176...v10.0.0-beta.177) (2026-10-16)
+
+
+### Features
+
+* **doctor:** warn on errorDetails and list noteDetails from plugin rows ([#4768](https://github.com/yonatangross/orchestkit/issues/4768)) ([d925747](https://github.com/yonatangross/orchestkit/commit/d925747415f68f23f18f2ee9133372bc365b96ef))
+
+
+### Bug Fixes
+
+* **cc-watch:** admit permission tool nouns as scoped evidence tokens ([#4756](https://github.com/yonatangross/orchestkit/issues/4756)) ([d81f12e](https://github.com/yonatangross/orchestkit/commit/d81f12e896bf78adfe01b59bf5c6732a07627738))
+* **ci:** keep triage issue text away from tokens (P0) ([#4755](https://github.com/yonatangross/orchestkit/issues/4755)) ([2b635ef](https://github.com/yonatangross/orchestkit/commit/2b635efd53f15b283eecb2b0a8752316fc4b0ddd))
+* **ci:** read the hookEventName literal under any minified name ([#4754](https://github.com/yonatangross/orchestkit/issues/4754)) ([acd02b9](https://github.com/yonatangross/orchestkit/commit/acd02b9fc8e99c63089cd403e956e7d76f831413))
+* **docs-site:** bump next to 16.4.1 for three security advisories ([#4751](https://github.com/yonatangross/orchestkit/issues/4751)) ([31ae353](https://github.com/yonatangross/orchestkit/commit/31ae3533903f1673a4b9e2325b0ad07878eb71b0))
+* **docs:** document task tool model allowlist for CC 2.1.268 ([#4742](https://github.com/yonatangross/orchestkit/issues/4742)) ([03fcfb3](https://github.com/yonatangross/orchestkit/commit/03fcfb38ed828885f4d7a037d56448370ce1d905))
+* **docs:** keep the lockfile on the Vercel stub fallback ([#4737](https://github.com/yonatangross/orchestkit/issues/4737)) ([2619d4f](https://github.com/yonatangross/orchestkit/commit/2619d4ff525e555959b4a369604051c6906777b8))
+* **lesson-cards:** match corpus entries by exact tool name ([#4740](https://github.com/yonatangross/orchestkit/issues/4740)) ([1109eb8](https://github.com/yonatangross/orchestkit/commit/1109eb87eccc039edb33fd8d7cdefd47ae8d05c6))
+* **promote-lights:** configurable promote base via PROMOTE_BASE ([#4788](https://github.com/yonatangross/orchestkit/issues/4788)) ([35ee6ca](https://github.com/yonatangross/orchestkit/commit/35ee6caa23ff1fccb65ed872bedcc4414709efa2))
+* **skills:** claims the installed plugin cannot keep (audit B5 to B8) ([#4761](https://github.com/yonatangross/orchestkit/issues/4761)) ([301efc4](https://github.com/yonatangross/orchestkit/commit/301efc4212c1b15b262fd03fc2a6f0a67bdc4035))
+
+
+### Documentation
+
+* **doctor:** correct memory view and rsync evidence ([#4741](https://github.com/yonatangross/orchestkit/issues/4741)) ([10a55f5](https://github.com/yonatangross/orchestkit/commit/10a55f5aedb3473bf1b4c2e8086490f4dd240a88))
+* **foundations:** add worktree.bgIsolation trade-off page ([#4774](https://github.com/yonatangross/orchestkit/issues/4774)) ([9b386ed](https://github.com/yonatangross/orchestkit/commit/9b386ed53a8246419d69ec225d8bb12546b12a04))
+* **site:** put the skill browser on the Reference front door ([#4773](https://github.com/yonatangross/orchestkit/issues/4773)) ([2ea9c11](https://github.com/yonatangross/orchestkit/commit/2ea9c114e63e9d63b1898cc01179fa5945e7f66d))
+
+## [10.0.0-beta.176](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.175...v10.0.0-beta.176) (2026-10-15)
+
+
+### Bug Fixes
+
+* **hooks:** read a regular-file stdin before the 100ms timer ([#4770](https://github.com/yonatangross/orchestkit/issues/4770)) ([425ec7b](https://github.com/yonatangross/orchestkit/commit/425ec7b29cac7254d21e62d4085cc0138dd8080b))
+
+## [10.0.0-beta.175](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.174...v10.0.0-beta.175) (2026-10-15)
+
+
+### Bug Fixes
+
+* **ci:** stop arming auto-merge on Dependabot PRs ([#4762](https://github.com/yonatangross/orchestkit/issues/4762)) ([c8b9bd3](https://github.com/yonatangross/orchestkit/commit/c8b9bd3db55fd2726e95bda32457262b7c2368ba))
+
+
+### Miscellaneous
+
+* **security:** exempt hook test fixtures from secret scanning ([#4763](https://github.com/yonatangross/orchestkit/issues/4763)) ([830bd1c](https://github.com/yonatangross/orchestkit/commit/830bd1c861a6f71ae72eb490ef20c621a715acdd))
+
+
+### CI/CD
+
+* bump the github-actions group across 1 directory with 9 updates ([#4736](https://github.com/yonatangross/orchestkit/issues/4736)) ([7ca1fa8](https://github.com/yonatangross/orchestkit/commit/7ca1fa80961b68cfa113c3aa10fdba04b62e2474))
+
+## [10.0.0-beta.174](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.173...v10.0.0-beta.174) (2026-10-15)
+
+
+### Bug Fixes
+
+* **ci:** read the ci-sentinel CC pin from shared/cc-support.json ([#4765](https://github.com/yonatangross/orchestkit/issues/4765)) ([85a5545](https://github.com/yonatangross/orchestkit/commit/85a5545ae0c142be47c772ddc2aa1799bcf00edb))
+
+## [10.0.0-beta.173](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.172...v10.0.0-beta.173) (2026-10-15)
+
+
+### Features
+
+* **ci:** add a preview-only facts-only changelog feed for X ([#4727](https://github.com/yonatangross/orchestkit/issues/4727)) ([cddea6a](https://github.com/yonatangross/orchestkit/commit/cddea6a8bb84b165af90d5f4ab4f272d533ebbda))
+
+
+### Bug Fixes
+
+* **tests:** restore the exec bit on 2 tests from [#4749](https://github.com/yonatangross/orchestkit/issues/4749) ([#4757](https://github.com/yonatangross/orchestkit/issues/4757)) ([c0eaab9](https://github.com/yonatangross/orchestkit/commit/c0eaab9f53987be58631f68f58cad414f8a9883d))
+* **tests:** stop headless Chrome keychain prompts; pre-push CI-only mode ([#4749](https://github.com/yonatangross/orchestkit/issues/4749)) ([9757155](https://github.com/yonatangross/orchestkit/commit/9757155b45ba057e47a87dfa8cde60a21c50d0bf))
+
+
+### Miscellaneous
+
+* **deps-dev:** bump the npm-minor-patch group across 1 directory with 3 updates ([#4723](https://github.com/yonatangross/orchestkit/issues/4723)) ([154520c](https://github.com/yonatangross/orchestkit/commit/154520cd1c11d02e270daffe3949ce9a426f11ff))
+* **deps:** bump the npm-minor-patch group across 1 directory with 9 updates ([#4733](https://github.com/yonatangross/orchestkit/issues/4733)) ([23e251c](https://github.com/yonatangross/orchestkit/commit/23e251c39c49e6f7bbf47b6042df4e49bffd7484))
+* **deps:** bump the remotion group across 1 directory with 21 updates ([#4719](https://github.com/yonatangross/orchestkit/issues/4719)) ([16097dd](https://github.com/yonatangross/orchestkit/commit/16097dd4dc11c770820e71f578637f199df9b8b0))
+
+
+### Documentation
+
+* **readme:** add the Vercel OSS Program badge ([#4734](https://github.com/yonatangross/orchestkit/issues/4734)) ([7005758](https://github.com/yonatangross/orchestkit/commit/7005758f69650803210f80fc65752e1d1fae8b11))
+* v10 front door with search titles, What's new page and README start ([#4728](https://github.com/yonatangross/orchestkit/issues/4728)) ([5469225](https://github.com/yonatangross/orchestkit/commit/5469225a7d9d141ed3d5992f04566f351a49e611))
+
 ## [10.0.0-beta.172](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.171...v10.0.0-beta.172) (2026-10-12)
 
 

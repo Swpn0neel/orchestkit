@@ -642,48 +642,51 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 <!-- AUTO-GENERATED from CHANGELOG.md by scripts/stamp-whats-new.mjs — do not hand-edit between the ork:whats-new markers. -->
 <!-- Regenerated on `npm run build`; CI (`--check`) fails if this is stale. Full history: [CHANGELOG.md](CHANGELOG.md). -->
 
-**[v10.0.0-beta.172](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.171...v10.0.0-beta.172)** · 2026-10-12
+**[v10.0.0-beta.183](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.182...v10.0.0-beta.183)** · 2026-10-18
 
-- **mods:** lesson-cards keeps tool.call context from hooks below (#4726)
-- **traffic:** snapshot week of 2026-09-28 (#4621)
+- **mods:** prompt-enhancer band, ++ trigger, undo (#4766)
+- **site:** let the Installation overflow check settle after each resize (#4803)
 
-**[v10.0.0-beta.171](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.170...v10.0.0-beta.171)** · 2026-10-11
+**[v10.0.0-beta.182](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.181...v10.0.0-beta.182)** · 2026-10-17
 
-- **hooks:** add claude-haiku-5-5 to the model vocab and pricing (#4660)
-- **models:** advance the haiku alias to claude-haiku-5-5 (#4661)
-- **agents:** drop skill references that name no existing skill (#4709)
-- **ci:** five GA-blocking CI and test bugs, red-first (#4687)
-- drop the system-reminder wrapper; isolation only on 2 git agents (#4695)
-- …and 6 more (see [CHANGELOG.md](CHANGELOG.md))
+- **deps-dev:** bump vitest (#4779)
+- **deps:** bump the npm-minor-patch group across 1 directory with 2 updates (#4732)
 
-**[v10.0.0-beta.170](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.169...v10.0.0-beta.170)** · 2026-10-10
+**[v10.0.0-beta.181](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.180...v10.0.0-beta.181)** · 2026-10-17
 
-- **hooks:** tldr-summary skips a Read with allow_large (#4700)
+- **deps-dev:** bump the vitest group in /src/hooks with 2 updates (#4780)
+- **deps-dev:** bump vitest in /docs/site in the vitest group (#4778)
 
-**[v10.0.0-beta.169](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.168...v10.0.0-beta.169)** · 2026-10-10
+**[v10.0.0-beta.180](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.179...v10.0.0-beta.180)** · 2026-10-17
 
-- **skills:** MCP description cap is 4,096 characters since CC 2.1.296 (#4699)
+- **deps-dev:** bump the vitest group across 1 directory with 2 updates (#4783)
+- bump actions/create-github-app-token (#4784)
 
-**[v10.0.0-beta.168](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.167...v10.0.0-beta.168)** · 2026-10-10
+**[v10.0.0-beta.179](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.178...v10.0.0-beta.179)** · 2026-10-17
 
-- **hooks:** price Sonnet 5.5 cache reads at $0.10 per MTok (#4698)
+- **deps:** upgrade Remotion to remove braces (#4791)
 
-**[v10.0.0-beta.167](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.166...v10.0.0-beta.167)** · 2026-10-10
+**[v10.0.0-beta.178](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.177...v10.0.0-beta.178)** · 2026-10-17
 
-- **cc:** adopt Claude Code 2.1.289 through 2.1.296 (#4702)
-
-**[v10.0.0-beta.166](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.165...v10.0.0-beta.166)** · 2026-10-09
-
-- **review-pr:** standards pass with a review-only standards file (#4671)
-- **ci:** cache and bound the docs Playwright install (#4667)
-- **review-pr:** run inline so its frontmatter hooks run (#4682)
-- **tests:** restore exec bit on git-isolate.sh (#4681)
-- **doctor:** CC 2.1.289 to 2.1.293 matrix rows, Haiku 5.5 (#4662)
+- **explore:** trial Haiku pins for Agent tool explorers (#4676)
+- **review-pr:** require fan-out or blocked verdict (#4743)
+- **traffic:** drop local referrers from snapshot rows (#4626)
+- **deps:** bump the npm-minor-patch group across 1 directory with 11 updates (#4781)
+- **deps:** bump the npm-minor-patch group across 1 directory with 3 updates (#4720)
 - …and 1 more (see [CHANGELOG.md](CHANGELOG.md))
 
-**[v10.0.0-beta.165](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.164...v10.0.0-beta.165)** · 2026-10-07
+**[v10.0.0-beta.177](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.176...v10.0.0-beta.177)** · 2026-10-16
 
-- **prompt-focus:** where your attention went, from your own prompts (#4657)
+- **doctor:** warn on errorDetails and list noteDetails from plugin rows (#4768)
+- **cc-watch:** admit permission tool nouns as scoped evidence tokens (#4756)
+- **ci:** keep triage issue text away from tokens (P0) (#4755)
+- **ci:** read the hookEventName literal under any minified name (#4754)
+- **docs-site:** bump next to 16.4.1 for three security advisories (#4751)
+- …and 8 more (see [CHANGELOG.md](CHANGELOG.md))
+
+**[v10.0.0-beta.176](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.175...v10.0.0-beta.176)** · 2026-10-15
+
+- **hooks:** read a regular-file stdin before the 100ms timer (#4770)
 
 _See [CHANGELOG.md](CHANGELOG.md) for the full release history._
 <!--/ork-->
