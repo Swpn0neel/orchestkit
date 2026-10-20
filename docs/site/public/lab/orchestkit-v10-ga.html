@@ -27,6 +27,7 @@
   .ok { color:var(--accent); font-weight:600; }
   .wait { color:var(--warn); font-weight:600; }
 
+</style>
 <!-- ork-lab-head:start --><meta property="og:type" content="website"><meta property="og:site_name" content="OrchestKit"><meta property="og:title" content="OrchestKit v10.0.0 GA: what ships"><meta property="og:description" content="The v10.0.0 GA release: orchestkit.dev everywhere, creator and contributors on About, nav submenus, and the switch from beta to stable."><meta property="og:url" content="https://orchestkit.dev/lab/orchestkit-v10-ga.html"><meta property="og:image" content="https://orchestkit.dev/opengraph-image"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="OrchestKit v10.0.0 GA: what ships"><meta name="twitter:description" content="The v10.0.0 GA release: orchestkit.dev everywhere, creator and contributors on About, nav submenus, and the switch from beta to stable."><meta name="twitter:image" content="https://orchestkit.dev/opengraph-image"><!-- ork-lab-head:end --></head>
 <body>
 <main>
@@ -52,7 +53,7 @@
       <tr><td>Release</td><td><code>.release-please-config.json</code>: <code>release-as: 10.0.0</code>, <code>prerelease: false</code>, the beta keys removed. release-please reads the config from main, so the open release PR regenerates as 10.0.0. A follow-up PR removes <code>release-as</code> after the tag. No tag is edited by hand.</td></tr>
       <tr><td>Rebrand</td><td>orchestkit.dev replaces the old host in docs, README, packages (default base URLs and homepages), <code>server.json</code>, CI messages and the Lab page heads. History stays as it was: CHANGELOG, dated playground folders, audits, ADRs and approved mockups. Links to the studio and to Yonatan stay.</td></tr>
       <tr><td>About</td><td>A Creator section names Yonatan Gross with his GitHub link. A Contributors section lists the GitHub contributors API snapshot, people first, bots apart and marked Bot.</td></tr>
-      <tr><td>Nav</td><td>Docs, Cookbook and Reference open submenus. About joins the bar. The logo goes to the home page. The nav icon comes from one <code>BRAND.mark</code> slot, ready for the new icon when it is picked.</td></tr>
+      <tr><td>Nav</td><td>Docs, Cookbook and Reference open submenus. About joins the bar. The logo goes to the home page. The nav keeps George (operator decision); the nav icon comes from one <code>BRAND.mark</code> slot. The new rose window icon ships as the product icon in its own PR.</td></tr>
     </tbody>
   </table>
 
@@ -68,7 +69,7 @@
   </table>
 
   <h2>Screenshots</h2>
-  <p>Taken from the preview deploy of this PR: the menu, About and Contributors at 1440 and 390 pixels, light and dark. Listed in the lane report.</p>
+  <p>Taken from a local build of this branch (Vercel previews sit behind Vercel login): the menu, About and Contributors at 1440 and 390 pixels, light and dark. Listed in the lane report.</p>
 
   <footer>Card orchestkit-v10-ga-2026-10-20. Made by ork-ga-1 (Claude via Claude Code), 2026-10-20.</footer>
 </main>
