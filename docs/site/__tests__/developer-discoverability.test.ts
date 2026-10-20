@@ -291,10 +291,14 @@ describe("predictable developer URLs", () => {
 		expect(DEVELOPER_ALIASES.map(([s]) => s)).not.toContain("/mcp");
 	});
 
-	it("next.config.mjs wires the aliases as redirects", () => {
+	it("next.config.mjs wires the aliases as redirects", async () => {
 		const cfg = readFileSync(resolve(__dirname, "../next.config.mjs"), "utf8");
-		const redirects = cfg.slice(cfg.indexOf("redirects:"), cfg.indexOf("headers:"));
-		expect(redirects).toContain("...DEVELOPER_ALIASES.map(");
+		expect(cfg).toContain("redirects: async () => siteRedirects()");
+		const { siteRedirects } = await import("@/lib/site-redirects.mjs");
+		const rules = siteRedirects() as Array<{ source: string; destination: string }>;
+		for (const [source, destination] of DEVELOPER_ALIASES) {
+			expect(rules).toContainEqual(expect.objectContaining({ source, destination }));
+		}
 	});
 });
 

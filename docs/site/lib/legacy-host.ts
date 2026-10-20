@@ -1,16 +1,20 @@
-import { LEGACY_HOST, SITE } from "@/lib/constants";
+import { SITE } from "@/lib/constants";
+import {
+	LEGACY_HOST,
+	LEGACY_KEEP_EXACT,
+	LEGACY_KEEP_PREFIXES,
+} from "@/lib/site-redirects.mjs";
 
-// The pre-GA host (orchestkit.yonyon.ai) stays attached to the same Vercel
-// project. Pages answer ONE 301 to the same path on SITE.domain, so a search
-// result or an old link lands on orchestkit.dev in one hop.
+// The pre-GA host (orchestkit.yonyon.ai). Its one 301 for pages is a config
+// redirect (lib/site-redirects.mjs), placed first so it runs before any path
+// redirect. This module is the middleware fallback for the same rule, reading
+// the same host and keep list, so the two cannot disagree.
 //
-// The agent and MCP surface keeps answering 200 on the old host instead.
-// Installed MCP clients POST to /api/mcp, and many HTTP clients do not follow
-// a 301 on POST (or replay it as a GET), so a redirect there would break
-// existing installs. The same holds for the other POST endpoints and for the
-// discovery documents those clients read.
-const KEEP_EXACT = new Set(["/mcp", "/mcp.json", "/ask", "/auth.md"]);
-const KEEP_PREFIXES = ["/api/", "/.well-known/", "/agent/"];
+// The agent and MCP surface keeps answering 200 on the old host: installed MCP
+// clients POST to /api/mcp, and many HTTP clients do not follow a 301 on POST
+// (or replay it as a GET).
+const KEEP_EXACT = new Set<string>(LEGACY_KEEP_EXACT);
+const KEEP_PREFIXES: readonly string[] = LEGACY_KEEP_PREFIXES;
 
 export function isLegacyHost(host: string | null): boolean {
 	if (!host) return false;
