@@ -97,7 +97,11 @@ export default function AboutPage() {
 			<p>
 				Everyone with a commit in the{" "}
 				<a href={`${SITE.github}/graphs/contributors`}>GitHub repository</a>,
-				from the GitHub contributors list as of {contributorsData.snapshotDate}.
+				from the GitHub contributors list as of{" "}
+				<time dateTime={contributorsData.snapshotDate} className="whitespace-nowrap">
+					{contributorsData.snapshotDate}
+				</time>
+				.
 				Automation accounts are listed apart and marked Bot.
 			</p>
 			<h3>People</h3>
