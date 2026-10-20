@@ -66,6 +66,35 @@ describe("a base64 media block passes through byte-equal", () => {
   });
 });
 
+/**
+ * What tool.call really sees for a Read of an image on Claude Code 2.1.304:
+ * the Read tool's own output, { type: "image", file: { base64, type, ... } },
+ * not the API source block. With only the API shape exempt, a live Read of a
+ * PNG still came back "invalid base64 data" (2026-10-20, paired probe).
+ */
+describe("the Read tool's image output passes through byte-equal", () => {
+  test.each([
+    ["image/png", PNG_1X1],
+    ["image/png", BIG_PNG],
+  ])("%s file.base64 is unchanged", async (mediaType, base64) => {
+    const out = await run({
+      type: "image",
+      file: { base64, type: mediaType, originalSize: 70, dimensions: { originalWidth: 1, originalHeight: 1 } },
+    });
+    expect(out).toContain(base64);
+  });
+
+  test("a token in a Read-shaped file that claims image/png is masked", async () => {
+    const out = await run({ type: "image", file: { base64: TOKEN, type: "image/png", originalSize: 48 } });
+    expect(out).not.toContain(TOKEN);
+  });
+
+  test("a PDF in the Read shape stays masked", async () => {
+    const out = await run({ type: "image", file: { base64: PDF, type: "application/pdf" } });
+    expect(out).not.toContain(TOKEN);
+  });
+});
+
 describe("every other string stays masked", () => {
   test("a token in a text block next to an image is masked", async () => {
     const out = await run([

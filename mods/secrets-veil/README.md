@@ -40,8 +40,12 @@ Three layers, checked on every tool result:
    media_type, data }`) passes byte-equal when its media type is PNG, JPEG,
    GIF or WebP and its first bytes are that type's file signature. An image
    payload is one long high-entropy run, so masking it made the API reject
-   every image Read. Every other field of the block, and a `data` field
-   that only claims an image type, is masked as usual.
+   every image Read. The same holds for the Read tool's own image output,
+   which is the shape `tool.call` actually sees (`{ type: "image", file: {
+   base64, type, ... } }`, measured on Claude Code 2.1.304): its `base64`
+   passes under the same media type and signature rule. Every other field
+   of the block, and a `data` or `base64` field that only claims an image
+   type, is masked as usual.
 
    What this exemption does not cover, in plain words:
    - **The veil does not see inside an image.** A secret drawn in the

@@ -153,18 +153,35 @@ function base64Head(data: string, chars: number): number[] {
 
 const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 
-/**
- * True for a base64 media source block ({ type: "base64", media_type, data })
- * whose data is base64 and starts with the file signature of its media type.
- * Anything else, a `data` field that only claims a media type included, is
- * masked like every other string.
- */
-export function isMediaSource(value: Record<string, unknown>): boolean {
-  const { type, media_type: mediaType, data } = value;
-  if (type !== "base64" || typeof mediaType !== "string" || typeof data !== "string") return false;
+function isMediaPayload(mediaType: unknown, data: unknown): boolean {
+  if (typeof mediaType !== "string" || typeof data !== "string") return false;
   const signature = MEDIA_SIGNATURES[mediaType];
   if (!signature || !BASE64.test(data)) return false;
   return signature(base64Head(data, 16));
+}
+
+/**
+ * The key of the image payload that passes byte-equal, or null. Two shapes:
+ *   - the API source block { type: "base64", media_type, data } -> "data";
+ *   - the Read tool's own image output, which is what tool.call actually
+ *     sees: { type: "image", file: { base64, type: "image/png", ... } }, so
+ *     the record here is the `file` object -> "base64". Measured on Claude
+ *     Code 2.1.304 (binary: `type:"image",file:{base64:...,type:...}`): with
+ *     only the first shape exempt, a live Read of a PNG still came back
+ *     "invalid base64 data".
+ * Either way the payload must be base64 and start with the file signature of
+ * its media type. Anything else, a field that only claims a media type
+ * included, is masked like every other string.
+ */
+export function mediaPayloadKey(value: Record<string, unknown>): "data" | "base64" | null {
+  if (value.type === "base64" && isMediaPayload(value.media_type, value.data)) return "data";
+  if ("base64" in value && isMediaPayload(value.type, value.base64)) return "base64";
+  return null;
+}
+
+/** True for an API source block ({ type: "base64", media_type, data }) with a real image payload. */
+export function isMediaSource(value: Record<string, unknown>): boolean {
+  return mediaPayloadKey(value) === "data";
 }
 
 function maskDeep(value: unknown, activeTable: MaskTable, covered: Set<string>, budget: MaskBudget): unknown {
@@ -196,11 +213,11 @@ function maskDeep(value: unknown, activeTable: MaskTable, covered: Set<string>, 
       return value.map((item) => maskDeep(item, activeTable, covered, budget));
     }
     const record = value as Record<string, unknown>;
-    const media = isMediaSource(record);
+    const payloadKey = mediaPayloadKey(record);
     const out: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(record)) {
       // A real media payload passes byte-equal; its other fields are masked.
-      out[key] = media && key === "data" ? val : maskDeep(val, activeTable, covered, budget);
+      out[key] = key === payloadKey ? val : maskDeep(val, activeTable, covered, budget);
     }
     return out;
   }
