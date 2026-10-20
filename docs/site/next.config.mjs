@@ -73,7 +73,7 @@ const config = {
 		},
 		{
 			// did:web DID document — resolves the host identity the ARD catalog
-			// and its trustManifest claim (did:web:orchestkit.yonyon.ai).
+			// and its trustManifest claim (did:web:orchestkit.dev).
 			source: "/.well-known/did.json",
 			destination: "/api/well-known/did",
 		},
@@ -214,12 +214,13 @@ const config = {
 			permanent: true,
 		},
 		{
-			// 301 the bare Vercel host onto the canonical brand domain (orchestkit.yonyon.ai).
+			// 301 the bare Vercel host onto the canonical brand domain (orchestkit.dev),
+			// in one hop: never through the pre-GA host, which would add a second hop.
 			// Preview deployments (orchestkit-<hash>.vercel.app) don't match this exact host,
 			// so they stay reachable; only the production alias is redirected.
 			source: "/:path*",
 			has: [{ type: "host", value: "orchestkit.vercel.app" }],
-			destination: "https://orchestkit.yonyon.ai/:path*",
+			destination: "https://orchestkit.dev/:path*",
 			statusCode: 301,
 		},
 	],
