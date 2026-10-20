@@ -36,27 +36,37 @@ Three layers, checked on every tool result:
    paths and identifiers measured 2.9 to 4.0. Masked output never reveals
    length beyond an 8-bullet floor.
 
-   One exception: the `data` of a base64 image block (`{ type: "base64",
-   media_type, data }`) passes byte-equal when its media type is PNG, JPEG,
-   GIF or WebP and its first bytes are that type's file signature. An image
-   payload is one long high-entropy run, so masking it made the API reject
-   every image Read. The same holds for the Read tool's own image output,
-   which is the shape `tool.call` actually sees (`{ type: "image", file: {
-   base64, type, ... } }`, measured on Claude Code 2.1.304): its `base64`
-   passes under the same media type and signature rule. Every other field
-   of the block, and a `data` or `base64` field that only claims an image
-   type, is masked as usual.
+   One exception: an image payload passes byte-equal. An image payload is
+   one long high-entropy run, so masking it made the API reject every image
+   Read. It passes only when all of these hold:
+   - it sits in a real image block at the top of the tool's output: the
+     Read tool's own shape `{ type: "image", file: { base64, type, ... } }`
+     (what `tool.call` sees on Claude Code 2.1.304) or the API block
+     `{ type: "image", source: { type: "base64", media_type, data } }`,
+     as the output itself, an element of an output array, or an element of
+     the output's `content` array. A look-alike deeper in a result is masked;
+   - its media type is PNG, JPEG, GIF or WebP (an exact allowlist);
+   - it is strict base64 under 16 million characters, and the WHOLE decoded
+     file has the structure of its type: PNG chunks with right CRCs from
+     IHDR to IEND, JPEG segments to EOI, GIF blocks to the trailer, WebP
+     RIFF chunks to the exact end. A file signature alone is not enough;
+   - no named value appears in the decoded bytes or the base64 text, and no
+     vendor shape (`sk-ant-`, `AKIA`, a PEM header, ...) appears in the
+     decoded bytes. If one does, the whole result is withheld, never shown
+     with corrupted image bytes.
+   Every other field of the block is masked as usual.
 
    What this exemption does not cover, in plain words:
-   - **The veil does not see inside an image.** A secret drawn in the
-     pixels, or kept in the image's metadata, reaches the model.
+   - **The veil does not see inside the pixels.** A secret drawn in the
+     image reaches the model; text kept in metadata is checked for named
+     values and vendor shapes only.
    - **PDF reads stay masked.** The API reads the text of a PDF, and the
      veil cannot, so a PDF payload is masked and a PDF Read fails while the
      veil is on.
-   - **Any producer gets the same pass.** The veil cannot tell a Read from
-     another tool at this layer, so a structured result shaped like an
-     image source (an MCP server's structured content, for example) passes
-     its `data` unmasked too when that data starts with an image signature.
+   - **Any producer of the same shape gets the same pass.** The veil cannot
+     tell a Read from another tool at this layer, so an image block of the
+     same shape at the top of another tool's output passes under the same
+     checks.
 
 If zero named values resolve at `session.start`, the mod emits one
 `$.ui.notice` saying the veil is running on value patterns and entropy only.

@@ -29,6 +29,7 @@
  */
 
 import { buildTable, mask, DEFAULT_PATTERNS } from "../src/mask.js";
+import { holdsSecret, validImage } from "../src/media.js";
 import type { DollarAPI, MaskTable, ToolCallEvent, ToolCallResult } from "../src/types.js";
 
 /** A named value shorter than this is not worth a table entry. */
@@ -112,78 +113,125 @@ function isPlainContainer(value: object): boolean {
 }
 
 /**
- * File signatures of the media types whose base64 payload passes unmasked.
- * An image payload is one long high-entropy run, so the entropy layer covered
- * it and the API rejected every Read of a PNG or JPEG
- * (card image-read-fault-2026-10-18). Images only: a PDF stays masked,
- * because the API reads its text and the veil cannot (operator decision on
- * orchestkit#4801).
+ * Where an image payload may pass unmasked: ONLY at the image block shapes a
+ * tool result really uses, and only at the top of the result (Codex XREVIEW
+ * HOLD 6288472542 on orchestkit#4801, finding 2). Anything that merely looks
+ * like one deeper in a structured result is masked like every other string.
+ *   - Read tool output (what tool.call sees on Claude Code 2.1.304, binary
+ *     `type:"image",file:{base64:...,type:...}`): { type: "image", file: { base64, type, ... } }
+ *   - API content block: { type: "image", source: { type: "base64", media_type, data } }
+ * Accepted as the result itself, an element of a result array, or an element
+ * of the result's `content` array. The payload must also pass validImage
+ * (whole-file structure, strict base64, Map allowlist) and hold no secret.
  */
-const MEDIA_SIGNATURES: Record<string, (h: number[]) => boolean> = {
-  "image/png": (h) => startsWith(h, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-  "image/jpeg": (h) => startsWith(h, [0xff, 0xd8, 0xff]),
-  "image/gif": (h) => startsWith(h, ascii("GIF8")),
-  "image/webp": (h) => startsWith(h, ascii("RIFF")) && startsWith(h.slice(8), ascii("WEBP")),
-};
+type ImageSlot = { holder: "file" | "source"; key: "base64" | "data"; mediaType: unknown; data: unknown };
 
-function ascii(text: string): number[] {
-  return Array.from(text, (c) => c.charCodeAt(0));
-}
-
-function startsWith(bytes: number[], prefix: number[]): boolean {
-  return prefix.every((b, i) => bytes[i] === b);
-}
-
-const BASE64_DIGITS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-/**
- * The bytes of the first `chars` base64 characters (a multiple of 4). Pure:
- * the mod sandbox may have neither Buffer nor atob.
- */
-function base64Head(data: string, chars: number): number[] {
-  const bytes: number[] = [];
-  for (let i = 0; i + 4 <= Math.min(chars, data.length); i += 4) {
-    const n = [0, 1, 2, 3].map((k) => BASE64_DIGITS.indexOf(data[i + k]));
-    if (n.some((d) => d < 0)) break; // "=" padding ends the data
-    const word = (n[0] << 18) | (n[1] << 12) | (n[2] << 6) | n[3];
-    bytes.push((word >> 16) & 0xff, (word >> 8) & 0xff, word & 0xff);
+function imageSlot(value: unknown): ImageSlot | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value) || !isPlainContainer(value)) return null;
+  const block = value as Record<string, unknown>;
+  if (block.type !== "image") return null;
+  const file = Object.prototype.hasOwnProperty.call(block, "file") ? block.file : undefined;
+  if (file !== null && typeof file === "object" && !Array.isArray(file) && isPlainContainer(file)) {
+    const f = file as Record<string, unknown>;
+    if (Object.prototype.hasOwnProperty.call(f, "base64")) {
+      return { holder: "file", key: "base64", mediaType: f.type, data: f.base64 };
+    }
   }
-  return bytes;
-}
-
-const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
-
-function isMediaPayload(mediaType: unknown, data: unknown): boolean {
-  if (typeof mediaType !== "string" || typeof data !== "string") return false;
-  const signature = MEDIA_SIGNATURES[mediaType];
-  if (!signature || !BASE64.test(data)) return false;
-  return signature(base64Head(data, 16));
-}
-
-/**
- * The key of the image payload that passes byte-equal, or null. Two shapes:
- *   - the API source block { type: "base64", media_type, data } -> "data";
- *   - the Read tool's own image output, which is what tool.call actually
- *     sees: { type: "image", file: { base64, type: "image/png", ... } }, so
- *     the record here is the `file` object -> "base64". Measured on Claude
- *     Code 2.1.304 (binary: `type:"image",file:{base64:...,type:...}`): with
- *     only the first shape exempt, a live Read of a PNG still came back
- *     "invalid base64 data".
- * Either way the payload must be base64 and start with the file signature of
- * its media type. Anything else, a field that only claims a media type
- * included, is masked like every other string.
- */
-export function mediaPayloadKey(value: Record<string, unknown>): "data" | "base64" | null {
-  if (value.type === "base64" && isMediaPayload(value.media_type, value.data)) return "data";
-  if ("base64" in value && isMediaPayload(value.type, value.base64)) return "base64";
+  const source = Object.prototype.hasOwnProperty.call(block, "source") ? block.source : undefined;
+  if (source !== null && typeof source === "object" && !Array.isArray(source) && isPlainContainer(source)) {
+    const src = source as Record<string, unknown>;
+    if (src.type === "base64" && Object.prototype.hasOwnProperty.call(src, "data")) {
+      return { holder: "source", key: "data", mediaType: src.media_type, data: src.data };
+    }
+  }
   return null;
 }
 
-/** True for an API source block ({ type: "base64", media_type, data }) with a real image payload. */
-export function isMediaSource(value: Record<string, unknown>): boolean {
-  return mediaPayloadKey(value) === "data";
+/** Named values and vendor shapes of the armed table, for the in-image secret check. */
+function needlesOf(activeTable: MaskTable): { named: string[]; shapes: string[] } {
+  const named: string[] = [];
+  const shapes: string[] = [];
+  for (const entry of activeTable.entries) {
+    if (entry.type === "env") named.push(entry.value);
+    else shapes.push(entry.pattern);
+  }
+  return { named, shapes };
 }
 
+/**
+ * Mask one image block. A payload that passes every check is kept byte-equal;
+ * one that holds a secret withholds the WHOLE result (never corrupted bytes);
+ * one that fails a check is masked like any string. Every other field of the
+ * block is masked.
+ */
+function maskImageBlock(
+  block: Record<string, unknown>,
+  slot: ImageSlot,
+  activeTable: MaskTable,
+  covered: Set<string>,
+  budget: MaskBudget,
+): unknown {
+  const bytes = validImage(slot.mediaType, slot.data);
+  if (bytes === null) return maskDeep(block, activeTable, covered, budget);
+  const { named, shapes } = needlesOf(activeTable);
+  if (holdsSecret(bytes, slot.data as string, named, shapes)) {
+    throw new VeilRefusal("an image holds a masked value");
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(block)) {
+    if (key !== slot.holder) {
+      out[key] = maskDeep(val, activeTable, covered, budget);
+      continue;
+    }
+    const inner: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+      inner[k] = k === slot.key ? v : maskDeep(v, activeTable, covered, budget);
+    }
+    out[key] = inner;
+  }
+  return out;
+}
+
+/**
+ * Mask what tool.call's next() returned: the wrapper { result, ... }. The
+ * tool's own output is wrapper.result; image slots are read there only.
+ * Every other key of the wrapper is masked with no exemption.
+ */
+export function maskResult(wrapper: unknown, activeTable: MaskTable, covered: Set<string>, budget: MaskBudget): unknown {
+  if (wrapper === null || typeof wrapper !== "object" || Array.isArray(wrapper) || !isPlainContainer(wrapper)) {
+    return maskDeep(wrapper, activeTable, covered, budget);
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(wrapper as Record<string, unknown>)) {
+    out[key] = key === "result" ? maskPayload(val, activeTable, covered, budget) : maskDeep(val, activeTable, covered, budget);
+  }
+  return out;
+}
+
+/** Mask a tool's own output: image slots at its top only, then every other string. */
+function maskPayload(result: unknown, activeTable: MaskTable, covered: Set<string>, budget: MaskBudget): unknown {
+  const top = (value: unknown): unknown => {
+    const slot = imageSlot(value);
+    return slot === null
+      ? maskDeep(value, activeTable, covered, budget)
+      : maskImageBlock(value as Record<string, unknown>, slot, activeTable, covered, budget);
+  };
+  if (Array.isArray(result)) return result.map(top);
+  if (imageSlot(result) !== null) return top(result);
+  if (result !== null && typeof result === "object" && isPlainContainer(result)) {
+    const record = result as Record<string, unknown>;
+    if (Object.prototype.hasOwnProperty.call(record, "content") && Array.isArray(record.content)) {
+      const out: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(record)) {
+        out[key] = key === "content" ? (val as unknown[]).map(top) : maskDeep(val, activeTable, covered, budget);
+      }
+      return out;
+    }
+  }
+  return maskDeep(result, activeTable, covered, budget);
+}
+
+/** Every string masked, no exemption anywhere: the walk below the top of a result. */
 function maskDeep(value: unknown, activeTable: MaskTable, covered: Set<string>, budget: MaskBudget): unknown {
   if (Date.now() > budget.deadline) {
     throw new VeilRefusal("masking ran past its time cap");
@@ -212,12 +260,9 @@ function maskDeep(value: unknown, activeTable: MaskTable, covered: Set<string>, 
     if (Array.isArray(value)) {
       return value.map((item) => maskDeep(item, activeTable, covered, budget));
     }
-    const record = value as Record<string, unknown>;
-    const payloadKey = mediaPayloadKey(record);
     const out: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(record)) {
-      // A real media payload passes byte-equal; its other fields are masked.
-      out[key] = key === payloadKey ? val : maskDeep(val, activeTable, covered, budget);
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = maskDeep(val, activeTable, covered, budget);
     }
     return out;
   }
@@ -481,7 +526,7 @@ export function register(on: (event: string, hook: unknown) => Registration, _op
         table = await armLazily($);
       }
       const covered = new Set<string>();
-      const masked = maskDeep(result, table, covered, { chars: 0, deadline: Date.now() + MAX_MASK_MS });
+      const masked = maskResult(result, table, covered, { chars: 0, deadline: Date.now() + MAX_MASK_MS });
       const stats = statsOf(covered);
       if (stats.values > 0) {
         maskedThisSession += stats.values;
