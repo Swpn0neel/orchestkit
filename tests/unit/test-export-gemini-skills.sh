@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/export-gemini-skills.mjs: one pass fixture and five refusals.
+# scripts/export-gemini-skills.mjs: one pass fixture, seven refusals and a stale-zip rerun.
 # The Gemini app rules come from support.google.com/gemini/answer/17094296
 # (lowercase-hyphen name, a SKILL.md in the zip's main folder, plain text only)
 # plus the 1024-character description limit. A chat app cannot run MCP tools.
@@ -104,6 +104,33 @@ make_skill has-link has-link "A method."
 echo "SECRET-KEY-MATERIAL" > "$FIX/outside-secret.txt"
 ln -s "$FIX/outside-secret.txt" "$FIX/skills/has-link/references/notes.md"
 refuse "a symlink in the folder is refused (its target is never exported)" has-link 'references/notes.md is a symlink'
+
+# 7. A hidden directory: a .git/ folder has visible file names but must not ship.
+make_skill hidden-dir hidden-dir "A method."
+mkdir -p "$FIX/skills/hidden-dir/.git"
+echo "[core]" > "$FIX/skills/hidden-dir/.git/config.txt"
+refuse "a file under a hidden directory (.git/) is refused" hidden-dir 'hidden file .git/config.txt'
+
+# 8. Binary bytes behind a text extension.
+make_skill binary-md binary-md "A method."
+printf 'text\000\377\376more' > "$FIX/skills/binary-md/references/data.md"
+refuse "binary content in a .md file is refused" binary-md 'references/data.md is not plain text'
+
+# 9. A skill refused on a rerun leaves no stale zip from the earlier run.
+make_skill goes-bad goes-bad "A method."
+OUT="$FIX/out-goes-bad"
+rc=0
+run_export "$OUT" goes-bad || rc=$?
+first_zip=no
+[[ "$rc" -eq 0 && -f "$OUT/goes-bad.zip" ]] && first_zip=yes
+touch "$FIX/skills/goes-bad/.DS_Store"
+rc=0
+run_export "$OUT" goes-bad || rc=$?
+if [[ "$first_zip" == yes && "$rc" -eq 1 && ! -e "$OUT/goes-bad.zip" ]]; then
+  ok "a rerun that refuses a skill removes its stale zip"
+else
+  bad "stale zip after refusal (first_zip=$first_zip rc=$rc)"; cat "$OUT.log"
+fi
 
 echo ""
 echo "export-gemini-skills: $pass passed, $fail failed"
