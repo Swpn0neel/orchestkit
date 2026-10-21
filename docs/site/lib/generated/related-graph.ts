@@ -174,7 +174,7 @@ export const RELATED_GRAPH: RelatedGraphData = {
       "inbound": 2
     },
     "/docs/getting-started/sandbox": {
-      "title": "Try OrchestKit Safely",
+      "title": "OrchestKit Sandbox and Test Mode: Try It Safely",
       "inbound": 2
     },
     "/docs/getting-started/skills-sh": {
@@ -234,7 +234,7 @@ export const RELATED_GRAPH: RelatedGraphData = {
       "inbound": 3
     },
     "/docs/hooks/overview": {
-      "title": "162 Hooks: What Fires When",
+      "title": "163 Hooks: What Fires When",
       "inbound": 3
     },
     "/docs/hooks/safety-hooks": {

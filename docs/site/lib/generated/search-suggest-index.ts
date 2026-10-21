@@ -610,8 +610,9 @@ export const SEARCH_SUGGEST_INDEX: SearchSuggestEntry[] = [
   },
   {
     "url": "/docs/getting-started/sandbox",
-    "title": "Try OrchestKit Safely",
+    "title": "OrchestKit Sandbox and Test Mode: Try It Safely",
     "headings": [
+      "Test mode for agents",
       "1. Read-only hosted tools (no install)",
       "2. Plan an install without running it",
       "3. Exercise the plugin in a throwaway project",
@@ -810,7 +811,7 @@ export const SEARCH_SUGGEST_INDEX: SearchSuggestEntry[] = [
   },
   {
     "url": "/docs/hooks/overview",
-    "title": "162 Hooks: What Fires When",
+    "title": "163 Hooks: What Fires When",
     "headings": [
       "What Is a Hook?",
       "By the Numbers",
@@ -4188,10 +4189,9 @@ export const SEARCH_SUGGEST_INDEX: SearchSuggestEntry[] = [
       "Browser: Scraping Ethics",
       "References (6)",
       "Browser Tools: the OrchestKit delta over agent-browser",
-      "Assume ZERO safety-hook coverage for any agent-browser run that is not a local Bash command",
-      "Reach a new origin with open, goto or navigate if you want it policed",
-      "Budget navigations per host: the rate limiter is machine-wide, not per session",
-      "Local targets are allowed by default; name them with portless, not a port",
+      "Nothing checks agent-browser any more: the rules are yours to follow",
+      "Pace requests per host across every session, by hand",
+      "Local targets: name them with portless, not a port",
       "Keep page-derived output targeted, verified, and out of the repo",
       "Upstream Dogfood",
       "Setup",
@@ -10978,7 +10978,7 @@ export const SEARCH_SUGGEST_INDEX: SearchSuggestEntry[] = [
       "Steps 1-5: Configuration questions",
       "Step 1: Branch Strategy",
       "Step 2: Commit Format Enforcement",
-      "Step 3: Local Dev Browser Access",
+      "Step 3: Local Dev Browser Access (no question)",
       "Step 4: Performance Telemetry",
       "Step 5: Log Verbosity",
       "Step 6: Webhook Telemetry",
