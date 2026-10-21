@@ -325,8 +325,15 @@ assert "no paths filter (a required check must always report)" absent '^ *paths(
 assert "top-level permissions: {}" grep -qE '^permissions: \{\}' "$WORKFLOW"
 n_checkout="$(grep -cE 'uses: actions/checkout@' "$WORKFLOW" || true)"
 n_nocreds="$(grep -cE 'persist-credentials: false' "$WORKFLOW" || true)"
-same_count() { [ "$n_checkout" -ge 3 ] && [ "$n_checkout" = "$n_nocreds" ]; }
+same_count() { [ "$n_checkout" -ge 1 ] && [ "$n_checkout" = "$n_nocreds" ]; }
 assert "persist-credentials: false on every checkout ($n_nocreds of $n_checkout)" same_count
+# Scorecard DangerousWorkflow: no checkout step may name a pull_request ref
+assert "no actions/checkout ref names a pull_request head or base" \
+  absent 'ref: .*github\.event\.pull_request' "$WORKFLOW"
+assert "PR base and head reach the shell only through env vars" \
+  grep -qE '^          HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}' "$WORKFLOW"
+assert "no PR-controlled expression inside a run block" \
+  absent '^ +(bash|git|echo).*\$\{\{ github\.event\.pull_request' "$WORKFLOW"
 assert "no step runs with head as its working directory" absent 'working-directory:.*head' "$WORKFLOW"
 # shellcheck disable=SC2016  # $GITHUB_WORKSPACE is matched literally in the YAML
 assert "nothing under head/ is executed" \

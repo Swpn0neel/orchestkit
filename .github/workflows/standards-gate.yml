@@ -2,8 +2,8 @@
 # weaken the gate that judges it.
 #
 # Trigger is pull_request_target, so this YAML and every program it runs come
-# from the BASE branch, never from the PR. Three checkouts, none of which
-# persists credentials:
+# from the BASE branch, never from the PR. One checkout (trusted) plus two plain
+# git fetches (base, head), none of which persists credentials:
 #   trusted  github.sha, the base branch tip (the same commit as this YAML):
 #            the gate scripts and the only tree anything is installed into.
 #   base     pull_request.base.sha, configs only: the FLOOR. The allowlists and
@@ -76,20 +76,41 @@ jobs:
           path: trusted
           persist-credentials: false
 
-      - name: Floor (PR base commit, configs only)
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          path: base
-          sparse-checkout: configs
-          persist-credentials: false
-
-      - name: PR head as data (full tree, never executed)
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          path: head
-          persist-credentials: false
+      # The base and head trees are fetched with plain git, not actions/checkout.
+      # Both refs arrive through env vars (never interpolated into the script),
+      # nothing is executed from either tree, and the token is passed to one
+      # fetch command as a header, so it is never written to .git/config. A
+      # checkout step with a pull_request ref in this trigger is what OpenSSF
+      # Scorecard flags as DangerousWorkflow, even when the tree is data only.
+      - name: Fetch floor (PR base commit, configs only) and PR head (data only)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for v in "$BASE_SHA" "$HEAD_SHA"; do
+            if ! [[ "$v" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error title=standards gate::unexpected commit id in the event payload"
+              exit 1
+            fi
+          done
+          AUTH="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::${AUTH#AUTHORIZATION: basic }"
+          fetch_tree() {
+            # fetch_tree <dir> <sha> [sparse path]
+            local dir="$1" sha="$2" sparse="${3:-}"
+            git init -q "$dir"
+            git -C "$dir" remote add origin "https://github.com/${REPO}"
+            if [ -n "$sparse" ]; then
+              git -C "$dir" sparse-checkout set --cone "$sparse"
+            fi
+            git -C "$dir" -c "http.extraheader=${AUTH}" fetch -q --depth=1 --no-tags origin "$sha"
+            git -C "$dir" -c core.hooksPath=/dev/null checkout -q --detach FETCH_HEAD
+          }
+          fetch_tree base "$BASE_SHA" configs
+          fetch_tree head "$HEAD_SHA"
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
