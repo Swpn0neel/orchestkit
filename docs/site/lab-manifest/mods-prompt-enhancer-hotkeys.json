@@ -1,0 +1,13 @@
+{
+  "slug": "mods-prompt-enhancer-hotkeys",
+  "source": "docs/fix--prompt-enhancer-hotkeys/index.html",
+  "title": "Prompt Enhancer: press the buttons from the keyboard",
+  "description": "A click never reached the band in the default terminal mode; 0.1.1 gives Enhance, Undo and Send the keys e, u and s after ctrl+x tab, with a hint line.",
+  "tags": [
+    "claude-code",
+    "mods",
+    "function-hooks",
+    "prompt-enhancer"
+  ],
+  "date": "2026-10-21"
+}

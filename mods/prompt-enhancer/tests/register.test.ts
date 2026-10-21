@@ -1123,3 +1123,42 @@ describe("interleavings property", () => {
     expect(failures.slice(0, 5)).toEqual([]);
   });
 });
+
+// Dogfood finding 2026-10-20: in tui "default" mode a click never reaches the
+// band, and no Button had a hotkey or a hint, so a keyboard user could not
+// press Enhance, Undo or Send. ctrl+x tab gives the band the keyboard; the
+// hotkeys then press the buttons, and the hint line says so.
+describe("keyboard access", () => {
+  async function band(h: ReturnType<typeof harness>) {
+    const tree = await h.fire("ui.render", { component: "AbovePrompt", props: { hasSurvey: false, isWorking: false } });
+    const buttons = new Map<string, Record<string, unknown>>();
+    const texts: string[] = [];
+    function walk(value: unknown, dim = false): void {
+      if (typeof value === "string") { if (dim) texts.push(value); return; }
+      if (!value || typeof value !== "object") return;
+      const node = value as Node;
+      const props = (node.props ?? {}) as Record<string, unknown>;
+      if (typeof props.label === "string") buttons.set(props.label, props);
+      const isDim = dim || props.dimColor === true;
+      for (const child of node.children ?? []) walk(child, isDim);
+    }
+    walk(tree);
+    return { buttons, dimText: texts.join("") };
+  }
+
+  test("Enhance, Undo and Send carry the hotkeys e, u and s", async () => {
+    const h = harness("add a login page");
+    const { buttons } = await band(h);
+    expect(buttons.get("Enhance")?.hotkey).toBe("e");
+    expect(buttons.get("Undo")?.hotkey).toBe("u");
+    expect(buttons.get("Send")?.hotkey).toBe("s");
+    const keys = [...buttons.values()].map((b) => b.hotkey).filter((k) => k !== undefined);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  test("a dim hint line names the way in", async () => {
+    const h = harness("add a login page");
+    const { dimText } = await band(h);
+    expect(dimText).toContain("ctrl+x tab, then e / u / s");
+  });
+});

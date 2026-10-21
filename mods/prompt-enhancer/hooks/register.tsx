@@ -264,16 +264,18 @@ export const register = (on: On): void => {
         </Box>
         {!state.collapsed && <Box flexDirection="column">
           <Box>
-            <Button key="enhance" label="Enhance" onPress={async () => {
+            <Button key="enhance" label="Enhance" hotkey="e" onPress={async () => {
               c.held = null;
               const stamp = c.epoch;
               const text = (await $.prompt.read()).text;
               if (c.epoch === stamp) await enhance($, c, text);
             }} />
-            <Button key="undo" label="Undo" onPress={() => undo($, c)} />
-            <Button key="send" label="Send" onPress={() => send($, c)} />
+            <Button key="undo" label="Undo" hotkey="u" onPress={() => undo($, c)} />
+            <Button key="send" label="Send" hotkey="s" onPress={() => send($, c)} />
           </Box>
           <Text dimColor>Enhanced below: edit it, then Send (or Enter). Undo puts your original back.</Text>
+          {/* A click reaches the band only in a fullscreen tui; the keys work in every mode. */}
+          <Text dimColor>Keys: ctrl+x tab, then e / u / s</Text>
           {state.busy && <Text dimColor>Enhancing...</Text>}
         </Box>}
       </Box>

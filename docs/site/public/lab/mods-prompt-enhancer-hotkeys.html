@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Enhancer: press the buttons from the keyboard | OrchestKit Lab</title>
+<style>
+  :root { color-scheme: light; font: 17px/1.6 system-ui, sans-serif; background: #faf8f3; color: #1d232a; }
+  body { max-width: 900px; margin: auto; padding: 44px 24px; }
+  h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 1.15; }
+  .eyebrow { color: #2a6f97; letter-spacing: .08em; }
+  pre { background: #fff; border: 1px solid #d9d3c7; padding: 12px 16px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; margin-top: 12px; }
+  td, th { border: 1px solid #d9d3c7; padding: 6px 10px; text-align: left; }
+</style>
+<!-- ork-lab-head:start --><meta property="og:type" content="website"><meta property="og:site_name" content="OrchestKit"><meta property="og:title" content="Prompt Enhancer: press the buttons from the keyboard"><meta property="og:description" content="A click never reached the band in the default terminal mode; 0.1.1 gives Enhance, Undo and Send the keys e, u and s after ctrl+x tab, with a hint line."><meta property="og:url" content="https://orchestkit.yonyon.ai/lab/mods-prompt-enhancer-hotkeys.html"><meta property="og:image" content="https://orchestkit.yonyon.ai/opengraph-image"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Prompt Enhancer: press the buttons from the keyboard"><meta name="twitter:description" content="A click never reached the band in the default terminal mode; 0.1.1 gives Enhance, Undo and Send the keys e, u and s after ctrl+x tab, with a hint line."><meta name="twitter:image" content="https://orchestkit.yonyon.ai/opengraph-image"><!-- ork-lab-head:end --></head>
+<body>
+<p class="eyebrow">ORCHESTKIT LAB · MODS · PROMPT ENHANCER</p>
+<h1>Press Enhance, Undo and Send from the keyboard</h1>
+<p>In the default terminal mode, Claude Code does not ask the terminal for mouse clicks, so a click on the band above the prompt selected text and never pressed a button. There was also no key for any button and no hint. Version 0.1.1 gives each button a key and draws one dim line that says how to reach them.</p>
+<pre>✨ Prompt Enhancer [ - ]
+[ Enhance ] [ Undo ] [ Send ]
+Enhanced below: edit it, then Send (or Enter). Undo puts your original back.
+Keys: ctrl+x tab, then e / u / s</pre>
+<table>
+  <tr><th>Step</th><th>What happens</th></tr>
+  <tr><td>ctrl+x tab</td><td>the band takes the keyboard</td></tr>
+  <tr><td>e</td><td>Enhance</td></tr>
+  <tr><td>u</td><td>Undo</td></tr>
+  <tr><td>s</td><td>Send</td></tr>
+</table>
+<p>The keys come from the button <code>hotkey</code> property in the Claude Code 2.1.304 mod API. A click still works where the terminal reports clicks (the fullscreen mode). Not yet checked by hand in a live pane; the tests check the keys and the hint on the drawn band.</p>
+<!-- ork-lab-chrome:start --><footer id="ork-lab-chrome" style="position:relative;z-index:2147483000;clear:both;box-sizing:border-box;width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px;margin:48px 0 0;padding:16px 24px;border:0;border-top:1px solid rgba(148,163,184,.25);background:#0d1017;color:#cbd5e1;font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;text-align:left"><a href="/" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0;color:#f8fafc;font-weight:700">OrchestKit</a><nav aria-label="OrchestKit site" style="display:flex;flex-wrap:wrap;gap:8px 20px;margin:0;padding:0"><a href="/docs" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">Read the docs</a><a href="/docs/getting-started/installation" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">Install</a><a href="/docs/showcase/lab" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">More playgrounds</a><a href="https://github.com/yonatangross/orchestkit" rel="noopener" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">GitHub</a></nav></footer><script>(function(){var f=document.getElementById("ork-lab-chrome"),framed;try{framed=window.self!==window.top}catch(e){framed=true}if(framed){if(f)f.remove();return}var h=location.hostname;if(h==="localhost"||h==="127.0.0.1")return;try{var b=JSON.stringify({project_id:"orchestkit",events:[{name:"page_view",path:location.pathname,referrer:document.referrer||"",timestamp:new Date().toISOString()}]});if(navigator.sendBeacon){navigator.sendBeacon("/api/analytics",new Blob([b],{type:"application/json"}))}else{fetch("/api/analytics",{method:"POST",headers:{"Content-Type":"application/json"},body:b,keepalive:true}).catch(function(){return null})}}catch(e){return null}})();</script><!-- ork-lab-chrome:end --></body>
+</html>

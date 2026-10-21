@@ -5,6 +5,8 @@ Requires Claude Code 2.1.300 or later.
 Beta (experimental, version 0.x). Each Enhance click costs model usage on your own account: one Haiku call with a 1024 token cap.
 
 The band sits above the prompt box. Type a draft and press Enhance.
+
+To press the buttons from the keyboard, press ctrl+x tab (the band takes the keyboard), then `e` for Enhance, `u` for Undo or `s` for Send. This works in every tui mode. A mouse click reaches the band only where the terminal reports clicks to Claude Code (the fullscreen tui); in the default tui a click selects text instead.
 Or type a prompt that ends in `++` and press Enter.
 The mod holds the prompt and puts the rewrite in the box.
 Edit it, then press Send or Enter. Send submits the current box as your own words.
