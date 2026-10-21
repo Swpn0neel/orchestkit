@@ -10,7 +10,7 @@
 //   - all uploads together stay under 100 MB
 //   - scripts cannot reach the internet
 // A chat app has no shell, no hooks, no subagents and no MCP servers, so a skill
-// whose body names those tools is refused unless the allowlist says otherwise.
+// whose body names those tools is always refused (the allowlist only names skills).
 //
 // Usage:
 //   node scripts/export-gemini-skills.mjs --skills business-case,okr-design [--out dir]
@@ -25,8 +25,9 @@ import { createHash } from 'node:crypto';
 import {
   cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TextDecoder } from 'node:util';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -131,20 +132,33 @@ function inspect(skillDir, skill) {
   else if (description.length > MAX_DESCRIPTION) problems.push(`description is ${description.length} characters (max ${MAX_DESCRIPTION})`);
 
   const files = [];
+  const fileTexts = [];
   const links = [];
   const found = listFiles(skillDir, links);
   for (const link of links) problems.push(`${relative(skillDir, link)} is a symlink or special file (only regular files are exported)`);
   for (const abs of found) {
     const rel = relative(skillDir, abs);
-    const base = rel.split('/').pop();
-    if (base.startsWith('.')) { problems.push(`hidden file ${rel} (remove it before export)`); continue; }
+    // Check every segment, not only the file name: a file under .git/ or
+    // .private/ has a visible base name but must never reach the zip.
+    const segments = rel.split(sep);
+    const base = segments[segments.length - 1];
+    if (segments.some((s) => s.startsWith('.'))) { problems.push(`hidden file ${rel} (remove it before export)`); continue; }
     if (DROP_FILES.has(base) || rel === 'SKILL.md') continue;
     const ext = base.includes('.') ? base.slice(base.lastIndexOf('.')).toLowerCase() : '';
     if (!TEXT_EXT.has(ext)) { problems.push(`${rel} is not a plain-text type the Gemini app accepts`); continue; }
+    // The extension is only a claim: the bytes must be strict UTF-8 with no NUL.
+    let text;
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(readFileSync(abs));
+    } catch {
+      text = null;
+    }
+    if (text === null || text.includes('\0')) { problems.push(`${rel} is not plain text the Gemini app accepts (binary content)`); continue; }
     files.push(rel);
+    fileTexts.push(text);
   }
 
-  const texts = [parts.body, ...files.map((f) => readFileSync(join(skillDir, f), 'utf8'))];
+  const texts = [parts.body, ...fileTexts];
   for (const { re, why } of RUNTIME_WORDS) {
     if (texts.some((t) => re.test(t))) problems.push(`the skill ${why} (${re}); a chat app cannot run it`);
   }
@@ -169,6 +183,9 @@ function main() {
   let refused = 0;
   let total = 0;
   for (const skill of opts.skills) {
+    // Remove last run's zip first, so a skill refused now leaves no stale zip behind.
+    const zip = join(opts.out, `${skill}.zip`);
+    rmSync(zip, { force: true });
     const dir = join(opts.skillsDir, skill);
     if (!existsSync(dir) || !statSync(dir).isDirectory()) {
       process.stderr.write(`REFUSED ${skill}: not a skill folder under ${opts.skillsDir}\n`);
@@ -188,8 +205,6 @@ function main() {
       mkdirSync(dirname(join(target, f)), { recursive: true });
       cpSync(join(dir, f), join(target, f));
     }
-    const zip = join(opts.out, `${skill}.zip`);
-    rmSync(zip, { force: true });
     // -X drops extra file attributes; -y stores a link as a link, never its target.
     // Run from the stage so the zip's main folder is the skill.
     execFileSync('zip', ['-q', '-r', '-X', '-y', zip, skill], { cwd: stage });
