@@ -11,13 +11,6 @@ user-invocable: true
 disable-model-invocation: false
 allowed-tools: "Read Write Grep Glob Bash AskUserQuestion TaskCreate TaskUpdate mcp__memory__search_nodes mcp__memory__create_entities mcp__memory__create_relations"
 skills: [configure, remember, explore, help]
-hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "${CLAUDE_PLUGIN_ROOT}/hooks/bin/run-hook.mjs skill/setup-env-detector"
-          once: true
 metadata:
   category: configuration
   mcp-server: memory
@@ -115,6 +108,12 @@ Scans for package manifests (package.json, pyproject.toml, go.mod, Cargo.toml, e
 
 ## Phase 2: Stack Detection
 
+**Load the stack snapshot first.** A fork skill never runs frontmatter hooks (#4683), so run the loader yourself and keep its `additionalContext` in mind:
+
+```bash
+echo '{"tool_name":"Bash","tool_input":{}}' | node "${CLAUDE_PLUGIN_ROOT}/hooks/bin/run-hook.mjs" skill/setup-env-detector
+```
+
 Classify scan results into a stack profile and present to user (languages, frameworks, database, infra, testing, existing CC config).
 
 Load `Read("references/stack-skill-mapping.md")` for the full stack-to-skill mapping table, MCP recommendation matrix, and custom skill suggestion patterns.
@@ -144,7 +143,7 @@ Offers three install scopes: User-only (recommended, invisible to teammates), Pr
 
 ## Phase 3.5: Project Configuration Wizard
 
-Load details: `Read("references/configure-wizard.md")` for the full 6-step interactive configuration flow (branch strategy, commit scope, localhost browser, perf telemetry, log verbosity, webhook telemetry) and env var reference.
+Load details: `Read("references/configure-wizard.md")` for the full 6-step interactive configuration flow (branch strategy, commit scope, perf telemetry, log verbosity, webhook telemetry; step 3, localhost browser, is retired) and env var reference.
 
 > Also reachable directly via `setup --configure` — skips phases 1-3.
 

@@ -75,7 +75,7 @@ vi.mock("..//lib/constants", () => ({
   SITE: {
     name: "OrchestKit",
     version: "6.3.0",
-    domain: "https://orchestkit.yonyon.ai",
+    domain: "https://orchestkit.dev",
     github: "https://github.com/yonatangross/orchestkit",
     installCommand:
       "claude plugin marketplace add yonatangross/orchestkit && claude plugin install ork@orchestkit",
@@ -88,8 +88,9 @@ vi.mock("..//lib/constants", () => ({
   },
   COUNTS: { skills: 69, agents: 38, hooks: 96 },
   SITE_TITLE: "OrchestKit: for Claude Code and 7 more agents",
+  HOME_TITLE: "OrchestKit: Claude Code Plugin with 69 Skills and 38 Agents",
   PAGE_SUMMARY: {
-    site: "69 skills, 38 agents and 96 hooks, for Claude Code and more coding agents. Stop explaining your stack. Start shipping.",
+    site: "Free, open source Claude Code plugin with 69 skills, 38 agents and 96 hooks for code review, testing, security and memory. Also runs in Cursor and Codex.",
     pricing:
       "OrchestKit is free and open source under the MIT license. No paid tiers, no usage limits, no account required.",
   },
@@ -109,7 +110,7 @@ vi.mock("..//lib/constants", () => ({
       "Yonyon is an independent software studio building developer tooling for AI-assisted engineering.",
     disambiguation:
       "Yonyon here is a software studio (the publisher of OrchestKit), not the musician of the same name.",
-    url: "https://orchestkit.yonyon.ai/yonyon",
+    url: "https://orchestkit.dev/yonyon",
     wikidata: "https://www.wikidata.org/wiki/Q141457913",
   },
   // Added 2026-07-31 alongside the real INTEGRATIONS export (lib/constants.ts):

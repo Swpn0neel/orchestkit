@@ -13,7 +13,7 @@ import { ThemeRevealOrigin } from "@/components/theme-reveal-origin";
 import { WebMcpInlineScript } from "@/components/webmcp-inline-script";
 import { WebMcpProvider } from "@/components/webmcp-provider";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
-import { BANNER_TEXT, PAGE_SUMMARY, SITE, SITE_TITLE } from "@/lib/constants";
+import { BANNER_TEXT, HOME_TITLE, PAGE_SUMMARY, SITE } from "@/lib/constants";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const geistMono = Geist_Mono({
@@ -24,11 +24,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
 	title: {
 		template: `%s | ${SITE.name}`,
-		// Matches the OG card tagline so <title>, og:title and twitter:title agree.
-		default: SITE_TITLE,
+		// Same as the homepage <title>, og:title and twitter:title.
+		default: HOME_TITLE,
 	},
 	description: PAGE_SUMMARY.site,
-	icons: { icon: "/favicon.svg" },
+	icons: {
+		icon: [
+			{ url: "/favicon.ico", sizes: "32x32" },
+			{ url: "/favicon.svg", type: "image/svg+xml" },
+		],
+		apple: "/apple-touch-icon.png",
+	},
 	// Default canonical = site root. Per-page metadata overrides this with its own
 	// `alternates.canonical` (docs pages and the trust/pricing pages already do).
 	alternates: {

@@ -3,7 +3,7 @@
 
 <img src="docs/banner.png" alt="OrchestKit - Stop explaining your stack. Start shipping." width="100%" />
 
-**<!--ork:skills-->109<!--/ork--> skills · <!--ork:agents-->36<!--/ork--> agents · <!--ork:hooks-->171<!--/ork--> hooks**
+**<!--ork:skills-->110<!--/ork--> skills · <!--ork:agents-->36<!--/ork--> agents · <!--ork:hooks-->163<!--/ork--> hooks**
 
 [![Claude Code](https://img.shields.io/badge/Claude_Code-≥2.1.277-7C3AED?style=for-the-badge&logo=anthropic)](https://claude.ai/claude-code)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](./LICENSE)
@@ -13,8 +13,20 @@
 
 [![MCP Toplist](https://mcptoplist.com/badge/io.github.yonatangross%2Forchestkit.svg)](https://mcptoplist.com/server/io.github.yonatangross%2Forchestkit)
 [![skills.sh](https://www.skills.sh/b/yonatangross/orchestkit)](https://www.skills.sh/yonatangross/orchestkit)
+[![Vercel OSS Program](https://vercel.com/oss/program-badge-2026.svg)](https://vercel.com/open-source-program)
 
 </div>
+
+## Start here
+
+OrchestKit is a free, open source Claude Code plugin: skills, agents and hooks for review, testing, security and memory.
+
+```bash
+claude plugin marketplace add yonatangross/orchestkit && claude plugin install ork@orchestkit
+```
+
+[Docs](https://orchestkit.yonyon.ai/docs) · [What's new in v10](https://orchestkit.yonyon.ai/docs/whats-new-v10) · [yonyon.ai](https://yonyon.ai)
+<!-- X account link: add it here when the account exists. -->
 
 ---
 
@@ -107,9 +119,9 @@ OrchestKit gives Claude **persistent knowledge** of production patterns that wor
 
 | Component | Details |
 |-----------|---------|
-| **<!--ork:skills-->109<!--/ork--> Skills** | RAG patterns, FastAPI, React 19, testing, security, database design, ML integration — loaded on-demand, zero overhead |
+| **<!--ork:skills-->110<!--/ork--> Skills** | RAG patterns, FastAPI, React 19, testing, security, database design, ML integration — loaded on-demand, zero overhead |
 | **<!--ork:agents-->36<!--/ork--> Agents** | Specialized personas (backend-architect, frontend-dev, security-auditor) — route tasks to the right expert |
-| **<!--ork:hooks-->171<!--/ork--> Hooks** | Pre-commit checks, git protection, quality gates, browser safety — ship with confidence |
+| **<!--ork:hooks-->163<!--/ork--> Hooks** | Pre-commit checks, git protection, quality gates, browser safety — ship with confidence |
 
 All available in a single `/plugin install ork`. Skills load on-demand. Hooks work automatically.
 
@@ -184,7 +196,7 @@ OrchestKit is a quality-gate plugin, so its hooks are the product rather than an
 add-on. This section states plainly what they see, where it goes, and how to turn
 each piece off.
 
-**Scope: broad and intentional.** OrchestKit registers <!--ork:hooks-->171<!--/ork--> hooks across <!--ork:events-->32<!--/ork-->
+**Scope: broad and intentional.** OrchestKit registers <!--ork:hooks-->163<!--/ork--> hooks across <!--ork:events-->32<!--/ork-->
 lifecycle events, including `SessionStart`, `UserPromptSubmit`, `PreToolUse`,
 `PostToolUse`, and `Stop`. They are **not** gated to a particular framework or
 project type, because the gates they enforce (secret-write blocking, protected-file
@@ -630,39 +642,56 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 <!-- AUTO-GENERATED from CHANGELOG.md by scripts/stamp-whats-new.mjs — do not hand-edit between the ork:whats-new markers. -->
 <!-- Regenerated on `npm run build`; CI (`--check`) fails if this is stale. Full history: [CHANGELOG.md](CHANGELOG.md). -->
 
-**[v10.0.0-beta.163](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.162...v10.0.0-beta.163)** · 2026-10-07
+**[v10.0.0-beta.184](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.183...v10.0.0-beta.184)** · 2026-10-21
 
-- **glyph:** output mode dials, done sign-off, and a try-it page (#4647)
-- **deps-dev:** bump the vitest group across 1 directory with 2 updates (#4612)
+- **docs:** new OrchestKit icon, the rose window conductor (#4833)
+- **lesson-cards:** card-only mode for unattended lanes (#4798)
+- **mods:** list prompt-enhancer in the marketplace as a beta mod (#4816)
+- **deps:** bump vite to 8.3.4 for the launch-editor advisories (#4828)
+- **hooks:** three GA-blocking hook bugs from the verified picks (#4692)
+- …and 15 more (see [CHANGELOG.md](CHANGELOG.md))
 
-**[v10.0.0-beta.162](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.161...v10.0.0-beta.162)** · 2026-10-07
+**[v10.0.0-beta.183](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.182...v10.0.0-beta.183)** · 2026-10-18
 
-- **deps:** sharp 0.35.5 in docs/site for advisory 1241331 (#4653)
+- **mods:** prompt-enhancer band, ++ trigger, undo (#4766)
+- **site:** let the Installation overflow check settle after each resize (#4803)
 
-**[v10.0.0-beta.161](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.160...v10.0.0-beta.161)** · 2026-10-06
+**[v10.0.0-beta.182](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.181...v10.0.0-beta.182)** · 2026-10-17
 
-- **deps-dev:** bump vitest (#4611)
-- **deps:** bump the npm-minor-patch group across 1 directory with 2 updates (#4613)
+- **deps-dev:** bump vitest (#4779)
+- **deps:** bump the npm-minor-patch group across 1 directory with 2 updates (#4732)
 
-**[v10.0.0-beta.160](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.159...v10.0.0-beta.160)** · 2026-10-06
+**[v10.0.0-beta.181](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.180...v10.0.0-beta.181)** · 2026-10-17
 
-- **deps-dev:** bump vitest (#4610)
+- **deps-dev:** bump the vitest group in /src/hooks with 2 updates (#4780)
+- **deps-dev:** bump vitest in /docs/site in the vitest group (#4778)
 
-**[v10.0.0-beta.159](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.158...v10.0.0-beta.159)** · 2026-10-06
+**[v10.0.0-beta.180](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.179...v10.0.0-beta.180)** · 2026-10-17
 
-- **deps:** lock source-map-js 1.2.2 and proxy-addr 2.0.8 in all trees (#4642)
+- **deps-dev:** bump the vitest group across 1 directory with 2 updates (#4783)
+- bump actions/create-github-app-token (#4784)
 
-**[v10.0.0-beta.158](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.157...v10.0.0-beta.158)** · 2026-10-05
+**[v10.0.0-beta.179](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.178...v10.0.0-beta.179)** · 2026-10-17
 
-- **test:** nested pre-push hook runs in full mode (#4635)
+- **deps:** upgrade Remotion to remove braces (#4791)
 
-**[v10.0.0-beta.157](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.156...v10.0.0-beta.157)** · 2026-10-05
+**[v10.0.0-beta.178](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.177...v10.0.0-beta.178)** · 2026-10-17
 
-- **lesson-cards:** home via env, /lessons before corpus load (#4625)
+- **explore:** trial Haiku pins for Agent tool explorers (#4676)
+- **review-pr:** require fan-out or blocked verdict (#4743)
+- **traffic:** drop local referrers from snapshot rows (#4626)
+- **deps:** bump the npm-minor-patch group across 1 directory with 11 updates (#4781)
+- **deps:** bump the npm-minor-patch group across 1 directory with 3 updates (#4720)
+- …and 1 more (see [CHANGELOG.md](CHANGELOG.md))
 
-**[v10.0.0-beta.156](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.155...v10.0.0-beta.156)** · 2026-10-05
+**[v10.0.0-beta.177](https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.176...v10.0.0-beta.177)** · 2026-10-16
 
-- **promote-lights:** /lights takes a bare watch target (#4624)
+- **doctor:** warn on errorDetails and list noteDetails from plugin rows (#4768)
+- **cc-watch:** admit permission tool nouns as scoped evidence tokens (#4756)
+- **ci:** keep triage issue text away from tokens (P0) (#4755)
+- **ci:** read the hookEventName literal under any minified name (#4754)
+- **docs-site:** bump next to 16.4.1 for three security advisories (#4751)
+- …and 8 more (see [CHANGELOG.md](CHANGELOG.md))
 
 _See [CHANGELOG.md](CHANGELOG.md) for the full release history._
 <!--/ork-->

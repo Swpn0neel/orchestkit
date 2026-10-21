@@ -82,12 +82,133 @@ export const SPECIALIST_DOMAINS: ReadonlyArray<{ agent: string; pattern: RegExp 
   { agent: 'ork:debug-investigator', pattern: /\b(root.?cause|stack.?trace|debug (the|this|a|an)\b|investigate (the |this |a |an )?(failure|error|crash|bug|regression)|why (does|is|did) .{0,40}(fail|crash|break|error))/i },
   { agent: 'ork:test-generator', pattern: /\b((write|generate|add|create) (unit |integration |e2e )?tests?\b|coverage gaps?|test suite for)/i },
   { agent: 'ork:code-quality-reviewer', pattern: /\b(code review|review (this|the|my) (code|pr|pull request|diff|changes?))\b/i },
-  { agent: 'ork:database-engineer', pattern: /\b(schema migration|alembic|pgvector|database (schema|index|migration)|(optimize|slow) (sql|quer))/i },
-  { agent: 'ork:ci-cd-engineer', pattern: /\b(github actions|ci (pipeline|workflow|failure)|\.github\/workflows|gitlab.ci)/i },
+  // File-shape arms (#4630): a migrations/ path, a "migration(s) ... script", a
+  // *migration*.sql|py|sh file, or an apply-db.sh-like script.
+  { agent: 'ork:database-engineer', pattern: /\b(schema migration|alembic|pgvector|database (schema|index|migration)|(optimize|slow) (sql|quer))|(?:^|[\s/])migrations\/|\bmigrations?\b[^.;\n]{0,20}\bscripts?\b|\b[\w-]*migration[\w-]*\.(sql|py|sh|ts|js)\b|\b(apply|migrate|seed|reset)[-_]?(db|database|schema)[\w-]*\.(sh|py|sql|ts|js)\b/i },
+  // `.github/workflows` sits outside the `\b` group: `\b` before `.` needs a word
+  // character right before the dot, so a real path never matched (#4630). The two
+  // last arms are file shapes: "x.yml workflow" and "workflow file x.yml".
+  { agent: 'ork:ci-cd-engineer', pattern: /\b(github actions|ci (pipeline|workflow|failure)|(deploy|release|build) workflows?\b|gitlab.ci)|(?:^|[\s/])\.github\/workflows|\b[\w-]+\.ya?ml\b[^.;\n]{0,10}\bworkflows?\b|\bworkflows?\b[^.;\n]{0,40}\.ya?ml\b/i },
+  // git, release, deploy and infra rows sit AFTER ci-cd so workflow tasks stay there,
+  // and git sits before release so "rebase the release branch" is a git task.
+  { agent: 'ork:git-operations-engineer', pattern: /\b(rebas(e|ing)\b[^.;\n]{0,40}\b(branch(es)?|onto|commits?|main|master)|git (rebase|cherry.?pick|bisect)|merge conflicts?|resolve (the )?(merge |git )conflicts|branch(ing)? strategy|cherry.?pick (a |the )?commits?)\b/i },
+  { agent: 'ork:release-engineer', pattern: /\b(changelog|release notes|semver|semantic versioning|version bump|bump the version|(cut|tag|publish) (a |the )?(new )?release)\b/i },
+  { agent: 'ork:deployment-manager', pattern: /\b(blue.?green|canary (deploy|release)|zero.?downtime deploy|rollback (plan|procedure)|roll back the (deploy|release)|deploy(ing)? to (prod|production|staging))\b/i },
+  { agent: 'ork:infrastructure-architect', pattern: /\b(terraform|pulumi|cloudformation|helm charts?|(kubernetes|k8s) manifests?|infrastructure as code)\b/i },
   { agent: 'ork:web-research-analyst', pattern: /\b(web research|search (the web|online)|competitor analysis|market (research|landscape))/i },
   { agent: 'ork:frontend-ui-developer', pattern: /\b(react (component|hook)|\.tsx\b|tailwind|css (layout|grid|flex)|frontend (component|page|ui))/i },
   { agent: 'ork:backend-system-architect', pattern: /\b((rest|graphql) api|api endpoints?|microservice|fastapi|backend (service|architecture))/i },
 ];
+
+/**
+ * Every agent in src/agents/ is either a SPECIALIST_DOMAINS row or listed here with
+ * the reason it has no row. A test asserts the two cover src/agents/ exactly, so a
+ * new agent cannot land unclassified (#4630). Exported for that test.
+ */
+export const NOT_ROUTED: Readonly<Record<string, string>> = {
+  'ork:accessibility-specialist': 'WCAG words also appear in frontend tasks; frontend row owns them',
+  'ork:ai-safety-auditor': 'overlaps security-auditor, which owns security phrasing',
+  'ork:claude-design-orchestrator': 'spawned by the design-import skill, not from free text',
+  'ork:component-curator': 'spawned by the component-search skill, not from free text',
+  'ork:data-pipeline-engineer': 'embedding and chunking words overlap llm-integrator; no narrow phrase',
+  'ork:demo-producer': 'spawned by the demo-producer skill',
+  'ork:design-context-extractor': 'spawned by the design-context-extract skill',
+  'ork:design-system-architect': 'design token words overlap frontend tasks',
+  'ork:emulate-engineer': 'spawned by the emulate-seed skill',
+  'ork:eval-runner': 'spawned by eval skills, not from free text',
+  'ork:event-driven-architect': 'queue and event words are too common for a narrow row',
+  'ork:expect-agent': 'spawned by the expect skill',
+  'ork:frontend-performance-engineer': 'performance words overlap frontend and python rows',
+  'ork:genui-architect': 'spawned by generative UI skills, not from free text',
+  'ork:llm-integrator': 'LLM words appear in most agent tasks; a row would over-ask',
+  'ork:market-intelligence': 'market research phrasing is owned by web-research-analyst',
+  'ork:monitoring-engineer': 'metrics and alert words are too common for a narrow row',
+  'ork:multimodal-specialist': 'no narrow phrase that does not overlap other rows',
+  'ork:product-strategist': 'product phrasing is too broad for an ask prompt',
+  'ork:python-performance-engineer': 'slow query phrasing is owned by database-engineer',
+  'ork:security-layer-auditor': 'security phrasing is owned by security-auditor',
+  'ork:system-design-reviewer': 'review phrasing is owned by code-quality-reviewer',
+  'ork:workflow-architect': 'the mixed-concern fallback; general-purpose tasks are its domain',
+};
+
+/**
+ * Specialists whose frontmatter grants no Write or Edit (disallowedTools:
+ * [Write, Edit, MultiEdit]). They can plan and review but cannot build, so a
+ * build-shaped task must not be pushed toward them (#4649). Exported so tests
+ * cross-check every entry against src/agents/ frontmatter.
+ */
+export const READ_ONLY_SPECIALISTS: ReadonlySet<string> = new Set([
+  'ork:security-auditor',
+  'ork:debug-investigator',
+  'ork:code-quality-reviewer',
+]);
+
+/**
+ * Build intent: the task tells the agent to change code or ship it. A build
+ * verb counts only in VERB POSITION: at the start of a clause, after a
+ * joining word (and, then, but, please, ...), or after a modal (must, should,
+ * need to, ...). In object position it is a noun under review: "review of
+ * commit abc123", "review of our fix", "review the bug fix", "the auth
+ * implementation". Verbs: implement, commit, push, fix, patch, replace,
+ * refactor, rewrite, apply a fix or patch, add or write tests or code, edit
+ * code or files, open a PR. Suffixes are bounded so `implementation`,
+ * `fixture`, `pushover` and `replacement` do not match. One -ly adverb may sit
+ * between ("please carefully fix"). apply, add and write need their object
+ * noun (a fix or patch; tests or code) later in the SAME clause, with no word
+ * count: "write a new SQL injection regression unit test". The clause ends at
+ * . ; : ! ? , or a newline, so a noun in the next clause does not count.
+ *
+ * ERROR DIRECTION, chosen on purpose (conductor153, 2026-10-11): when unsure,
+ * read build intent. A miss asks the human to redirect a code change to a
+ * read-only agent; a false positive only swaps that ask for a note. So the
+ * joining words include to, you, let's, go, me and just ("your task is to
+ * fix", "can you fix", "let's fix"), and review-only prompts such as "say what
+ * to fix" are KNOWN false positives, pinned in the tests. Verbs outside the
+ * list (update, change, remove, sanitize) are a known miss.
+ * Exported for tests.
+ */
+export const BUILD_INTENT_PATTERN = new RegExp(
+  String.raw`(?:^|[.;:!?,]|\b(?:and|then|or|but|also|please|now|first|next|finally|so|to|you|let's|lets|go|me|just)\b|\b(?:must|should|can|could|will|would|need|needs|want|wants|have|has|going|able|asked|try|sure)(?: to)?\b)\s*(?:\w+ly\s+)?` +
+    String.raw`(?:implement(?:s|ed|ing)?|commit(?:s|ted|ting)?|push(?:es|ed|ing)?|fix(?:es|ed|ing)?|patch(?:es|ed|ing)?|replac(?:e|es|ed|ing)|refactor(?:s|ed|ing)?|rewrit(?:e|es|ing|ten)|apply(?:ing)?\b[^.;:!?,\n]*?\b(?:fix|patch|change|diff|suggestion)\w*|(?:add|write)(?:ing)?\b[^.;:!?,\n]*?\b(?:tests?|code|checks?|validation|guards?|fix|patch)|edit(?:ing)? (?:the )?(?:code|files?)|(?:open|create|raise)(?:ing)? (?:a |the )?(?:pr|pull request))\b`,
+  'im',
+);
+
+/**
+ * Reminders that read like a negation but ask for the work: "do not forget
+ * to fix", "never skip implementing", "without delay fix". They become a
+ * clause break, so the verb after them is in verb position. Exported for tests.
+ */
+export const AFFIRMATIVE_REMINDER_PATTERN =
+  /\b(?:(?:do not|don't|dont|never) (?:forget|fail|neglect|hesitate) to|never (?:skip|omit)|without (?:further )?(?:delay|waiting))\b/gi;
+
+/**
+ * A real prohibition ("do not commit or push", "never edit the code",
+ * "without changing the API") runs from the negation to the next clause break
+ * (a colon included, as in BUILD_INTENT_PATTERN) or to and, but, then, instead
+ * or however. "and" ends it only when the next verb is not commit, push or
+ * edit, so "do not commit and push" stays negated and "do not commit and write
+ * tests" keeps its write. A comma followed by or/nor does not end it ("do not
+ * fix the bug, or push changes" forbids both). "without" is a separate
+ * gerund form so it does not swallow a later build verb. It is removed before
+ * the build-intent test, so a review that forbids writes stays review-only,
+ * and "do not push but write tests" keeps its write. The without-gerund keeps
+ * its object as a coordinated noun chain: or/nor and articles continue it
+ * ("without making any code changes or commits" removes the commits too), a
+ * bare build verb or a clause-ending conjunction (and, but, then, instead,
+ * however) ends it, so "without breaking the API and fix the bug" keeps the
+ * fix in verb position. "and" continues only before commit, push or edit,
+ * as in the main negation arm. Exported for tests.
+ */
+export const NEGATED_CLAUSE_PATTERN =
+  /\b(?:do not|don't|dont|never|must not|mustn't|should not|shouldn't|no need to)\b.*?(?=[.;:!?\n]|,(?!\s*(?:or|nor)\b)|\b(?:and(?!\s+(?:\w+ly\s+)?(?:commit(?:s|ted|ting)?|push(?:es|ed|ing)?|edit(?:s|ed|ing)?)\b)|but|then|instead|however)\b|$)|\bwithout\s+\w+ing\b(?:\s+(?:or|nor)\s+\w+|\s+and\s+(?:commit(?:s|ted|ting)?|push(?:es|ed|ing)?|edit(?:s|ed|ing)?)\b|\s+(?:the|a|an|any)\s+\w+|\s+(?!(?:and|but|then|instead|however)\b|(?:implement|commit|push|fix|patch|replac\w*|refactor\w*|rewrit\w*|apply|add|write|edit|open|create|raise)\w*\b)\w+)*/gi;
+
+/** True when the task text asks to build (change code or ship it). */
+export function hasBuildIntent(description: string, prompt: string): boolean {
+  const text = `${description.slice(0, NUDGE_SCAN_MAX_CHARS)}\n${prompt.slice(0, NUDGE_SCAN_MAX_CHARS)}`
+    .replace(AFFIRMATIVE_REMINDER_PATTERN, '.')
+    .replace(NEGATED_CLAUSE_PATTERN, ' ');
+  return BUILD_INTENT_PATTERN.test(text);
+}
 
 /** Bound the prompt scan so regex work stays inside the PreToolUse budget. */
 const NUDGE_SCAN_MAX_CHARS = 2000;
@@ -124,6 +245,48 @@ export function isDeterministicRunTask(description: string, prompt: string): boo
   return RUN_CMD_PATTERN.test(text) || TEST_NOUN_PATTERN.test(text);
 }
 
+/**
+ * Worktree creation is one `git worktree add`, no reasoning needed. The description
+ * must be the whole ask ("Create a git worktree for the fix"), so "create a worktree
+ * and implement X" stays an agent job (#4630). Exported for tests.
+ */
+export const WORKTREE_TASK_PATTERN =
+  /^\s*(create|add|make|set ?up|open)\s+(a\s+|the\s+|new\s+)*(git\s+)?worktree(\s+for\s+[^,.;]{0,40})?\s*\.?\s*$/i;
+
+/**
+ * A description that only reads one file: a read verb first, then a file name
+ * ("Read apply-db.sh", "Read example-bot.yml workflow", "Read the bot workflow
+ * file example-bot.yml") or a file noun ("Read the migrations apply script").
+ * Bounded to one short clause; deterministicNudge also rejects any second step
+ * or reasoning verb. Exported for tests.
+ */
+export const READ_FILE_TASK_PATTERN =
+  /^\s*(read|open|cat|view|show)\s+(?=[^,;\n]*(\b[\w-]+\.[a-z0-9]{1,5}\b|\b(file|script)\b))[^,;\n]{1,80}$/i;
+
+/** A second step ("... and explain", "... then fix") makes a read an agent job. */
+const MULTI_STEP_PATTERN = /\b(and|then|to|so)\b/i;
+
+/** Authoring verbs REASONING_VERB_PATTERN does not cover; any of them keeps the task an agent job. */
+const AUTHORING_VERB_PATTERN =
+  /\b(implement\w*|edit\w*|modif\w*|chang\w*|rewrit\w*|patch\w*|resolv\w*|rebas\w*|merg\w*|delet\w*|remov\w*|renam\w*)\b/i;
+
+/** Which deterministic nudge, if any, a task deserves: worktree creation or a single-file read. */
+export function deterministicNudge(description: string, prompt: string): 'worktree' | 'read' | null {
+  const promptText = prompt.slice(0, NUDGE_SCAN_MAX_CHARS);
+  const promptIsAuthoring = REASONING_VERB_PATTERN.test(promptText) || AUTHORING_VERB_PATTERN.test(promptText);
+  if (promptIsAuthoring) return null;
+  if (WORKTREE_TASK_PATTERN.test(description)) return 'worktree';
+  if (
+    READ_FILE_TASK_PATTERN.test(description) &&
+    !MULTI_STEP_PATTERN.test(description) &&
+    !REASONING_VERB_PATTERN.test(description) &&
+    !AUTHORING_VERB_PATTERN.test(description)
+  ) {
+    return 'read';
+  }
+  return null;
+}
+
 export function taskAgentAdvisor(input: HookInput, ctx: HookContext = NOOP_CTX): HookResult {
   const toolInput = input.tool_input || {};
   const agentType = (toolInput.subagent_type as string) || '';
@@ -144,6 +307,21 @@ export function taskAgentAdvisor(input: HookInput, ctx: HookContext = NOOP_CTX):
           'Spawn `ork:debug-investigator` only to fix the FAILING subset.',
       );
     }
+    const nudge = deterministicNudge(description, prompt);
+    if (nudge === 'worktree') {
+      ctx.log(HOOK_NAME, 'worktree creation on general-purpose, nudging to Bash');
+      return outputAllowWithContext(
+        'Creating a worktree is one deterministic command: run `git worktree add <path> -b <branch>` in Bash, ' +
+          'not an LLM agent. Spawn `ork:git-operations-engineer` only if the task also decides a branch strategy.',
+      );
+    }
+    if (nudge === 'read') {
+      ctx.log(HOOK_NAME, 'single-file read on general-purpose, nudging to Read/Explore');
+      return outputAllowWithContext(
+        'Reading a file needs no subagent: use the Read tool directly, or `Explore` for a wider search. ' +
+          'Spawn a specialist only when the task acts on what it reads.',
+      );
+    }
   }
 
   if (!agentType) {
@@ -158,6 +336,15 @@ export function taskAgentAdvisor(input: HookInput, ctx: HookContext = NOOP_CTX):
     const prompt = (toolInput.prompt as string) || '';
     const specialist = matchSpecialistDomain(description, prompt);
     if (specialist) {
+      // A read-only specialist cannot write, commit or open a PR. When the task
+      // asks to build, say so instead of asking to redirect (#4649).
+      if (READ_ONLY_SPECIALISTS.has(specialist) && hasBuildIntent(description, prompt)) {
+        ctx.log(HOOK_NAME, `build task matches read-only ${specialist}; advising, not asking`);
+        return outputAllowWithContext(
+          `plan/review: prefer \`${specialist}\` (it has no Write or Edit tools); ` +
+            `build: keep \`general-purpose\` for the write, commit and PR steps.`,
+        );
+      }
       ctx.log(HOOK_NAME, `general-purpose task matches ${specialist} domain — asking to redirect`);
       // ENFORCE (not just whisper): the advisory note was provably ignored
       // (telemetry: 14% specialist vs 74% generic). `ask` turns it into an
@@ -172,6 +359,8 @@ export function taskAgentAdvisor(input: HookInput, ctx: HookContext = NOOP_CTX):
       // used to be rather than blocking an unattended run on a routing
       // preference. See isBypassMode().
       if (isBypassMode(input)) {
+        // Record the miss so telemetry shows how often general-purpose won in bypass.
+        ctx.log(HOOK_NAME, `matched-in-bypass: general-purpose kept for a ${specialist} task`);
         return outputAllowWithContext(
           `This task matches \`${specialist}\`'s domain, prefer it over \`general-purpose\`.`,
         );
@@ -182,6 +371,7 @@ export function taskAgentAdvisor(input: HookInput, ctx: HookContext = NOOP_CTX):
           `Approve \`general-purpose\` only if the task genuinely spans multiple domains.`,
       );
     }
+    ctx.log(HOOK_NAME, 'general-purpose-no-match: no specialist domain matched');
     return outputSilentSuccess();
   }
 
