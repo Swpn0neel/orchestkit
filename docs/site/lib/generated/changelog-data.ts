@@ -18,6 +18,180 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "version": "10.0.0-beta.184",
+    "date": "2026-10-21",
+    "compareUrl": "https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.183...v10.0.0-beta.184",
+    "sections": [
+      {
+        "type": "added",
+        "heading": "Features",
+        "items": [
+          "**docs:** new OrchestKit icon, the rose window conductor ([#4833](https://github.com/yonatangross/orchestkit/issues/4833)) ([e852cdf](https://github.com/yonatangross/orchestkit/commit/e852cdf2c818a0759c910aba6137f7f02c9d501b))",
+          "**lesson-cards:** card-only mode for unattended lanes ([#4798](https://github.com/yonatangross/orchestkit/issues/4798)) ([7df532e](https://github.com/yonatangross/orchestkit/commit/7df532e480a9eced4cfc61fd15ca663bb17693f0))",
+          "**mods:** list prompt-enhancer in the marketplace as a beta mod ([#4816](https://github.com/yonatangross/orchestkit/issues/4816)) ([9feb211](https://github.com/yonatangross/orchestkit/commit/9feb21145e0c140b1141940bc8ed807c18dee02d))"
+        ]
+      },
+      {
+        "type": "fixed",
+        "heading": "Bug Fixes",
+        "items": [
+          "**deps:** bump vite to 8.3.4 for the launch-editor advisories ([#4828](https://github.com/yonatangross/orchestkit/issues/4828)) ([366d1c7](https://github.com/yonatangross/orchestkit/commit/366d1c7d4ab67aa9f06effb81223951e1a7d7967))",
+          "**hooks:** three GA-blocking hook bugs from the verified picks ([#4692](https://github.com/yonatangross/orchestkit/issues/4692)) ([99d199e](https://github.com/yonatangross/orchestkit/commit/99d199ed6a4b2ed84ea1176a8595463d8b8261b9))",
+          "**lesson-cards:** ask fs.exists before stat-ing a floor dir's lessons.md ([#4821](https://github.com/yonatangross/orchestkit/issues/4821)) ([c8c9ef5](https://github.com/yonatangross/orchestkit/commit/c8c9ef552b449e67dcca08ff032293e50238c6e8))",
+          "**promote-lights:** keep the lights in memory when the store cannot be written ([#4820](https://github.com/yonatangross/orchestkit/issues/4820)) ([c119537](https://github.com/yonatangross/orchestkit/commit/c119537a9672331aa11473735a060158d871d28f))",
+          "**prompt-enhancer:** give Enhance, Undo and Send keyboard hotkeys ([#4832](https://github.com/yonatangross/orchestkit/issues/4832)) ([b5fa87b](https://github.com/yonatangross/orchestkit/commit/b5fa87b11ae243bb156cbaad93bd1963d497e0d8))",
+          "**secrets-veil:** pass a real image or PDF payload unmasked ([#4801](https://github.com/yonatangross/orchestkit/issues/4801)) ([c397329](https://github.com/yonatangross/orchestkit/commit/c39732948edb414ab6a1ead200d48cddd479ee99))",
+          "**secrets-veil:** stop masking Anthropic tool, message and request ids ([#4830](https://github.com/yonatangross/orchestkit/issues/4830)) ([b14948d](https://github.com/yonatangross/orchestkit/commit/b14948d769e01b62686692079fbbabdaccab88e7))"
+        ]
+      },
+      {
+        "type": "changed",
+        "heading": "Miscellaneous",
+        "items": [
+          "**deps-dev:** bump the vitest group in /src/hooks with 2 updates ([#4806](https://github.com/yonatangross/orchestkit/issues/4806)) ([056816a](https://github.com/yonatangross/orchestkit/commit/056816aad13985a7ad7a9aa11fdcdabfca736195))",
+          "**deps-dev:** bump vitest in /docs/site in the vitest group ([#4807](https://github.com/yonatangross/orchestkit/issues/4807)) ([75598b1](https://github.com/yonatangross/orchestkit/commit/75598b10b42c6ebda68df9170e80974e368df3aa))",
+          "**deps:** bump hono from 4.13.7 to 4.13.13 in /src/mcp-server ([#4824](https://github.com/yonatangross/orchestkit/issues/4824)) ([486959f](https://github.com/yonatangross/orchestkit/commit/486959f9c1c2c90460127efe598bc95715b4af7c))",
+          "**deps:** bump motion from 13.5.0 to 14.3.0 in /docs/site ([#4813](https://github.com/yonatangross/orchestkit/issues/4813)) ([330abd3](https://github.com/yonatangross/orchestkit/commit/330abd33e82b876abcdc502022c681b4e4447e2b))",
+          "**deps:** bump the npm-minor-patch group in /docs/site with 9 updates ([#4810](https://github.com/yonatangross/orchestkit/issues/4810)) ([17c0015](https://github.com/yonatangross/orchestkit/commit/17c0015744f3528e6f50311de6722a7a597b3ff5))",
+          "**deps:** bump the npm-minor-patch group with 2 updates ([#4809](https://github.com/yonatangross/orchestkit/issues/4809)) ([76aec54](https://github.com/yonatangross/orchestkit/commit/76aec5496fda8b6a3dad9875d3d88f0a09718435))",
+          "**docker:** bump node from `ebfe2f9` to `44fce69` ([#4829](https://github.com/yonatangross/orchestkit/issues/4829)) ([3eb38a5](https://github.com/yonatangross/orchestkit/commit/3eb38a50891dd0b0406d7362c62a770ed35ddccf))",
+          "**traffic:** snapshot week of 2026-10-12 ([#4815](https://github.com/yonatangross/orchestkit/issues/4815)) ([accece5](https://github.com/yonatangross/orchestkit/commit/accece5058f26bc98a0402b9ecb5437a54a0abc1))"
+        ]
+      },
+      {
+        "type": "changed",
+        "heading": "Documentation",
+        "items": [
+          "**security:** list hi@yonyon.ai as the security contact ([#4822](https://github.com/yonatangross/orchestkit/issues/4822)) ([a902631](https://github.com/yonatangross/orchestkit/commit/a9026316e88e6555b767ae57e4e2ee0c56d813e8))"
+        ]
+      },
+      {
+        "type": "changed",
+        "heading": "CI/CD",
+        "items": [
+          "bump the github-actions group with 6 updates ([#4814](https://github.com/yonatangross/orchestkit/issues/4814)) ([a643dd3](https://github.com/yonatangross/orchestkit/commit/a643dd355196f3b5596ce4975f85de9067474661))"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "10.0.0-beta.183",
+    "date": "2026-10-18",
+    "compareUrl": "https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.182...v10.0.0-beta.183",
+    "sections": [
+      {
+        "type": "added",
+        "heading": "Features",
+        "items": [
+          "**mods:** prompt-enhancer band, ++ trigger, undo ([#4766](https://github.com/yonatangross/orchestkit/issues/4766)) ([da4e75f](https://github.com/yonatangross/orchestkit/commit/da4e75f21f50ad2dd2f92de479e02073aa5f4d5b))"
+        ]
+      },
+      {
+        "type": "fixed",
+        "heading": "Bug Fixes",
+        "items": [
+          "**site:** let the Installation overflow check settle after each resize ([#4803](https://github.com/yonatangross/orchestkit/issues/4803)) ([4f12500](https://github.com/yonatangross/orchestkit/commit/4f12500b9b7fd29e5f1b5a415ce51fca48524731))"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "10.0.0-beta.182",
+    "date": "2026-10-17",
+    "compareUrl": "https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.181...v10.0.0-beta.182",
+    "sections": [
+      {
+        "type": "changed",
+        "heading": "Miscellaneous",
+        "items": [
+          "**deps-dev:** bump vitest ([#4779](https://github.com/yonatangross/orchestkit/issues/4779)) ([da9d44e](https://github.com/yonatangross/orchestkit/commit/da9d44e82c7eae961a6c2a7005beb9de21582bd0))",
+          "**deps:** bump the npm-minor-patch group across 1 directory with 2 updates ([#4732](https://github.com/yonatangross/orchestkit/issues/4732)) ([0c48c1d](https://github.com/yonatangross/orchestkit/commit/0c48c1d64334600bb5787c506b980e1645604d16))"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "10.0.0-beta.181",
+    "date": "2026-10-17",
+    "compareUrl": "https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.180...v10.0.0-beta.181",
+    "sections": [
+      {
+        "type": "changed",
+        "heading": "Miscellaneous",
+        "items": [
+          "**deps-dev:** bump the vitest group in /src/hooks with 2 updates ([#4780](https://github.com/yonatangross/orchestkit/issues/4780)) ([0037571](https://github.com/yonatangross/orchestkit/commit/003757110028b3e152be777557811b98ce5dfde9))",
+          "**deps-dev:** bump vitest in /docs/site in the vitest group ([#4778](https://github.com/yonatangross/orchestkit/issues/4778)) ([ed82c9d](https://github.com/yonatangross/orchestkit/commit/ed82c9d09aeecb793e38ebfb093b10f1f05ed192))"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "10.0.0-beta.180",
+    "date": "2026-10-17",
+    "compareUrl": "https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.179...v10.0.0-beta.180",
+    "sections": [
+      {
+        "type": "changed",
+        "heading": "Miscellaneous",
+        "items": [
+          "**deps-dev:** bump the vitest group across 1 directory with 2 updates ([#4783](https://github.com/yonatangross/orchestkit/issues/4783)) ([09e7197](https://github.com/yonatangross/orchestkit/commit/09e719798d2e344f0b2b06422dcde1ad9cc82523))"
+        ]
+      },
+      {
+        "type": "changed",
+        "heading": "CI/CD",
+        "items": [
+          "bump actions/create-github-app-token ([#4784](https://github.com/yonatangross/orchestkit/issues/4784)) ([02a6603](https://github.com/yonatangross/orchestkit/commit/02a66034d2d8be692d4ede1cbed2e165046a6cb0))"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "10.0.0-beta.179",
+    "date": "2026-10-17",
+    "compareUrl": "https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.178...v10.0.0-beta.179",
+    "sections": [
+      {
+        "type": "fixed",
+        "heading": "Bug Fixes",
+        "items": [
+          "**deps:** upgrade Remotion to remove braces ([#4791](https://github.com/yonatangross/orchestkit/issues/4791)) ([01d8f74](https://github.com/yonatangross/orchestkit/commit/01d8f74e348d5c8206602ff450781cc5c90715d9))"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "10.0.0-beta.178",
+    "date": "2026-10-17",
+    "compareUrl": "https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.177...v10.0.0-beta.178",
+    "sections": [
+      {
+        "type": "added",
+        "heading": "Features",
+        "items": [
+          "**explore:** trial Haiku pins for Agent tool explorers ([#4676](https://github.com/yonatangross/orchestkit/issues/4676)) ([f3cd6ba](https://github.com/yonatangross/orchestkit/commit/f3cd6ba7aba7c77c10c5926db0cf19c6fa603d38))"
+        ]
+      },
+      {
+        "type": "fixed",
+        "heading": "Bug Fixes",
+        "items": [
+          "**review-pr:** require fan-out or blocked verdict ([#4743](https://github.com/yonatangross/orchestkit/issues/4743)) ([4e56eb5](https://github.com/yonatangross/orchestkit/commit/4e56eb5f7361a45bc357c1d9ffb65aae398e3cb6))",
+          "**traffic:** drop local referrers from snapshot rows ([#4626](https://github.com/yonatangross/orchestkit/issues/4626)) ([0fe5beb](https://github.com/yonatangross/orchestkit/commit/0fe5beba22aac523980db5b769242a32c3663a05))"
+        ]
+      },
+      {
+        "type": "changed",
+        "heading": "Miscellaneous",
+        "items": [
+          "**deps:** bump the npm-minor-patch group across 1 directory with 11 updates ([#4781](https://github.com/yonatangross/orchestkit/issues/4781)) ([ed07dfc](https://github.com/yonatangross/orchestkit/commit/ed07dfc22c23a7d03ed2e09a178950464ce3863b))",
+          "**deps:** bump the npm-minor-patch group across 1 directory with 3 updates ([#4720](https://github.com/yonatangross/orchestkit/issues/4720)) ([6e39e7a](https://github.com/yonatangross/orchestkit/commit/6e39e7afbcab270ffc0ce52d77f4ec1a1d9ab1d7))",
+          "**security:** renew braces audit exception to 2026-10-31 ([#4790](https://github.com/yonatangross/orchestkit/issues/4790)) ([0e0ccf6](https://github.com/yonatangross/orchestkit/commit/0e0ccf6cd331b3e0b13101efb0e42f081ab82f0f))"
+        ]
+      }
+    ]
+  },
+  {
     "version": "10.0.0-beta.177",
     "date": "2026-10-16",
     "compareUrl": "https://github.com/yonatangross/orchestkit/compare/v10.0.0-beta.176...v10.0.0-beta.177",
