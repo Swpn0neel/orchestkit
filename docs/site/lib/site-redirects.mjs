@@ -9,10 +9,10 @@ import { DEVELOPER_ALIASES } from "./developer-aliases.mjs";
 
 export const CANONICAL_ORIGIN = "https://orchestkit.dev";
 
-// The pre-GA host. It stays on the same Vercel project and answers ONE 301 to
+// The pre-GA host. It stays on the same Vercel project and answers ONE 308 to
 // the same path on CANONICAL_ORIGIN, except for the agent and MCP surface
 // below, which keeps serving: installed MCP clients POST to /api/mcp, and many
-// clients do not follow a 301 on POST (or replay it as a GET).
+// clients do not follow a redirect on POST (or replay a 301 as a GET).
 export const LEGACY_HOST = "orchestkit.yonyon.ai";
 export const LEGACY_KEEP_EXACT = ["/mcp", "/mcp.json", "/ask", "/auth.md"];
 export const LEGACY_KEEP_PREFIXES = ["/api/", "/.well-known/", "/agent/"];
@@ -20,6 +20,12 @@ export const LEGACY_KEEP_PREFIXES = ["/api/", "/.well-known/", "/agent/"];
 // The production Vercel alias. Preview deployments (orchestkit-<hash>.vercel.app)
 // do not match this exact host, so they stay reachable.
 export const VERCEL_ALIAS_HOST = "orchestkit.vercel.app";
+
+// Status of every old-host redirect, here and in the middleware fallback
+// (lib/legacy-host.ts). 308, not 301: the target is the same resource on its
+// canonical host, and a 301 lets a client replay a POST as a GET, so a POST
+// to an unkept path (for example /ingest/) would silently lose its body.
+export const HOST_REDIRECT_STATUS = 308;
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const hostIs = (host) => [{ type: "host", value: escapeRegex(host) }];
@@ -33,20 +39,20 @@ const LEGACY_KEPT = [
 
 // Host redirects. They come FIRST: a path redirect earlier in the list (for
 // example /docs) would otherwise answer the old host with its own 307 and the
-// host 301 would become a second hop.
+// host 308 would become a second hop.
 function hostRedirects() {
 	return [
 		{
 			source: "/",
 			has: hostIs(LEGACY_HOST),
 			destination: `${CANONICAL_ORIGIN}/`,
-			statusCode: 301,
+			statusCode: HOST_REDIRECT_STATUS,
 		},
 		{
 			source: `/:path((?!${LEGACY_KEPT}).+)`,
 			has: hostIs(LEGACY_HOST),
 			destination: `${CANONICAL_ORIGIN}/:path`,
-			statusCode: 301,
+			statusCode: HOST_REDIRECT_STATUS,
 		},
 		{
 			// (.*) and not :path*: Next matches sources strictly and trailing-slash
@@ -54,14 +60,14 @@ function hostRedirects() {
 			source: "/:path(.*)",
 			has: hostIs(VERCEL_ALIAS_HOST),
 			destination: `${CANONICAL_ORIGIN}/:path`,
-			statusCode: 301,
+			statusCode: HOST_REDIRECT_STATUS,
 		},
 	];
 }
 
 // Old-host copies of every path redirect, pointing straight at the FINAL
-// URL on the canonical host. Without them the host 301 lands on a path that
-// redirects again (old /docs -> 301 orchestkit.dev/docs -> 307 overview), a
+// URL on the canonical host. Without them the host 308 lands on a path that
+// redirects again (old /docs -> 308 orchestkit.dev/docs -> 307 overview), a
 // second hop. Kept paths are skipped on the legacy host: they never redirect.
 function hostAliasRedirects(host) {
 	return pathRedirects()
@@ -70,7 +76,7 @@ function hostAliasRedirects(host) {
 			source: rule.source,
 			has: hostIs(host),
 			destination: `${CANONICAL_ORIGIN}${rule.destination}`,
-			statusCode: 301,
+			statusCode: HOST_REDIRECT_STATUS,
 		}));
 }
 

@@ -1,17 +1,21 @@
 import { SITE } from "@/lib/constants";
 import {
+	HOST_REDIRECT_STATUS,
 	LEGACY_HOST,
 	LEGACY_KEEP_EXACT,
 	LEGACY_KEEP_PREFIXES,
 } from "@/lib/site-redirects.mjs";
 
-// The pre-GA host (orchestkit.yonyon.ai). Its one 301 for pages is a config
+// One status for the config redirect and this fallback (see site-redirects.mjs).
+export { HOST_REDIRECT_STATUS };
+
+// The pre-GA host (orchestkit.yonyon.ai). Its one 308 for pages is a config
 // redirect (lib/site-redirects.mjs), placed first so it runs before any path
 // redirect. This module is the middleware fallback for the same rule, reading
 // the same host and keep list, so the two cannot disagree.
 //
 // The agent and MCP surface keeps answering 200 on the old host: installed MCP
-// clients POST to /api/mcp, and many HTTP clients do not follow a 301 on POST
+// clients POST to /api/mcp, and many HTTP clients do not follow a redirect on POST
 // (or replay it as a GET).
 const KEEP_EXACT = new Set<string>(LEGACY_KEEP_EXACT);
 const KEEP_PREFIXES: readonly string[] = LEGACY_KEEP_PREFIXES;

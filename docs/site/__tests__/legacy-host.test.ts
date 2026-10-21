@@ -1,4 +1,4 @@
-// The pre-GA host answers one 301 for pages and keeps serving the MCP and
+// The pre-GA host answers one 308 for pages and keeps serving the MCP and
 // agent surface, so existing MCP installs keep working after the rebrand.
 
 import { describe, expect, it } from "vitest";
@@ -56,12 +56,12 @@ describe("legacy host routing", () => {
 		expect(legacyRedirectTarget("www.orchestkit.dev", "/about", "")).toBeNull();
 	});
 
-	it("middleware answers ONE 301 for a legacy page and passes MCP POST through", async () => {
+	it("middleware answers ONE 308 for a legacy page and passes MCP POST through", async () => {
 		const page = new NextRequest("https://orchestkit.yonyon.ai/about?x=1", {
 			headers: { host: "orchestkit.yonyon.ai", accept: "text/html" },
 		});
 		const res = await middleware(page);
-		expect(res.status).toBe(301);
+		expect(res.status).toBe(308);
 		expect(res.headers.get("location")).toBe("https://orchestkit.dev/about?x=1");
 
 		const mcp = new NextRequest("https://orchestkit.yonyon.ai/api/mcp", {
@@ -74,7 +74,7 @@ describe("legacy host routing", () => {
 			body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
 		});
 		const passed = await middleware(mcp);
-		expect(passed.status).not.toBe(301);
+		expect(passed.status).not.toBe(308);
 		expect(passed.headers.get("location")).toBeNull();
 	});
 });

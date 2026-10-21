@@ -78,7 +78,7 @@ const PAGES = ["/", "/about", "/docs/foundations/overview", "/llms.txt"];
 
 describe("old hosts reach the final page in exactly one hop", () => {
 	for (const host of ["orchestkit.yonyon.ai", "orchestkit.vercel.app"]) {
-		it.each([...PATH_REDIRECT_PATHS, ...PAGES])(`${host}%s?x=1: one 301, final, query kept`, (path) => {
+		it.each([...PATH_REDIRECT_PATHS, ...PAGES])(`${host}%s?x=1: one 308, final, query kept`, (path) => {
 			const hops = follow({ host, path, query: "?x=1" });
 			expect(hops.length, JSON.stringify(hops)).toBe(1);
 			const [end] = hops;
@@ -86,9 +86,9 @@ describe("old hosts reach the final page in exactly one hop", () => {
 			expect(end.query).toBe("?x=1");
 			// The final URL must not redirect again.
 			expect(next(end), JSON.stringify(end)).toBeNull();
-			// And the one hop is a 301.
+			// And the one hop is a 308.
 			const rule = RULES.find((r) => applies(r, { host, path, query: "?x=1" }));
-			expect(rule?.statusCode).toBe(301);
+			expect(rule?.statusCode).toBe(308);
 		});
 	}
 
