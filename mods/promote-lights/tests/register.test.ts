@@ -570,6 +570,32 @@ describe("register behavior (mutant-killing)", () => {
     ).toBe(true);
   });
 
+  test("session.start honors a configured promote base: both queries and the required checks use it (orchestkit#4623)", async () => {
+    const { register } = await import("../hooks/register.ts");
+    const handlers = captureHandlers({ register });
+    const env: Record<string, string> = { PROMOTE_HEAD: "development", PROMOTE_BASE: "qa" };
+    const $ = createFake$({
+      prList: JSON.stringify([
+        { number: 4420, headRefName: "development", headRefOid: "abc123def4567", title: "development to qa", labels: [] },
+      ]),
+      envGet: vi.fn(async (k: string) => env[k]),
+    });
+
+    await handlers.get("session.start")!($, {}, NEXT);
+
+    expect($.store.set).toHaveBeenCalledWith(KEY, expect.objectContaining({ prNumber: 4420 }));
+    const argvs = ($.process.run as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0] as readonly string[]);
+    const lists = argvs.filter((argv) => argv[1] === "pr" && argv[2] === "list");
+    expect(lists.length).toBe(2);
+    for (const argv of lists) {
+      expect(argv[argv.indexOf("--base") + 1]).toBe("qa");
+    }
+    // Required checks come from the configured base, never from main.
+    const paths = argvs.filter((argv) => argv[1] === "api").map((argv) => argv[2]);
+    expect(paths.some((p) => p.endsWith("/branches/qa/protection"))).toBe(true);
+    expect(paths.some((p) => p.includes("/branches/main/"))).toBe(false);
+  });
+
   test("session.start with a promote PR starts a 60s clock and the first tick classifies all-green as passing", async () => {
     const { register } = await import("../hooks/register.ts");
     const handlers = captureHandlers({ register });
@@ -1240,6 +1266,20 @@ describe("/lights with a bare target or a bad argument", () => {
     expect(out.text).toContain("PROMOTE_HEAD");
     expect(out.text).not.toContain('"dev"');
   });
+
+  test("the no-PR hint names a configured PROMOTE_BASE instead of main (orchestkit#4623)", async () => {
+    const handlers = captureHandlers(await loadRegister());
+    const $ = createFake$({
+      envGet: vi.fn(async (k: string) => (k === "PROMOTE_BASE" ? "qa" : undefined)),
+    });
+
+    const out = (await handlers.get("command.run")!($, { command: "lights", args: "" }, NEXT)) as {
+      text: string;
+    };
+
+    expect(out.text).toContain('into "qa"');
+    expect(out.text).toContain("PROMOTE_BASE");
+  });
 });
 
 describe("ui.render draws with $.ui.resolve elements", () => {
@@ -1422,5 +1462,64 @@ describe("a /clear inside one process never draws the previous session's lights"
     const DOWN = { type: "Box", props: {}, children: ["cc band"] };
     const out = await handlers.get("ui.render")!($, { component: "AbovePrompt", props: {} }, () => Promise.resolve(DOWN));
     expect(out).toBe(DOWN);
+  });
+});
+
+/**
+ * A sandboxed seat cannot write the mod store under ~/.claude. Measured live
+ * 2026-10-20 (mods-dogfood-2026-10-20): "promote-lights: session.start hook
+ * skipped: threw promote-lights@orchestkit: $.store.delete failed: EPERM:
+ * operation not permitted, mkdir '/Users/.../.claude/...'". The mod must keep
+ * working from memory and say so once.
+ */
+describe("a store that cannot be written (EPERM in a sandboxed seat)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  const eperm = () => vi.fn().mockRejectedValue(new Error("$.store.delete failed: EPERM: operation not permitted, mkdir"));
+
+  test("session.start does not throw, passes the event on, and says so once", async () => {
+    const { register } = await import("../hooks/register.ts");
+    const handlers = captureHandlers({ register });
+    const $ = createFake$();
+    $.store.get = eperm();
+    $.store.set = eperm();
+    $.store.delete = eperm();
+    const e = { name: "session.start" };
+    const next = vi.fn(NEXT);
+
+    // A throw here fails the test: session.start must settle.
+    await handlers.get("session.start")!($, e, next);
+    expect(next).toHaveBeenCalledWith(e);
+    const warnings = ($.ui.status as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === "lights: store unavailable");
+    expect(warnings).toHaveLength(1);
+  });
+
+  test("the band still draws the lights from memory", async () => {
+    const { register } = await import("../hooks/register.ts");
+    const handlers = captureHandlers({ register });
+    const $ = createFake$();
+    $.store.get = eperm();
+    $.store.set = eperm();
+    $.store.delete = eperm();
+
+    await handlers.get("session.start")!($, {}, NEXT);
+    const band = await handlers.get("ui.render")!($, { component: "AbovePrompt", props: {} }, () => Promise.resolve(null));
+    expect(JSON.stringify(band)).toContain("4165");
+  });
+
+  test("a second session.start in the same process does not warn again", async () => {
+    const { register } = await import("../hooks/register.ts");
+    const handlers = captureHandlers({ register });
+    const $ = createFake$();
+    $.store.get = eperm();
+    $.store.set = eperm();
+    $.store.delete = eperm();
+
+    await handlers.get("session.start")!($, {}, NEXT);
+    await handlers.get("session.start")!($, {}, NEXT);
+    const warnings = ($.ui.status as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === "lights: store unavailable");
+    expect(warnings).toHaveLength(1);
   });
 });
