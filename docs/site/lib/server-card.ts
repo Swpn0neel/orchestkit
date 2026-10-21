@@ -4,13 +4,14 @@ import { SITE } from "@/lib/constants";
 // Kept out of the route file because a Next.js route file may only export
 // route fields.
 //
-// $schema is the published MCP registry server.json schema, the same one the
-// repo's server.json declares. The draft server-card schema (SEP-2127) has no
-// published URL yet: .../schemas/v1/server-card.schema.json answers 404 (Codex
-// XREVIEW on #4819). A copy of this schema is pinned in
-// __tests__/fixtures/ and the test validates the whole card against it.
+// $schema is the draft server-card identifier (SEP-2127) that agent-readiness
+// scanners look for. It is an identifier, not a fetch target: the draft has no
+// published schema file yet, and this URL answered HTTP 404 on 2026-10-21.
+// The card's fields follow the published MCP registry server.json schema
+// (2025-12-11, HTTP 200 the same day). The test validates the whole card
+// against a pinned copy of that schema in __tests__/fixtures/.
 export const SERVER_CARD_SCHEMA =
-	"https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json";
+	"https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json";
 
 // The card name is reverse DNS of the canonical host (orchestkit.dev).
 export const SERVER_CARD_NAME = "dev.orchestkit/mcp";

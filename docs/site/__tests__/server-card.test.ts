@@ -1,12 +1,14 @@
 // MCP server card at <server>/server-card, listed in ai-catalog.
 //
-// The card's $schema must be a schema that exists. A test that compares the
-// card to a hard-coded URL cannot show that (the first card named a draft URL
-// that answers 404, Codex XREVIEW on #4819). So every $schema a served card may
-// declare is pinned here to a copy of that schema, downloaded from the URL and
-// kept in __tests__/fixtures/, and the whole card is validated against it.
-// To move to a newer schema: download it, add it to PINNED, change
-// SERVER_CARD_SCHEMA.
+// Two separate facts are checked here.
+// 1. $schema is the draft server-card identifier (SEP-2127) that
+//    agent-readiness scanners match on. It is an identifier, not a fetch
+//    target: the draft has no published schema file (the v1 URL answered
+//    HTTP 404 on 2026-10-21, Codex XREVIEW on #4819).
+// 2. The card's shape is checked against a schema that does exist: the
+//    published MCP registry server.json schema (2025-12-11, HTTP 200 the same
+//    day), pinned in __tests__/fixtures/. To move to a newer one: download
+//    it, change SHAPE_SCHEMA_URL and the fixture name.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -17,46 +19,49 @@ import { GET as serverCardGET } from "@/app/api/mcp/server-card/route";
 import { GET as catalogGET } from "@/app/api/well-known/ai-catalog/route";
 import { SERVER_CARD_SCHEMA, serverCard } from "@/lib/server-card";
 
-// $schema URL -> pinned copy. Checked with curl when pinned: HTTP 200.
-const PINNED: Record<string, string> = {
-	"https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json":
-		"mcp-server.schema.2025-12-11.json",
-};
+const DRAFT_CARD_ID =
+	"https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json";
 
-function loadPinned(url: string): Record<string, unknown> {
-	const file = PINNED[url];
-	if (!file) throw new Error(`no pinned copy for $schema ${url}`);
-	return JSON.parse(readFileSync(join(__dirname, "fixtures", file), "utf8"));
+// Pinned copy of the published schema, checked with curl when pinned: HTTP 200.
+const SHAPE_SCHEMA_URL =
+	"https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json";
+const SHAPE_SCHEMA_FILE = "mcp-server.schema.2025-12-11.json";
+
+function loadShapeSchema(): Record<string, unknown> {
+	return JSON.parse(readFileSync(join(__dirname, "fixtures", SHAPE_SCHEMA_FILE), "utf8"));
 }
 
-function validator(url: string) {
+function validator() {
 	// strictRequired is a lint of how the schema is written (the published
 	// file lists a required name inside anyOf without a local property); it
 	// says nothing about the card, so only that check is off.
 	const ajv = new Ajv({ allErrors: true, strict: true, strictRequired: false });
 	ajv.addVocabulary(["example"]); // annotation only, used by the MCP schema
 	addFormats(ajv);
-	return ajv.compile(loadPinned(url));
+	return ajv.compile(loadShapeSchema());
 }
 
 describe("MCP server card", () => {
-	it("declares a pinned $schema whose copy is the file at that URL", async () => {
+	it("declares the draft server-card identifier as $schema", async () => {
 		const card = await serverCardGET().json();
 		expect(card.$schema).toBe(SERVER_CARD_SCHEMA);
-		expect(Object.keys(PINNED)).toContain(card.$schema);
-		expect(loadPinned(card.$schema).$id).toBe(card.$schema);
+		expect(card.$schema).toBe(DRAFT_CARD_ID);
 	});
 
-	it("validates against its schema with no errors", async () => {
+	it("the pinned shape schema is the published file at its URL", () => {
+		expect(loadShapeSchema().$id).toBe(SHAPE_SCHEMA_URL);
+	});
+
+	it("the whole card validates against the published schema", async () => {
 		const card = await serverCardGET().json();
-		const validate = validator(card.$schema);
+		const validate = validator();
 		const ok = validate(card);
 		expect(validate.errors ?? []).toEqual([]);
 		expect(ok).toBe(true);
 	});
 
 	it("the validator rejects a card that breaks the schema", () => {
-		const validate = validator(SERVER_CARD_SCHEMA);
+		const validate = validator();
 		const tooLong = { ...serverCard(), description: "x".repeat(101) };
 		const noVersion: Record<string, unknown> = { ...serverCard() };
 		delete noVersion.version;
