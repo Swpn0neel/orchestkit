@@ -1,0 +1,12 @@
+{
+  "slug": "lab-links-live",
+  "source": "docs/fix--lab-links-live/index.html",
+  "title": "PR Lab links must serve a page",
+  "description": "Why seven PR Lab links returned 404, and the check that now fails a PR whose body links a Lab page the merge does not publish. Paste a PR body to see which links pass.",
+  "tags": [
+    "ci",
+    "playground",
+    "lab"
+  ],
+  "date": "2026-10-22"
+}

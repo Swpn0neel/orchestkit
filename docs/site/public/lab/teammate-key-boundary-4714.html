@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teammate key isolation guard</title>
+<meta name="description" content="Compare real teammate keys, quoted examples, and key suffixes with both spacing forms in issue 4714.">
+<style>
+body { margin: 0; background: #f7f5ef; color: #202b35; font: 18px/1.6 system-ui, sans-serif; }
+main { max-width: 800px; margin: auto; padding: 36px 20px; }
+h1 { line-height: 1.2; }
+label { display: block; margin-top: 18px; font-weight: 600; }
+select { max-width: 100%; padding: 10px; font: inherit; background: white; color: inherit; border: 1px solid #52616c; border-radius: 6px; }
+pre { padding: 18px; background: #202b35; color: #fff; overflow-x: auto; border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; background: white; }
+th, td { padding: 12px; border: 1px solid #bcc4c9; text-align: left; }
+caption { text-align: left; margin: 20px 0 8px; font-weight: 600; }
+a { color: #164f91; }
+.note { font-size: 16px; }
+:focus-visible { outline: 3px solid #164f91; outline-offset: 3px; }
+</style>
+<!-- ork-lab-head:start --><meta property="og:type" content="website"><meta property="og:site_name" content="OrchestKit"><meta property="og:title" content="Teammate keys outside strings"><meta property="og:description" content="Compare the 12 isolation guard fixtures for real keys, quoted examples, key suffixes, and both spacing forms."><meta property="og:url" content="https://orchestkit.dev/lab/teammate-key-boundary-4714.html"><meta property="og:image" content="https://orchestkit.dev/opengraph-image"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Teammate keys outside strings"><meta name="twitter:description" content="Compare the 12 isolation guard fixtures for real keys, quoted examples, key suffixes, and both spacing forms."><meta name="twitter:image" content="https://orchestkit.dev/opengraph-image"><!-- ork-lab-head:end --></head>
+<body>
+<main>
+<p>Issue #4714</p>
+<h1>Only real teammate keys count</h1>
+<p>The guard flags a teammate call that also sets isolation. Quoted examples and longer key names must not trigger it.</p>
+<label for="marker">Teammate key</label>
+<select id="marker"><option value="team_name">team_name</option><option value="name">name</option></select>
+<label for="placement">Key location</label>
+<select id="placement"><option value="real">Real key</option><option value="quoted">Inside a prompt string</option><option value="suffix">Inside a longer key name</option></select>
+<label for="spacing">Spacing around equals</label>
+<select id="spacing"><option value=" ">Spaced</option><option value="">Unspaced</option></select>
+<pre id="call" aria-label="Fixture call"></pre>
+<div aria-live="polite" aria-atomic="true">
+<table>
+<caption>Guard result for this fixture</caption>
+<thead><tr><th scope="col">Matcher</th><th scope="col">Result</th></tr></thead>
+<tbody><tr><th scope="row">Before fix</th><td id="before"></td></tr><tr><th scope="row">After fix</th><td id="after"></td></tr></tbody>
+</table>
+<p id="reason"></p>
+</div>
+<p class="note">This preview shows the 12 fixed regression fixtures. The shell test is the source of truth. It also checks 32 writer spawns in the caller templates.</p>
+<p class="note">Before the fix, eight fixtures fail. After the fix, all checks pass. Four matcher mutations each cause test failures.</p>
+<p><a href="https://github.com/yonatangross/orchestkit/pull/4739">Read PR #4739</a></p>
+<noscript><p>Enable JavaScript to switch fixtures. The old matcher flags all 12 calls. The new matcher flags only the four real key calls.</p></noscript>
+</main>
+<script>
+const marker = document.getElementById('marker');
+const placement = document.getElementById('placement');
+const spacing = document.getElementById('spacing');
+function update() {
+  const key = marker.value + spacing.value + '=' + spacing.value + 'x';
+  const field = placement.value === 'quoted' ? 'prompt="' + key + '"' : placement.value === 'suffix' ? 'other_' + key : key;
+  const call = 'Agent(' + field + ', isolation' + spacing.value + '=' + spacing.value + 'worktree)';
+  document.getElementById('call').textContent = call;
+  document.getElementById('before').textContent = 'TEAMISO flagged';
+  document.getElementById('after').textContent = placement.value === 'real' ? 'TEAMISO flagged' : 'No TEAMISO flag';
+  document.getElementById('reason').textContent = placement.value === 'real' ? 'The real teammate key and isolation key trigger the guard in both spacing forms.' : placement.value === 'quoted' ? 'The matcher now uses text outside strings. The prompt example does not count as a teammate key.' : 'The matcher now requires a key boundary. A longer key ending in name does not count.';
+}
+for (const control of [marker, placement, spacing]) control.addEventListener('change', update);
+update();
+</script>
+<!-- ork-lab-chrome:start --><footer id="ork-lab-chrome" style="position:relative;z-index:2147483000;clear:both;box-sizing:border-box;width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px;margin:48px 0 0;padding:16px 24px;border:0;border-top:1px solid rgba(148,163,184,.25);background:#0d1017;color:#cbd5e1;font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;text-align:left"><a href="/" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0;color:#f8fafc;font-weight:700">OrchestKit</a><nav aria-label="OrchestKit site" style="display:flex;flex-wrap:wrap;gap:8px 20px;margin:0;padding:0"><a href="/docs" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">Read the docs</a><a href="/docs/getting-started/installation" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">Install</a><a href="/docs/showcase/lab" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">More playgrounds</a><a href="https://github.com/yonatangross/orchestkit" rel="noopener" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">GitHub</a></nav></footer><script>(function(){var f=document.getElementById("ork-lab-chrome"),framed;try{framed=window.self!==window.top}catch(e){framed=true}if(framed){if(f)f.remove();return}var h=location.hostname;if(h==="localhost"||h==="127.0.0.1")return;try{var b=JSON.stringify({project_id:"orchestkit",events:[{name:"page_view",path:location.pathname,referrer:document.referrer||"",timestamp:new Date().toISOString()}]});if(navigator.sendBeacon){navigator.sendBeacon("/api/analytics",new Blob([b],{type:"application/json"}))}else{fetch("/api/analytics",{method:"POST",headers:{"Content-Type":"application/json"},body:b,keepalive:true}).catch(function(){return null})}}catch(e){return null}})();</script><!-- ork-lab-chrome:end --></body>
+</html>

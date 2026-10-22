@@ -1,0 +1,44 @@
+name: Lab links live
+
+# After a PR merges, every Lab link in its body must answer 200 once the site
+# has deployed. The PR check (ci.yml, "Check the PR body Lab links") can only
+# prove the merge publishes the page, since production serves main and a new
+# page cannot be live before its own merge; this job is the 200 check, and it
+# goes red on the merged PR when a link still 404s after the deploy window.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  lab-links-live:
+    name: Lab links answer 200 after the deploy
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - name: Wait for the deploy, then require 200 on every Lab link
+        env:
+          # Untrusted text: it reaches the shell only as a file, never as code.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          BODY="${RUNNER_TEMP}/pr-body.md"
+          printf '%s' "$PR_BODY" > "$BODY"
+          # A deploy takes minutes; 30 tries 30 s apart give it 15 minutes.
+          for attempt in $(seq 1 30); do
+            if LAB_LIVE=1 bash scripts/ci/lab-link-check.sh "$BODY"; then
+              exit 0
+            fi
+            echo "::notice::attempt ${attempt}/30: not every Lab link answers 200 yet; retrying in 30 s"
+            sleep 30
+          done
+          echo "::error::A Lab link in this merged PR still does not answer 200 after 15 minutes."
+          exit 1

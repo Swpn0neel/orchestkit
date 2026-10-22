@@ -1,0 +1,11 @@
+{
+  "slug": "teammate-key-boundary-4714",
+  "source": "docs/chore--dsp-44038-ork-fix-4714/index.html",
+  "title": "Teammate keys outside strings",
+  "description": "Compare the 12 isolation guard fixtures for real keys, quoted examples, key suffixes, and both spacing forms.",
+  "tags": [
+    "tests",
+    "agents"
+  ],
+  "date": "2026-10-15"
+}

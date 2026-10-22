@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>PR Lab links must serve a page</title>
+<meta name="description" content="Why seven PR Lab links returned 404, and the check that now fails a PR whose body links a Lab page the merge does not publish. Paste a PR body to see which links pass.">
+<style>
+  :root { --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6b66; --line: #dedad2; --accent: #2f6f5e; --bad: #b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #171716; --fg: #ecebe6; --muted: #a3a29b; --line: #34332f; --accent: #6cc3a8; --bad: #f2b8b5; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, "Segoe UI", Arial, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 20px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 28px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  .verdict { font-size: 17px; margin: 8px 0 16px; }
+  .muted { color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  td, th { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .panel { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  textarea, pre { width: 100%; box-sizing: border-box; font: 13px ui-monospace, Menlo, monospace; }
+  textarea { min-height: 120px; background: transparent; color: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+  pre { white-space: pre-wrap; margin: 0; }
+  button { font: inherit; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: var(--bg); cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent); }
+  .bad { color: var(--bad); }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 0.92em; }
+</style>
+<!-- ork-lab-head:start --><meta property="og:type" content="website"><meta property="og:site_name" content="OrchestKit"><meta property="og:title" content="PR Lab links must serve a page"><meta property="og:description" content="Why seven PR Lab links returned 404, and the check that now fails a PR whose body links a Lab page the merge does not publish. Paste a PR body to see which links pass."><meta property="og:url" content="https://orchestkit.dev/lab/lab-links-live.html"><meta property="og:image" content="https://orchestkit.dev/opengraph-image"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="PR Lab links must serve a page"><meta name="twitter:description" content="Why seven PR Lab links returned 404, and the check that now fails a PR whose body links a Lab page the merge does not publish. Paste a PR body to see which links pass."><meta name="twitter:image" content="https://orchestkit.dev/opengraph-image"><!-- ork-lab-head:end --></head>
+<body>
+<main>
+  <h1>PR Lab links must serve a page</h1>
+  <p class="verdict"><strong>Verdict:</strong> the PR Playground gate checked that a page existed under <code>docs/&lt;branch-slug&gt;/</code> and that the PR body said "playground". It never checked that the <code>/lab/&lt;slug&gt;.html</code> link in the body is a page the merge publishes, and a PR it exempted got no check at all. A new step now checks every Lab link on every PR, and a post-merge job requires each one to answer 200.</p>
+
+  <h2>01 / The seven reported links</h2>
+  <table>
+    <tr><th>PR</th><th>State</th><th>Why it returned 404</th><th>After this PR</th></tr>
+    <tr><td>#4663</td><td>merged</td><td>Measured before its merge deployed.</td><td>200 (live now)</td></tr>
+    <tr><td>#4713</td><td>merged</td><td>The body links <code>/lab/&lt;slug&gt;</code> without <code>.html</code>, a path that 404s; the page itself is live.</td><td>Body link corrected; the new check rejects a link without <code>.html</code>.</td></tr>
+    <tr><td>#4739</td><td>merged</td><td>The page commit was never pushed to the PR; the PR was exempt (test-only), so nothing checked its body link.</td><td>Page published by this PR.</td></tr>
+    <tr><td>#4759, #4853, #4857</td><td>open</td><td>Production serves main; a page cannot be live before its own merge.</td><td>Each branch carries its fragment and generated copy, so each goes live on merge.</td></tr>
+    <tr><td>#4787</td><td>closed, not merged</td><td>Its work never landed, so there is nothing to publish.</td><td>Not published, on purpose.</td></tr>
+  </table>
+
+  <h2>02 / Check a PR body</h2>
+  <p>Paste a PR body. Each Lab link is listed with what the check looks for. The real check also needs the fragment and the generated copy in the tree, which this page cannot see.</p>
+  <div class="panel">
+    <textarea id="input" aria-label="PR body">## Interactive Playground
+Lab: https://orchestkit.dev/lab/lab-links-live.html
+Old link: https://orchestkit.yonyon.ai/lab/dsp-6204-ork-cursor-pins</textarea>
+    <p><button id="check">Check</button> <button id="copy" class="ghost">Copy as prompt</button> <span id="msg" class="muted"></span></p>
+    <pre id="out"></pre>
+  </div>
+
+  <h2>03 / Not proven here</h2>
+  <ul>
+    <li>The post-merge job waits up to 15 minutes for the deploy; a slower deploy turns it red even though the page arrives later.</li>
+    <li>Links on other hosts, or written as a bare repo path, are not Lab links and are not checked.</li>
+  </ul>
+</main>
+<script>
+  // Mirrors the link rules in scripts/ci/lab-link-check.sh.
+  const LINK = /https?:\/\/(orchestkit\.dev|orchestkit\.yonyon\.ai)\/lab\/[A-Za-z0-9._-]+/g;
+  const $ = (id) => document.getElementById(id);
+  function check() {
+    const links = [...new Set($("input").value.match(LINK) || [])];
+    if (links.length === 0) { $("out").textContent = "No Lab link. A PR that needs a playground fails; any other PR passes."; return; }
+    $("out").textContent = links.map((url) => {
+      const page = url.split("/lab/")[1];
+      if (!page.endsWith(".html")) return "FAIL  " + url + "  (no .html: that path returns 404)";
+      const slug = page.slice(0, -5);
+      return "CHECK " + url + "  (needs docs/site/lab-manifest/" + slug + ".json and docs/site/public/lab/" + slug + ".html)";
+    }).join("\n");
+  }
+  $("check").addEventListener("click", check);
+  $("copy").addEventListener("click", async () => {
+    const prompt = "Make every Lab link in this PR body serve a page (fragment plus generated copy, .html suffix):\n" + $("input").value;
+    try { await navigator.clipboard.writeText(prompt); $("msg").textContent = "Copied"; } catch { $("msg").textContent = "The browser blocked the copy"; }
+  });
+  check();
+</script>
+<!-- ork-lab-chrome:start --><footer id="ork-lab-chrome" style="position:relative;z-index:2147483000;clear:both;box-sizing:border-box;width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px;margin:48px 0 0;padding:16px 24px;border:0;border-top:1px solid rgba(148,163,184,.25);background:#0d1017;color:#cbd5e1;font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;text-align:left"><a href="/" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0;color:#f8fafc;font-weight:700">OrchestKit</a><nav aria-label="OrchestKit site" style="display:flex;flex-wrap:wrap;gap:8px 20px;margin:0;padding:0"><a href="/docs" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">Read the docs</a><a href="/docs/getting-started/installation" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">Install</a><a href="/docs/showcase/lab" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">More playgrounds</a><a href="https://github.com/yonatangross/orchestkit" rel="noopener" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">GitHub</a></nav></footer><script>(function(){var f=document.getElementById("ork-lab-chrome"),framed;try{framed=window.self!==window.top}catch(e){framed=true}if(framed){if(f)f.remove();return}var h=location.hostname;if(h==="localhost"||h==="127.0.0.1")return;try{var b=JSON.stringify({project_id:"orchestkit",events:[{name:"page_view",path:location.pathname,referrer:document.referrer||"",timestamp:new Date().toISOString()}]});if(navigator.sendBeacon){navigator.sendBeacon("/api/analytics",new Blob([b],{type:"application/json"}))}else{fetch("/api/analytics",{method:"POST",headers:{"Content-Type":"application/json"},body:b,keepalive:true}).catch(function(){return null})}}catch(e){return null}})();</script><!-- ork-lab-chrome:end --></body>
+</html>

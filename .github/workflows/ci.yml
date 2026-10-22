@@ -572,6 +572,23 @@ jobs:
           fi
           echo "::notice::PR body contains playground reference"
 
+      # Every Lab link in the body must be a page this merge publishes (a
+      # docs/site/lab-manifest/<slug>.json fragment plus its generated
+      # docs/site/public/lab/<slug>.html). Runs for EVERY PR, not only when a
+      # playground is required: #4739 was exempt (test-only diff), so nothing
+      # checked the Lab link in its body, and it merged a link that 404s. When
+      # a playground is required the body must also carry a Lab link at all.
+      - name: Check the PR body Lab links
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          LAB_REQUIRE_LINK: ${{ steps.gate.outputs.required }}
+        run: |
+          set -euo pipefail
+          BODY="${RUNNER_TEMP:-/tmp}/pr-body.md"
+          gh pr view "$PR_NUMBER" --json body -q .body > "$BODY"
+          bash scripts/ci/lab-link-check.sh "$BODY"
+
   # ============================================================================
   # STAGE 2: Unit Tests (< 5m)
   # Node versions: 20 (LTS), 22 (Current LTS)
