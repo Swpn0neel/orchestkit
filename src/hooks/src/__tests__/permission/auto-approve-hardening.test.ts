@@ -241,6 +241,10 @@ describe('safe-bash allowlist refuses background jobs, risky git options and arb
     'pnpm run build',
     'yarn run build',
     'poetry run python x.py',
+    'npm run test-e2e',
+    'npm run lint:fix',
+    'pnpm run format-all',
+    'git --exec-path=x status',
   ];
 
   test.each(refused)('safe-bash does not allow: %s', (cmd) => {

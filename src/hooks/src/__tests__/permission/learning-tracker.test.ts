@@ -738,6 +738,13 @@ describe('learningTracker learned-pattern hardening', () => {
     expect(allowed('git stash drop')).toBe(false);
   });
 
+  test('a learned bare git approval does not cover a git option that runs another program', () => {
+    learn(['git']);
+    expect(allowed('git --exec-path=x status')).toBe(false);
+    expect(allowed('git -c core.pager=x log')).toBe(false);
+    expect(allowed('git log -1')).toBe(true);
+  });
+
   test('a stored pattern with trailing whitespace still needs a word boundary', () => {
     learn(['git st ']);
     expect(allowed('git stash drop')).toBe(false);

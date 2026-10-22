@@ -90,7 +90,9 @@ const SAFE_PATTERNS: RegExp[] = [
   // Testing and linting — safe: read-only analysis
   /^pytest/,
   /^poetry run pytest/,
-  /^(?:npm|pnpm|yarn) run (test|lint|typecheck|format)\b/,
+  // The script name must end at whitespace or end of input: `test-e2e` or
+  // `lint:fix` are different scripts with their own package.json body.
+  /^(?:npm|pnpm|yarn) run (test|lint|typecheck|format)(?:\s|$)/,
   /^ruff (check|format)/,
   /^ty check/,
   /^mypy/,

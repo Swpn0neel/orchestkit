@@ -42,7 +42,7 @@ export const REJECT_PATTERNS: RegExp[] = [
   // git options that run a configured or supplied program, write a file, or
   // point git at another repository (whose config can run programs). The
   // read-only subcommand allowlist cannot see these, so they drop to a prompt.
-  /^git\s[^\n]*?(?:^|\s)(?:-c|-C|--upload-pack|--receive-pack|--exec|--output|--ext-diff|--config-env|--git-dir|--work-tree)(?=[=\s]|$)/,
+  /^git\b[^\n]*?\s(?:-c|-C|--upload-pack|--receive-pack|--exec|--output|--ext-diff|--config-env|--git-dir|--work-tree|--exec-path)(?=[=\s]|$)/,
 
   // Credential-path arguments (#4216 HR-1): secret material must never
   // auto-approve under a read-only prefix. Keying on the reader left the
