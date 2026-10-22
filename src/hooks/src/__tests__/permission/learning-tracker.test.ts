@@ -738,6 +738,11 @@ describe('learningTracker learned-pattern hardening', () => {
     expect(allowed('git stash drop')).toBe(false);
   });
 
+  test('a stored pattern with trailing whitespace still needs a word boundary', () => {
+    learn(['git st ']);
+    expect(allowed('git stash drop')).toBe(false);
+  });
+
   test('a learned pattern does not cover glob or expansion characters', () => {
     learn(['cat']);
     expect(allowed('cat $HOME/notes.txt')).toBe(false);
