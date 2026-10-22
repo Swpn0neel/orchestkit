@@ -54,6 +54,16 @@ function createBashInput(command: string): HookInput {
 }
 
 let testCtx: ReturnType<typeof createTestContext>;
+
+const __ORK_PAA_PREV = process.env.ORK_PERMISSION_AUTO_APPROVE;
+beforeEach(() => {
+  process.env.ORK_PERMISSION_AUTO_APPROVE = '1';
+});
+afterEach(() => {
+  if (__ORK_PAA_PREV === undefined) delete process.env.ORK_PERMISSION_AUTO_APPROVE;
+  else process.env.ORK_PERMISSION_AUTO_APPROVE = __ORK_PAA_PREV;
+});
+
 describe('auto-approve-safe-bash', () => {
   beforeEach(() => {
     testCtx = createTestContext();
@@ -77,7 +87,9 @@ describe('auto-approve-safe-bash', () => {
       const result = autoApproveSafeBash(input, testCtx);
 
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
   });
 
@@ -105,7 +117,9 @@ describe('auto-approve-safe-bash', () => {
       const result = autoApproveSafeBash(input, testCtx);
 
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
   });
 
@@ -126,7 +140,9 @@ describe('auto-approve-safe-bash', () => {
       const result = autoApproveSafeBash(input, testCtx);
 
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
   });
 
@@ -155,7 +171,9 @@ describe('auto-approve-safe-bash', () => {
       const result = autoApproveSafeBash(input, testCtx);
 
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
   });
 
@@ -177,7 +195,9 @@ describe('auto-approve-safe-bash', () => {
       const result = autoApproveSafeBash(input, testCtx);
 
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
   });
 
@@ -201,7 +221,9 @@ describe('auto-approve-safe-bash', () => {
       const result = autoApproveSafeBash(input, testCtx);
 
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
   });
 
@@ -307,7 +329,9 @@ describe('auto-approve-safe-bash', () => {
 
       // Normalization trims whitespace, so pattern now matches (SEC improvement)
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
 
     test('rejects compound commands (git status && rm -rf /)', () => {
@@ -325,7 +349,9 @@ describe('auto-approve-safe-bash', () => {
       const result = autoApproveSafeBash(input, testCtx);
 
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
 
     test('handles command with special characters', () => {
@@ -333,6 +359,7 @@ describe('auto-approve-safe-bash', () => {
       const input = createBashInput('echo "$(whoami)"');
       const result = autoApproveSafeBash(input, testCtx);
 
+      // HR-1 (#4845) rejects it; neither output shape may carry an allow.
       expect(result.continue).toBe(true);
       expectNoAllow(result);
     });
@@ -366,14 +393,18 @@ describe('auto-approve-safe-bash', () => {
       const input = createBashInput('ls -la /usr/bin');
       const result = autoApproveSafeBash(input, testCtx);
 
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
 
     test('approves echo with complex arguments', () => {
       const input = createBashInput(`echo "test $VAR \${ANOTHER:-default}"`);
       const result = autoApproveSafeBash(input, testCtx);
 
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
   });
 
@@ -394,7 +425,9 @@ describe('auto-approve-safe-bash', () => {
       const result = autoApproveSafeBash(input, testCtx);
 
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
 
     test('pnpm run build → auto-approved (pnpm run <anything> is in SAFE_PATTERNS)', () => {
@@ -403,7 +436,9 @@ describe('auto-approve-safe-bash', () => {
       const result = autoApproveSafeBash(input, testCtx);
 
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
 
     test('non-Bash tool (Write) → does not crash and returns continue: true', () => {
@@ -442,7 +477,9 @@ describe('auto-approve-safe-bash', () => {
       const input = createBashInput(command);
       const result = autoApproveSafeBash(input, testCtx);
       expect(result.continue).toBe(true);
-      expect(result.hookSpecificOutput?.permissionDecision).toBe('allow');
+      expect(result.hookSpecificOutput?.hookEventName).toBe('PermissionRequest');
+      expect(result.hookSpecificOutput?.decision?.behavior).toBe('allow');
+      expect(result.hookSpecificOutput?.permissionDecision).toBeUndefined();
     });
   });
 });

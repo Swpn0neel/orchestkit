@@ -11,6 +11,7 @@
  *
  * SEC: Respects EXCLUDED_DIRS (node_modules, .git, dist, etc.)
  * SEC: Never retries writes outside project or added dirs
+ * SEC: Never retries hard-denied paths (same denylist as PermissionRequest auto-approve)
  *
  * CC 2.1.88 Compliant: PermissionDenied hook, returns {retry: true}
  * @hook PermissionDenied[Write|Edit]
@@ -21,7 +22,8 @@
 import type { HookInput, HookResult , HookContext} from '../types.js';
 import { outputSilentSuccess } from '../lib/common.js';
 import { isInsideDir, hasExcludedDir, resolveRealPath } from '../lib/path-containment.js';
-import { isAbsolute, resolve } from 'node:path';
+import { isAbsolute, normalize, resolve } from 'node:path';
+import { isHardDeniedWritePath } from '../lib/permission-auto-approve.js';
 import { NOOP_CTX } from '../lib/context.js';
 
 const HOOK_NAME = 'project-write-retry';
@@ -53,8 +55,16 @@ export function projectWriteRetry(input: HookInput, ctx: HookContext = NOOP_CTX)
     filePath = resolve(projectDir, filePath);
   }
 
-  // SEC: Resolve symlinks to prevent bypass attacks (ME-001 / PD-001)
+  // SEC: the denylist and excluded-dir checks run on the requested path AND
+  // the symlink target; a protected name can link to an ordinary file.
+  const requestedPath = normalize(filePath);
   filePath = resolveRealPath(filePath, projectDir);
+
+  // SEC: hard denylist (same rules as PermissionRequest auto-approve)
+  if (isHardDeniedWritePath(requestedPath) || isHardDeniedWritePath(filePath)) {
+    ctx.log(HOOK_NAME, `Hard-denied write path: not retrying: ${filePath}`);
+    return outputSilentSuccess();
+  }
 
   // Check all root directories: project + /add-dir dirs
   // SEC-003: Validate added_dirs — reject filesystem root or sensitive directories
@@ -66,7 +76,7 @@ export function projectWriteRetry(input: HookInput, ctx: HookContext = NOOP_CTX)
   for (const rootDir of rootDirs) {
     if (!isInsideDir(filePath, rootDir)) continue;
 
-    if (hasExcludedDir(filePath)) {
+    if (hasExcludedDir(requestedPath) || hasExcludedDir(filePath)) {
       ctx.log(HOOK_NAME, `File in excluded directory — not retrying`);
       return outputSilentSuccess();
     }
