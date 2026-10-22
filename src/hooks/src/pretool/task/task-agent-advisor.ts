@@ -225,10 +225,14 @@ const NUDGE_SCAN_MAX_CHARS = 2000;
  * does, so an ask later in the same sentence ("stop and report, then deploy to
  * production") still routes (XREVIEW HOLD 6343034324). Between a leading stop
  * and its condition only "and ask", "and report" and the like may join
- * ("stop and ask if the deploy breaks"). Exported for tests.
+ * ("stop and ask if the deploy breaks"). A leading condition obeys the same
+ * rule: it may not cross a comma or a clause word before its ", stop", so "if
+ * the tests pass, deploy to production, but if they fail, stop" keeps the
+ * deploy (reviewer HOLD 6344107617). A condition joined by "and" then leaves its
+ * second half in the text, an extra ask by design. Exported for tests.
  */
 export const CONDITIONAL_STOP_PATTERN =
-  /\b(?:if|when|whenever|in case)\b[^.;!?\n]*?,\s*(?:then\s+|just\s+)?(?:stop|halt|abort|bail)\b[^.;!?\n,]*?(?=[.;!?\n,]|\b(?:and|then|but|instead|however)\b|$)|\b(?:stop|halt|abort|bail)\b(?:(?!,|\bthen\b|\band\s+(?!(?:ask|report|wait|tell|notify|flag|escalate|check)\b))[^.;!?\n])*?\b(?:if|when|whenever|in case)\b[^.;!?\n,]*?(?=[.;!?\n,]|\b(?:and|then|but|instead|however)\b|$)/gi;
+  /\b(?:if|when|whenever|in case)\b(?:(?!\b(?:and|then|but|instead|however)\b)[^.;!?\n,])*?,\s*(?:then\s+|just\s+)?(?:stop|halt|abort|bail)\b[^.;!?\n,]*?(?=[.;!?\n,]|\b(?:and|then|but|instead|however)\b|$)|\b(?:stop|halt|abort|bail)\b(?:(?!,|\bthen\b|\band\s+(?!(?:ask|report|wait|tell|notify|flag|escalate|check)\b))[^.;!?\n])*?\b(?:if|when|whenever|in case)\b[^.;!?\n,]*?(?=[.;!?\n,]|\b(?:and|then|but|instead|however)\b|$)/gi;
 
 /**
  * A task that says it only reads or reports. A domain match in it gets the
