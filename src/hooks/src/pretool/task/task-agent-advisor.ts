@@ -220,10 +220,15 @@ const NUDGE_SCAN_MAX_CHARS = 2000;
  * report", "When the scan fails, stop", "Stop and ask if the deploy breaks". The
  * condition names the obstacle, not the work, so the clause is removed before
  * domain matching (#4835). The consequence must START with stop, halt, abort or
- * bail, so "if the tests pass, rebase onto main" keeps its rebase. Exported for tests.
+ * bail, so "if the tests pass, rebase onto main" keeps its rebase. The clause ends
+ * at a comma or at and, then, but, instead or however, as NEGATED_CLAUSE_PATTERN
+ * does, so an ask later in the same sentence ("stop and report, then deploy to
+ * production") still routes (XREVIEW HOLD 6343034324). Between a leading stop
+ * and its condition only "and ask", "and report" and the like may join
+ * ("stop and ask if the deploy breaks"). Exported for tests.
  */
 export const CONDITIONAL_STOP_PATTERN =
-  /\b(?:if|when|whenever|in case)\b[^.;!?\n]*?,\s*(?:then\s+|just\s+)?(?:stop|halt|abort|bail)\b[^.;!?\n]*|\b(?:stop|halt|abort|bail)\b[^.;!?\n]*?\b(?:if|when|whenever|in case)\b[^.;!?\n]*/gi;
+  /\b(?:if|when|whenever|in case)\b[^.;!?\n]*?,\s*(?:then\s+|just\s+)?(?:stop|halt|abort|bail)\b[^.;!?\n,]*?(?=[.;!?\n,]|\b(?:and|then|but|instead|however)\b|$)|\b(?:stop|halt|abort|bail)\b(?:(?!,|\bthen\b|\band\s+(?!(?:ask|report|wait|tell|notify|flag|escalate|check)\b))[^.;!?\n])*?\b(?:if|when|whenever|in case)\b[^.;!?\n,]*?(?=[.;!?\n,]|\b(?:and|then|but|instead|however)\b|$)/gi;
 
 /**
  * A task that says it only reads or reports. A domain match in it gets the
