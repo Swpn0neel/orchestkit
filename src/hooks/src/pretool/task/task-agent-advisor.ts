@@ -92,7 +92,9 @@ export const SPECIALIST_DOMAINS: ReadonlyArray<{ agent: string; pattern: RegExp 
   // git, release, deploy and infra rows sit AFTER ci-cd so workflow tasks stay there,
   // and git sits before release so "rebase the release branch" is a git task.
   { agent: 'ork:git-operations-engineer', pattern: /\b(rebas(e|ing)\b[^.;\n]{0,40}\b(branch(es)?|onto|commits?|main|master)|git (rebase|cherry.?pick|bisect)|merge conflicts?|resolve (the )?(merge |git )conflicts|branch(ing)? strategy|cherry.?pick (a |the )?commits?)\b/i },
-  { agent: 'ork:release-engineer', pattern: /\b(changelog|release notes|semver|semantic versioning|version bump|bump the version|(cut|tag|publish) (a |the )?(new )?release)\b/i },
+  // A changelog or release-notes PAGE is a UI task (#4835), so a UI noun right after
+  // the phrase leaves it to the frontend row.
+  { agent: 'ork:release-engineer', pattern: /\b((?:changelog|release notes)(?![\s-]+(?:pages?|components?|views?|screens?|ui|widgets?|modals?|panels?|sections?|routes?|tabs?|cards?|buttons?|links?)\b)|semver|semantic versioning|version bump|bump the version|(cut|tag|publish) (a |the )?(new )?release)\b/i },
   { agent: 'ork:deployment-manager', pattern: /\b(blue.?green|canary (deploy|release)|zero.?downtime deploy|rollback (plan|procedure)|roll back the (deploy|release)|deploy(ing)? to (prod|production|staging))\b/i },
   { agent: 'ork:infrastructure-architect', pattern: /\b(terraform|pulumi|cloudformation|helm charts?|(kubernetes|k8s) manifests?|infrastructure as code)\b/i },
   { agent: 'ork:web-research-analyst', pattern: /\b(web research|search (the web|online)|competitor analysis|market (research|landscape))/i },
@@ -213,9 +215,39 @@ export function hasBuildIntent(description: string, prompt: string): boolean {
 /** Bound the prompt scan so regex work stays inside the PreToolUse budget. */
 const NUDGE_SCAN_MAX_CHARS = 2000;
 
-/** Find a specialist whose domain matches a general-purpose task's text. */
+/**
+ * A guard rail that stops on an obstacle: "If you hit merge conflicts, stop and
+ * report", "When the scan fails, stop", "Stop and ask if the deploy breaks". The
+ * condition names the obstacle, not the work, so the clause is removed before
+ * domain matching (#4835). The consequence must START with stop, halt, abort or
+ * bail, so "if the tests pass, rebase onto main" keeps its rebase. Exported for tests.
+ */
+export const CONDITIONAL_STOP_PATTERN =
+  /\b(?:if|when|whenever|in case)\b[^.;!?\n]*?,\s*(?:then\s+|just\s+)?(?:stop|halt|abort|bail)\b[^.;!?\n]*|\b(?:stop|halt|abort|bail)\b[^.;!?\n]*?\b(?:if|when|whenever|in case)\b[^.;!?\n]*/gi;
+
+/**
+ * A task that says it only reads or reports. A domain match in it gets the
+ * advisory note, never a permission ask (#4835). Exported for tests.
+ */
+export const REPORT_ONLY_PATTERN = /\b(?:report(?: back)? only|only report|read[- ]only)\b/i;
+
+/**
+ * Remove guard-rail sentences before domain matching (#4835): a prohibition ("do
+ * not deploy to production", "never rebase the release branch") and a conditional
+ * stop ("if you hit merge conflicts, stop and report") name work the agent must NOT
+ * do, so they never route an ask to the agent for that work. Reminders that ask
+ * for the work ("do not forget to deploy") stay, as in hasBuildIntent.
+ */
+export function stripGuardRails(text: string): string {
+  return text
+    .replace(AFFIRMATIVE_REMINDER_PATTERN, '.')
+    .replace(CONDITIONAL_STOP_PATTERN, ' ')
+    .replace(NEGATED_CLAUSE_PATTERN, ' ');
+}
+
+/** Find a specialist whose domain matches a general-purpose task's text, guard rails removed. */
 export function matchSpecialistDomain(description: string, prompt: string): string | null {
-  const text = `${description}\n${prompt.slice(0, NUDGE_SCAN_MAX_CHARS)}`;
+  const text = stripGuardRails(`${description}\n${prompt.slice(0, NUDGE_SCAN_MAX_CHARS)}`);
   const match = SPECIALIST_DOMAINS.find((domain) => domain.pattern.test(text));
   return match ? match.agent : null;
 }
@@ -270,17 +302,30 @@ const MULTI_STEP_PATTERN = /\b(and|then|to|so)\b/i;
 const AUTHORING_VERB_PATTERN =
   /\b(implement\w*|edit\w*|modif\w*|chang\w*|rewrit\w*|patch\w*|resolv\w*|rebas\w*|merg\w*|delet\w*|remov\w*|renam\w*)\b/i;
 
-/** Which deterministic nudge, if any, a task deserves: worktree creation or a single-file read. */
+/**
+ * A path or file name ("docs/intro-to-terraform.md", "apply-db.sh"). Removed before
+ * the second-step and verb checks, so a word inside a file name ("to" in
+ * intro-to-terraform.md) is not read as a second step (#4835).
+ */
+const FILE_TOKEN_PATTERN = /\S*[\w-][./][\w-]\S*/g;
+
+/**
+ * Which deterministic nudge, if any, a task deserves: worktree creation or a
+ * single-file read. Decided on the DESCRIPTION (#4835): the Agent tool always
+ * carries a prompt, and a realistic one ("Create a git worktree for the fix branch
+ * and print its path", "Read x.yml and explain what triggers it") repeats the ask
+ * with reasoning words, which used to turn the nudge into silence or an ask. The
+ * prompt turns the nudge off only when it asks to build (hasBuildIntent).
+ */
 export function deterministicNudge(description: string, prompt: string): 'worktree' | 'read' | null {
-  const promptText = prompt.slice(0, NUDGE_SCAN_MAX_CHARS);
-  const promptIsAuthoring = REASONING_VERB_PATTERN.test(promptText) || AUTHORING_VERB_PATTERN.test(promptText);
-  if (promptIsAuthoring) return null;
+  if (hasBuildIntent('', prompt)) return null;
   if (WORKTREE_TASK_PATTERN.test(description)) return 'worktree';
+  const words = description.replace(FILE_TOKEN_PATTERN, ' ');
   if (
     READ_FILE_TASK_PATTERN.test(description) &&
-    !MULTI_STEP_PATTERN.test(description) &&
-    !REASONING_VERB_PATTERN.test(description) &&
-    !AUTHORING_VERB_PATTERN.test(description)
+    !MULTI_STEP_PATTERN.test(words) &&
+    !REASONING_VERB_PATTERN.test(words) &&
+    !AUTHORING_VERB_PATTERN.test(words)
   ) {
     return 'read';
   }
@@ -358,6 +403,13 @@ export function taskAgentAdvisor(input: HookInput, ctx: HookContext = NOOP_CTX):
       // by the user's own choice. Degrade the prompt to the advisory note it
       // used to be rather than blocking an unattended run on a routing
       // preference. See isBypassMode().
+      // A task that only reads or reports is not worth a permission prompt (#4835).
+      if (REPORT_ONLY_PATTERN.test(`${description}\n${prompt.slice(0, NUDGE_SCAN_MAX_CHARS)}`)) {
+        ctx.log(HOOK_NAME, `report-only task matches ${specialist}; advising, not asking`);
+        return outputAllowWithContext(
+          `This task matches \`${specialist}\`'s domain, prefer it over \`general-purpose\`.`,
+        );
+      }
       if (isBypassMode(input)) {
         // Record the miss so telemetry shows how often general-purpose won in bypass.
         ctx.log(HOOK_NAME, `matched-in-bypass: general-purpose kept for a ${specialist} task`);
