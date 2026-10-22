@@ -26,6 +26,7 @@ import {
   normalizeSingle,
   hasUnquotedExpansion,
   hasBackgroundOperator,
+  hasUnusualWhitespace,
 } from '../lib/normalize-command.js';
 import { REJECT_PATTERNS } from '../lib/bash-patterns.js';
 import { NOOP_CTX } from '../lib/context.js';
@@ -65,7 +66,8 @@ const RETRY_SAFE_PATTERNS: RegExp[] = [
   /^gh (issue|pr|repo|workflow) (list|view|status)\b/,
 
   // Test/lint commands
-  /^npm run (test|lint|typecheck|format)\b/,
+  // Exact script name: the name ends at a space, a tab or end of input.
+  /^npm run (test|lint|typecheck|format)(?:[ \t]|$)/,
   /^pytest\b/,
 ];
 
@@ -98,7 +100,7 @@ export function safeCommandRetry(input: HookInput, ctx: HookContext = NOOP_CTX):
     return outputSilentSuccess();
   }
 
-  if (hasUnquotedExpansion(command) || hasBackgroundOperator(command)) {
+  if (hasUnquotedExpansion(command) || hasBackgroundOperator(command) || hasUnusualWhitespace(command)) {
     ctx.log(HOOK_NAME, 'Expansion or background operator — not retrying');
     return outputSilentSuccess();
   }

@@ -16,6 +16,7 @@ import {
   normalizeSingle,
   hasUnquotedExpansion,
   hasBackgroundOperator,
+  hasUnusualWhitespace,
 } from '../lib/normalize-command.js';
 import { REJECT_PATTERNS } from '../lib/bash-patterns.js';
 import { isPermissionAutoApproveEnabled } from '../lib/permission-auto-approve.js';
@@ -92,7 +93,7 @@ const SAFE_PATTERNS: RegExp[] = [
   /^poetry run pytest/,
   // The script name must end at whitespace or end of input: `test-e2e` or
   // `lint:fix` are different scripts with their own package.json body.
-  /^(?:npm|pnpm|yarn) run (test|lint|typecheck|format)(?:\s|$)/,
+  /^(?:npm|pnpm|yarn) run (test|lint|typecheck|format)(?:[ \t]|$)/,
   /^ruff (check|format)/,
   /^ty check/,
   /^mypy/,
@@ -119,7 +120,7 @@ export function autoApproveSafeBash(input: HookInput, ctx: HookContext = NOOP_CT
 
   // SEC: globs, expansion and background jobs hide what actually runs or
   // which file is read from the literal patterns below.
-  if (command && (hasUnquotedExpansion(command) || hasBackgroundOperator(command))) {
+  if (command && (hasUnquotedExpansion(command) || hasBackgroundOperator(command) || hasUnusualWhitespace(command))) {
     ctx.log('auto-approve-safe-bash', 'Expansion or background operator, requiring manual approval');
     return outputSilentSuccess();
   }

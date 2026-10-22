@@ -517,3 +517,14 @@ export function isCompoundCommand(cmd: string): boolean {
   const redirectProbe = stripBackslashEscapes(blankQuotedContent(expanded));
   return /[<>]/.test(redirectProbe);
 }
+
+/**
+ * True when a command carries whitespace other than space, tab or newline
+ * (vertical tab, form feed, carriage return, NBSP, U+2028 and the like).
+ * Normalization folds these into a plain space, so a literal allowlist check
+ * on the normalized form would read a different command than the shell runs.
+ * Auto-approve and retry hooks refuse such commands.
+ */
+export function hasUnusualWhitespace(cmd: string): boolean {
+  return /[^\S \t\n]/u.test(cmd);
+}

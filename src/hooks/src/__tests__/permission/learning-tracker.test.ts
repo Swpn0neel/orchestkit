@@ -742,6 +742,19 @@ describe('learningTracker learned-pattern hardening', () => {
     learn(['git']);
     expect(allowed('git --exec-path=x status')).toBe(false);
     expect(allowed('git -c core.pager=x log')).toBe(false);
+    for (const cmd of [
+      'git grep -Ox foo',
+      'git grep -O x foo',
+      'git grep -iOx foo',
+      'git grep --open-files-in-pager=x foo',
+      'git grep --open-files=x foo',
+      'git grep --open x foo',
+      'git fetch --upload=x origin',
+      'git log --outp=f',
+    ]) {
+      expect(allowed(cmd), cmd).toBe(false);
+    }
+    expect(allowed('git grep -n foo')).toBe(true);
     expect(allowed('git log -1')).toBe(true);
   });
 

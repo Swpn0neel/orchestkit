@@ -18,6 +18,7 @@ import {
   normalizeSingle,
   hasUnquotedExpansion,
   hasBackgroundOperator,
+  hasUnusualWhitespace,
 } from '../lib/normalize-command.js';
 import { REJECT_PATTERNS } from '../lib/bash-patterns.js';
 import { readDistilledPatterns } from '../lib/learned-patterns-cache.js';
@@ -166,7 +167,7 @@ export function learningTracker(input: HookInput, ctx: HookContext = NOOP_CTX): 
 
     // SEC: a learned pattern never widens past the shared reject list or
     // covers arguments the hook cannot read literally.
-    if (hasUnquotedExpansion(command) || hasBackgroundOperator(command)) {
+    if (hasUnquotedExpansion(command) || hasBackgroundOperator(command) || hasUnusualWhitespace(command)) {
       ctx.log('learning-tracker', 'Expansion or background operator, skipping auto-approve');
       return outputSilentSuccess();
     }

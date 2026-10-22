@@ -242,6 +242,12 @@ describe('safe-bash allowlist refuses background jobs, risky git options and arb
     'yarn run build',
     'poetry run python x.py',
     'npm run test-e2e',
+    'npm run test\u000bx',
+    'npm run test\u00a0x',
+    'npm test --prefix ../other',
+    'pnpm test --dir ../other',
+    'yarn test --cwd ../other',
+    'pnpm -C ../other test',
     'npm run lint:fix',
     'pnpm run format-all',
     'git --exec-path=x status',
@@ -251,7 +257,7 @@ describe('safe-bash allowlist refuses background jobs, risky git options and arb
     expect(isAllow(autoApproveSafeBash(bashInput(cmd)))).toBe(false);
   });
 
-  test.each(['git fetch --upload-pack=x origin', 'git log --output=out.txt', 'git status &'])(
+  test.each(['git fetch --upload-pack=x origin', 'git log --output=out.txt', 'git status &', 'npm run test-e2e', 'npm run lint:fix'])(
     'safe-command-retry does not retry: %s',
     (cmd) => {
       expect(isRetry(safeCommandRetry(bashInput(cmd, 'PermissionDenied')))).toBe(false);
