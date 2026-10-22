@@ -687,16 +687,29 @@ describe('#4835 advisor decides on the description and ignores negated asks', ()
     ['If you hit merge conflicts, stop and report, then deploy to production.', 'ork:deployment-manager'],
     ['Stop and ask if the build breaks, then deploy to production.', 'ork:deployment-manager'],
     ['Stop if you hit merge conflicts and deploy to staging.', 'ork:deployment-manager'],
+    // Reviewer HOLD 6344107617: the CONDITION side crossed commas, so an
+    // instruction between a leading condition and a later ", stop" was removed.
+    ['If the tests pass, deploy to production, but if they fail, stop.', 'ork:deployment-manager'],
+    ['When the build is green, deploy to production and if it breaks, stop.', 'ork:deployment-manager'],
   ])('an ask after a stop clause in the same sentence still routes: "%s" → %s', (text, expected) => {
     expect(matchSpecialistDomain('', text)).toBe(expected);
   });
 
   test.each([
     ['Stop and ask if the deploy to production breaks.'],
-    ['If the build and the deploy to staging fail, stop.'],
     ['When you hit merge conflicts, just stop and report back.'],
   ])('the obstacle inside a stop clause is still removed: "%s"', (text) => {
     expect(matchSpecialistDomain('', text)).toBeNull();
+  });
+
+  // Known extra ask, pinned on purpose (reviewer HOLD 6344107617): the condition
+  // ends at a clause word too, so "and" inside a condition leaves its second half
+  // in the text. An extra ask is the safe error; reading across "and" is what let
+  // a real instruction be removed.
+  test('a condition joined by "and" leaves its second half: an extra ask, not a silent allow', () => {
+    expect(matchSpecialistDomain('', 'If the build and the deploy to staging fail, stop.')).toBe(
+      'ork:deployment-manager',
+    );
   });
 
   // XREVIEW HOLD 6343034324 must 2, behavior pinned on purpose: in "do not X and
