@@ -724,6 +724,7 @@ describe('learningTracker learned-pattern hardening', () => {
   });
 
   function learn(patterns: string[]): void {
+    _resetPatternCacheForTesting();
     (existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
     (readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify({ autoApprovePatterns: patterns }));
   }
@@ -751,11 +752,22 @@ describe('learningTracker learned-pattern hardening', () => {
       'git grep --open x foo',
       'git fetch --upload=x origin',
       'git log --outp=f',
+      'git grep --op=x foo',
+      'git ls-remote --u=x .',
+      'git rebase -x x',
+      'git difftool -x x',
+      'git difftool',
+      'git mergetool',
     ]) {
       expect(allowed(cmd), cmd).toBe(false);
     }
     expect(allowed('git grep -n foo')).toBe(true);
     expect(allowed('git log -1')).toBe(true);
+    learn(['npm test']);
+    for (const cmd of ['npm test --script-shell=x', 'npm test --node-options=x', 'npm test --prefi=o']) {
+      expect(allowed(cmd), cmd).toBe(false);
+    }
+    expect(allowed('npm test')).toBe(true);
   });
 
   test('a stored pattern with trailing whitespace still needs a word boundary', () => {

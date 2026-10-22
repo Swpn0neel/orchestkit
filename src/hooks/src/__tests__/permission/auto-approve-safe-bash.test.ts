@@ -73,7 +73,7 @@ describe('auto-approve-safe-bash', () => {
   describe('Package manager read operations (should auto-approve)', () => {
     const safePackageCommands = [
       'npm list',
-      'npm ls --depth=0',
+      'npm ls',
       'npm outdated',
       'npm audit',
       'npm run test',
