@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>orank gaps, lane A: actions card, sandbox, titles</title>
+<meta name="description" content="Three orank gaps closed after the orchestkit.dev move: a draft-spec card for the actions MCP, a linked sandbox and test mode page, and developer resource titles that name OrchestKit.">
+<style>
+  :root { --paper:#faf8f3; --ink:#1d1b17; --muted:#6b665c; --rule:#e2ddd2; --accent:#2f6f4f; --warn:#9a6a12; --card:#ffffff; }
+  [data-theme="dark"] { --paper:#16150f; --ink:#ece8de; --muted:#a39d90; --rule:#34312a; --accent:#7cc39c; --warn:#e0b25a; --card:#1f1d17; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:40px 20px 80px; }
+  header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+  h1 { font-size:1.9rem; line-height:1.15; margin:0 0 8px; }
+  h2 { font-size:1.15rem; margin:36px 0 10px; padding-top:14px; border-top:1px solid var(--rule); }
+  p.lead { color:var(--muted); margin:0; }
+  button { font:inherit; font-size:.85rem; background:var(--card); color:var(--ink); border:1px solid var(--rule); border-radius:8px; padding:6px 10px; cursor:pointer; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-top:24px; }
+  .kpi { background:var(--card); border:1px solid var(--rule); border-radius:10px; padding:14px; }
+  .kpi b { display:block; font-size:1.6rem; }
+  .kpi span { color:var(--muted); font-size:.85rem; }
+  table { width:100%; border-collapse:collapse; font-size:.92rem; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--rule); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  code { font:0.88em ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .ok { color:var(--accent); font-weight:600; }
+  .wait { color:var(--warn); font-weight:600; }
+  ul { padding-left:20px; }
+  footer { margin-top:40px; color:var(--muted); font-size:.85rem; }
+</style>
+<!-- ork-lab-head:start --><meta property="og:type" content="website"><meta property="og:site_name" content="OrchestKit"><meta property="og:title" content="orank gaps, lane A: actions card, sandbox, titles"><meta property="og:description" content="Three orank gaps closed after the orchestkit.dev move: a draft-spec card for the actions MCP, a linked sandbox page, and developer resource titles that name OrchestKit."><meta property="og:url" content="https://orchestkit.yonyon.ai/lab/orank-gaps-lane-a.html"><meta property="og:image" content="https://orchestkit.yonyon.ai/opengraph-image"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="orank gaps, lane A: actions card, sandbox, titles"><meta name="twitter:description" content="Three orank gaps closed after the orchestkit.dev move: a draft-spec card for the actions MCP, a linked sandbox page, and developer resource titles that name OrchestKit."><meta name="twitter:image" content="https://orchestkit.yonyon.ai/opengraph-image"><!-- ork-lab-head:end --></head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>orank gaps, lane A</h1>
+      <p class="lead">Three gaps orank still named on 2026-10-21 after the orchestkit.dev move (#4819). Score before: 91/100.</p>
+    </div>
+    <button id="theme" type="button" aria-label="Toggle dark mode">Dark</button>
+  </header>
+
+  <section class="kpis" aria-label="Key numbers">
+    <div class="kpi"><b>91</b><span>orank score before</span></div>
+    <div class="kpi"><b>?</b><span>orank score after: scanned after deploy</span></div>
+    <div class="kpi"><b>6</b><span>ai-catalog entries (was 5)</span></div>
+    <div class="kpi"><b>10</b><span>developer resources retitled</span></div>
+  </section>
+
+  <h2>The three gaps</h2>
+  <table>
+    <thead><tr><th>orank check</th><th>Fix</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td>MCP server card (actions)</td><td>New draft-spec card at <code>/api/mcp/actions/server-card</code>: name <code>dev.orchestkit/actions</code>, description of 100 characters or fewer, <code>remotes[].url</code> is <code>https://orchestkit.dev/api/mcp/actions</code>, no <code>tools[]</code>. ai-catalog.json lists it with the same trust manifest as every other entry.</td><td class="ok">in this PR</td></tr>
+      <tr><td>Sandbox and test mode</td><td>The "try safely" page is now a developer resource (kind "Sandbox and test mode"), so <code>/developers</code>, <code>/developers.md</code> and llms.txt list it. llms.txt gets a sandbox line for agents, and the page says production is the test mode: every hosted tool is read-only.</td><td class="ok">in this PR</td></tr>
+      <tr><td>Developer resource discoverability</td><td>Every developer resource title carries "OrchestKit" (for example "OrchestKit CLI (npm)"). llms.txt links both draft-spec cards.</td><td class="ok">in this PR</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Try the titles</h2>
+  <p>Pick a resource to see the title before and after.</p>
+  <label for="pick">Resource</label>
+  <select id="pick"></select>
+  <table><tbody><tr><th>Before</th><td id="before"></td></tr><tr><th>After</th><td id="after"></td></tr></tbody></table>
+
+  <h2>Caveats</h2>
+  <ul>
+    <li>Both cards keep <code>$schema</code> as the identifier orank names; that URL answers 404 today. Both read one <code>SERVER_CARD_SCHEMA</code> constant.</li>
+    <li>The after score is unknown until this deploys. It is read from the orank scan API, not estimated here.</li>
+    <li>The older <code>/.well-known/mcp/actions-server-card.json</code> (with tools) stays served.</li>
+  </ul>
+
+  <footer>Card orank-gaps-2026-10-21, lane A. Made with Claude Code, 2026-10-22.</footer>
+</main>
+<script>
+  (function () {
+    var rows = [
+      ["MCP server (hosted, Streamable HTTP)", "OrchestKit Docs MCP server (hosted, Streamable HTTP)"],
+      ["MCP server (stdio, Docker image)", "OrchestKit Docs MCP server (stdio, Docker image)"],
+      ["NLWeb natural-language endpoint", "OrchestKit NLWeb natural-language endpoint"],
+      ["CLI (npm)", "OrchestKit CLI (npm)"],
+      ["Python package (PyPI)", "OrchestKit Python package (PyPI)"],
+      ["API versioning & deprecation policy", "OrchestKit API versioning and deprecation policy"],
+      ["llms.txt", "OrchestKit llms.txt"],
+      ["API catalog (RFC 9727)", "OrchestKit API catalog (RFC 9727)"],
+      ["Source code (GitHub)", "OrchestKit source code (GitHub)"],
+      ["MCP registry entry", "OrchestKit MCP registry entry"],
+      ["(none)", "OrchestKit sandbox and test mode"]
+    ];
+    var pick = document.getElementById("pick");
+    rows.forEach(function (r, i) { var o = document.createElement("option"); o.value = i; o.textContent = r[1]; pick.appendChild(o); });
+    function show() { var r = rows[pick.value]; document.getElementById("before").textContent = r[0]; document.getElementById("after").textContent = r[1]; }
+    pick.addEventListener("change", show); show();
+  })();
+</script>
+<script>
+  (function () {
+    var btn = document.getElementById("theme");
+    var root = document.documentElement;
+    function set(t) { root.setAttribute("data-theme", t); btn.textContent = t === "dark" ? "Light" : "Dark"; }
+    set(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    btn.addEventListener("click", function () { set(root.getAttribute("data-theme") === "dark" ? "light" : "dark"); });
+  })();
+</script>
+<!-- ork-lab-chrome:start --><footer id="ork-lab-chrome" style="position:relative;z-index:2147483000;clear:both;box-sizing:border-box;width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px;margin:48px 0 0;padding:16px 24px;border:0;border-top:1px solid rgba(148,163,184,.25);background:#0d1017;color:#cbd5e1;font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;text-align:left"><a href="/" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0;color:#f8fafc;font-weight:700">OrchestKit</a><nav aria-label="OrchestKit site" style="display:flex;flex-wrap:wrap;gap:8px 20px;margin:0;padding:0"><a href="/docs" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">Read the docs</a><a href="/docs/getting-started/installation" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">Install</a><a href="/docs/showcase/lab" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">More playgrounds</a><a href="https://github.com/yonatangross/orchestkit" rel="noopener" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">GitHub</a></nav></footer><script>(function(){var f=document.getElementById("ork-lab-chrome"),framed;try{framed=window.self!==window.top}catch(e){framed=true}if(framed){if(f)f.remove();return}var h=location.hostname;if(h==="localhost"||h==="127.0.0.1")return;try{var b=JSON.stringify({project_id:"orchestkit",events:[{name:"page_view",path:location.pathname,referrer:document.referrer||"",timestamp:new Date().toISOString()}]});if(navigator.sendBeacon){navigator.sendBeacon("/api/analytics",new Blob([b],{type:"application/json"}))}else{fetch("/api/analytics",{method:"POST",headers:{"Content-Type":"application/json"},body:b,keepalive:true}).catch(function(){return null})}}catch(e){return null}})();</script><!-- ork-lab-chrome:end --></body>
+</html>
