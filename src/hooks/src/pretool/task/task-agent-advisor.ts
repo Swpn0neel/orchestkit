@@ -241,6 +241,63 @@ export const CONDITIONAL_STOP_PATTERN =
 export const REPORT_ONLY_PATTERN = /\b(?:report(?: back)? only|only report|read[- ]only)\b/i;
 
 /**
+ * Clause breaks inside a conditional-stop span: punctuation plus the closed class
+ * of English coordinating and subordinating conjunctions and clause adverbs. A
+ * second clause cannot start inside an obstacle without one of them, so the
+ * obstacle piece ends where the condition ends. The condition words are breaks
+ * too, so the piece right after one is the obstacle on its own.
+ */
+const STOP_SPAN_BREAK =
+  /([,:]|\b(?:if|when|whenever|in case|and|or|nor|but|yet|so|then|instead|however|otherwise|unless|before|after|while|whilst|until|till|once|as soon as|because|since|although|though|whereas|except|plus|also|meanwhile|afterwards|later|next|finally)\b)/i;
+const CONDITION_WORD = /^(?:if|when|whenever|in case)$/i;
+
+/**
+ * What may stand before a routed match for that match to BE the obstacle: nothing,
+ * a determiner ("the deploy to production breaks"), or a subject with a verb of
+ * running into something ("you hit merge conflicts"). Anything else ("ready",
+ * "the build passes") means the condition ended and an instruction followed with
+ * no comma, so the piece is kept.
+ */
+const OBSTACLE_HEAD =
+  /^(?:(?:the|a|an|any|this|that|these|those|our|your|its|their|my)|(?:you|we|it|they|i)\s+(?:hit|hits|see|sees|get|gets|run into|runs into|encounter|encounters|find|finds|face|faces|trigger|triggers)(?:\s+(?:the|a|an|any))?)?$/i;
+
+/** True when the routed match in an obstacle piece is the obstacle itself. */
+function isPureObstacle(piece: string): boolean {
+  let first = -1;
+  for (const domain of SPECIALIST_DOMAINS) {
+    const m = domain.pattern.exec(piece);
+    if (m && (first < 0 || m.index < first)) first = m.index;
+  }
+  return first < 0 || OBSTACLE_HEAD.test(piece.slice(0, first).trim());
+}
+
+/**
+ * What a conditional-stop span leaves behind (#4835). Its boundaries are words,
+ * and an instruction can sit between the stop and its condition joined by any of
+ * them ("stop X but deploy to production if Y"), so the span is not dropped whole
+ * (reviewer HOLD 6344107617, round 3). It is split at its clause breaks, the
+ * obstacle (the piece right after if, when, whenever or in case) is dropped, and
+ * every other piece the routing detector (SPECIALIST_DOMAINS) matches is kept, so
+ * a risky action in the span still routes whatever word joins it. An obstacle
+ * that itself names the work ("stop and ask if the deploy to production breaks")
+ * is still removed, but only when the routed match IS the obstacle (OBSTACLE_HEAD);
+ * a condition that runs into an instruction with no comma ("if ready deploy to
+ * production, stop") keeps it, an extra ask by design (XREVIEW HOLD 6346226707).
+ * Exported for tests.
+ */
+export function stripConditionalStop(span: string): string {
+  const parts = span.split(STOP_SPAN_BREAK);
+  const kept: string[] = [];
+  for (let i = 0; i < parts.length; i += 2) {
+    const breakBefore = i > 0 ? parts[i - 1].trim() : '';
+    const piece = parts[i];
+    if (CONDITION_WORD.test(breakBefore) && isPureObstacle(piece)) continue;
+    if (SPECIALIST_DOMAINS.some((domain) => domain.pattern.test(piece))) kept.push(piece.trim());
+  }
+  return kept.length > 0 ? ` ${kept.join('. ')}. ` : ' ';
+}
+
+/**
  * Remove guard-rail sentences before domain matching (#4835): a prohibition ("do
  * not deploy to production", "never rebase the release branch") and a conditional
  * stop ("if you hit merge conflicts, stop and report") name work the agent must NOT
@@ -250,7 +307,7 @@ export const REPORT_ONLY_PATTERN = /\b(?:report(?: back)? only|only report|read[
 export function stripGuardRails(text: string): string {
   return text
     .replace(AFFIRMATIVE_REMINDER_PATTERN, '.')
-    .replace(CONDITIONAL_STOP_PATTERN, ' ')
+    .replace(CONDITIONAL_STOP_PATTERN, (span) => stripConditionalStop(span))
     .replace(NEGATED_CLAUSE_PATTERN, ' ');
 }
 

@@ -695,6 +695,54 @@ describe('#4835 advisor decides on the description and ignores negated asks', ()
     expect(matchSpecialistDomain('', text)).toBe(expected);
   });
 
+  // Reviewer HOLD 6344107617 round 3: the STOP side crossed but, instead, however,
+  // or and "and check ... before you", so an instruction between a leading stop
+  // and its later condition was removed. A stop span is no longer dropped whole:
+  // only its obstacle (the piece right after if/when) goes, and any other piece
+  // the routing detector matches stays in the text.
+  test.each([
+    ['Stop the canary but deploy to production if the checks pass.', 'ork:deployment-manager'],
+    ['Stop the old job instead deploy to production when ready.', 'ork:deployment-manager'],
+    ['Halt the canary however deploy to production if green.', 'ork:deployment-manager'],
+    ['Stop the old worker or deploy to production if it is idle.', 'ork:deployment-manager'],
+    ['Stop and check staging before you deploy to production if green.', 'ork:deployment-manager'],
+  ])('an ask between a stop and its later condition still routes: "%s" → %s', (text, expected) => {
+    expect(matchSpecialistDomain('', text)).toBe(expected);
+  });
+
+  // The obstacle piece ends at any conjunction or clause adverb, so an
+  // instruction joined to the condition by one of them is not dropped with it.
+  test.each([
+    ['Stop if the checks fail while you deploy to production.', 'ork:deployment-manager'],
+    ['Halt if it is red so deploy to production manually.', 'ork:deployment-manager'],
+    ['Stop if the canary fails plus deploy to production.', 'ork:deployment-manager'],
+    ['Abort if CI is red because you must rebase the feature branch onto main.', 'ork:git-operations-engineer'],
+  ])('an ask joined to the condition by a subordinator still routes: "%s" → %s', (text, expected) => {
+    expect(matchSpecialistDomain('', text)).toBe(expected);
+  });
+
+  // XREVIEW HOLD 6346226707 Must: "or else" and "otherwise" after a stop.
+  test.each([
+    ['If it breaks, stop or else deploy to production.', 'ork:deployment-manager'],
+    ['If it breaks, stop otherwise deploy to production.', 'ork:deployment-manager'],
+    ['Stop if it breaks or else deploy to production.', 'ork:deployment-manager'],
+    ['Stop if it breaks otherwise deploy to production.', 'ork:deployment-manager'],
+  ])('an ask after "or else" or "otherwise" still routes: "%s" → %s', (text, expected) => {
+    expect(matchSpecialistDomain('', text)).toBe(expected);
+  });
+
+  // XREVIEW HOLD 6346226707 Should, pinned as a choice: a condition with no comma
+  // runs into the instruction. The obstacle is dropped only when its routed match
+  // IS the obstacle (the condition's subject, or the object of hit, see, get and
+  // the like); anything else before the match keeps the piece, an extra ask.
+  test.each([
+    ['If ready deploy to production, then stop.', 'ork:deployment-manager'],
+    ['When done deploy to production, stop.', 'ork:deployment-manager'],
+    ['If the build passes deploy to production, stop if it fails.', 'ork:deployment-manager'],
+  ])('a comma-less condition does not swallow the instruction: "%s" → %s', (text, expected) => {
+    expect(matchSpecialistDomain('', text)).toBe(expected);
+  });
+
   test.each([
     ['Stop and ask if the deploy to production breaks.'],
     ['When you hit merge conflicts, just stop and report back.'],
