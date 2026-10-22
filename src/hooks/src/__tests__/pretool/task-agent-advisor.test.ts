@@ -679,6 +679,38 @@ describe('#4835 advisor decides on the description and ignores negated asks', ()
     expect(matchSpecialistDomain('', text)).toBe(expected);
   });
 
+  // XREVIEW HOLD 6343034324 must 1: the stop clause ran to the end of the
+  // sentence, so an ask after it in the same sentence was dropped (a silent
+  // allow that main did not have). The clause now ends at a comma, and, then,
+  // but, instead or however, as NEGATED_CLAUSE_PATTERN does.
+  test.each([
+    ['If you hit merge conflicts, stop and report, then deploy to production.', 'ork:deployment-manager'],
+    ['Stop and ask if the build breaks, then deploy to production.', 'ork:deployment-manager'],
+    ['Stop if you hit merge conflicts and deploy to staging.', 'ork:deployment-manager'],
+  ])('an ask after a stop clause in the same sentence still routes: "%s" → %s', (text, expected) => {
+    expect(matchSpecialistDomain('', text)).toBe(expected);
+  });
+
+  test.each([
+    ['Stop and ask if the deploy to production breaks.'],
+    ['If the build and the deploy to staging fail, stop.'],
+    ['When you hit merge conflicts, just stop and report back.'],
+  ])('the obstacle inside a stop clause is still removed: "%s"', (text) => {
+    expect(matchSpecialistDomain('', text)).toBeNull();
+  });
+
+  // XREVIEW HOLD 6343034324 must 2, behavior pinned on purpose: in "do not X and
+  // Y" the negation ends at "and" (unless Y is commit, push or edit), so Y still
+  // routes. English reads it both ways; an extra ask is the safe error, a
+  // negation that also swallowed Y would be a silent allow for "do not deploy
+  // and rebase the branch onto main" read as an instruction to rebase.
+  test.each([
+    ['Do not deploy to staging and rebase the feature branch onto main.', 'ork:git-operations-engineer'],
+    ['Never touch production and write unit tests for the parser.', 'ork:test-generator'],
+  ])('"do not X and Y" keeps Y: "%s" → %s', (text, expected) => {
+    expect(matchSpecialistDomain('', text)).toBe(expected);
+  });
+
   test('a read-only task with a real domain match gets a note, not an ask', () => {
     const result = taskAgentAdvisor(
       makeInput({ subagent_type: 'general-purpose', description: 'Review the release notes', prompt: 'Read only.' }),
