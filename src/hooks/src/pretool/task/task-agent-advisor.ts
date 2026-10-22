@@ -261,6 +261,14 @@ const CONDITION_WORD = /^(?:if|when|whenever|in case)$/i;
 const OBSTACLE_HEAD =
   /^(?:(?:the|a|an|any|this|that|these|those|our|your|its|their|my)|(?:you|we|it|they|i)\s+(?:hit|hits|see|sees|get|gets|run into|runs into|encounter|encounters|find|finds|face|faces|trigger|triggers)(?:\s+(?:the|a|an|any))?)?$/i;
 
+/**
+ * The sentence points back at the condition's work ("then do it", "and ship
+ * that", "if so"), so the work named only in the condition is the instruction
+ * (reviewer HOLD 6346951302).
+ */
+const BACK_REFERENCE =
+  /\b(?:then|and|so)\s+(?:\w+ly\s+)?(?:do|run|apply|ship|perform|execute|proceed with|go ahead with|carry out)\s+(?:it|that|this|them)\b|\bif so\b/i;
+
 /** True when the routed match in an obstacle piece is the obstacle itself. */
 function isPureObstacle(piece: string): boolean {
   let first = -1;
@@ -285,13 +293,14 @@ function isPureObstacle(piece: string): boolean {
  * production, stop") keeps it, an extra ask by design (XREVIEW HOLD 6346226707).
  * Exported for tests.
  */
-export function stripConditionalStop(span: string): string {
+export function stripConditionalStop(span: string, rest = ''): string {
+  const pointsBack = BACK_REFERENCE.test(`${span} ${rest}`);
   const parts = span.split(STOP_SPAN_BREAK);
   const kept: string[] = [];
   for (let i = 0; i < parts.length; i += 2) {
     const breakBefore = i > 0 ? parts[i - 1].trim() : '';
     const piece = parts[i];
-    if (CONDITION_WORD.test(breakBefore) && isPureObstacle(piece)) continue;
+    if (CONDITION_WORD.test(breakBefore) && !pointsBack && isPureObstacle(piece)) continue;
     if (SPECIALIST_DOMAINS.some((domain) => domain.pattern.test(piece))) kept.push(piece.trim());
   }
   return kept.length > 0 ? ` ${kept.join('. ')}. ` : ' ';
@@ -307,7 +316,9 @@ export function stripConditionalStop(span: string): string {
 export function stripGuardRails(text: string): string {
   return text
     .replace(AFFIRMATIVE_REMINDER_PATTERN, '.')
-    .replace(CONDITIONAL_STOP_PATTERN, (span) => stripConditionalStop(span))
+    .replace(CONDITIONAL_STOP_PATTERN, (span: string, offset: number, whole: string) =>
+      stripConditionalStop(span, whole.slice(offset + span.length).split(/[.!?\n]/, 1)[0]),
+    )
     .replace(NEGATED_CLAUSE_PATTERN, ' ');
 }
 

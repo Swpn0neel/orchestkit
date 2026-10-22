@@ -743,6 +743,18 @@ describe('#4835 advisor decides on the description and ignores negated asks', ()
     expect(matchSpecialistDomain('', text)).toBe(expected);
   });
 
+  // Reviewer HOLD 6346951302: the work named only in the condition is the work
+  // when the sentence points back to it ("then do it", "if so"), so the obstacle
+  // keeps its routed match.
+  test.each([
+    ['Stop and check if a deploy to production is needed, then do it.', 'ork:deployment-manager'],
+    ['Stop and ask if a rebase onto main is needed, then do it.', 'ork:git-operations-engineer'],
+    ['Stop and check whether you hit merge conflicts; if so, resolve them.', 'ork:git-operations-engineer'],
+    ['Stop and ask if a deploy to production is needed; if so, do it.', 'ork:deployment-manager'],
+  ])('a condition the instruction points back to keeps its work: "%s" → %s', (text, expected) => {
+    expect(matchSpecialistDomain('', text)).toBe(expected);
+  });
+
   test.each([
     ['Stop and ask if the deploy to production breaks.'],
     ['When you hit merge conflicts, just stop and report back.'],
