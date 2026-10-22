@@ -2,13 +2,13 @@
   "mode": "split",
   "bundles": {
     "permission": {
-      "size": 29008,
-      "sizeKB": "28.33",
+      "size": 29592,
+      "sizeKB": "28.90",
       "exports": 70
     },
     "pretool": {
-      "size": 142636,
-      "sizeKB": "139.29",
+      "size": 143040,
+      "sizeKB": "139.69",
       "exports": 86
     },
     "posttool": {
@@ -57,8 +57,8 @@
       "exports": 70
     }
   },
-  "totalSize": 693555,
-  "totalSizeKB": "677.30",
+  "totalSize": 694543,
+  "totalSizeKB": "678.26",
   "inputs": 113,
-  "avgBundleSizeKB": "61.57"
+  "avgBundleSizeKB": "61.66"
 }
