@@ -1,0 +1,12 @@
+{
+  "slug": "4856-stop-npm-audit-daily",
+  "source": "docs/fix--stop-npm-audit-daily/index.html",
+  "title": "Stop hook: npm audit at most once a day",
+  "description": "Move a slider for the hours since the last audit and see whether the stop hook runs npm audit or skips it.",
+  "tags": [
+    "hooks",
+    "stop-hook",
+    "performance"
+  ],
+  "date": "2026-10-22"
+}

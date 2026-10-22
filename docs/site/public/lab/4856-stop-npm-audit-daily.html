@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stop hook: npm audit at most once a day</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; color: #1b1b1b; background: #fafafa; }
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; }
+  code { background: #eee; padding: 0.1rem 0.3rem; border-radius: 3px; }
+  .box { border: 1px solid #ccc; background: #fff; padding: 1rem; border-radius: 6px; }
+  input[type=range] { width: 100%; }
+  .result { font-weight: 600; margin-top: 0.5rem; }
+  .run { color: #8a4b00; }
+  .skip { color: #1a6b2f; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; }
+</style>
+<!-- ork-lab-head:start --><meta property="og:type" content="website"><meta property="og:site_name" content="OrchestKit"><meta property="og:title" content="Stop hook: npm audit at most once a day"><meta property="og:description" content="Move a slider for the hours since the last audit and see whether the stop hook runs npm audit or skips it."><meta property="og:url" content="https://orchestkit.yonyon.ai/lab/4856-stop-npm-audit-daily.html"><meta property="og:image" content="https://orchestkit.yonyon.ai/opengraph-image"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Stop hook: npm audit at most once a day"><meta name="twitter:description" content="Move a slider for the hours since the last audit and see whether the stop hook runs npm audit or skips it."><meta name="twitter:image" content="https://orchestkit.yonyon.ai/opengraph-image"><!-- ork-lab-head:end --></head>
+<body>
+<h1>Stop hook: <code>npm audit</code> at most once a day</h1>
+<p>The security scan that runs when a session stops used to call <code>npm audit --json</code> every time the working tree was dirty. That is a registry round trip per stop, and with many sessions open it adds up to real CPU and network load.</p>
+
+<h2>What changes</h2>
+<p><code>stop/security-scan-aggregator.ts</code> now keeps a small stamp file per project in the temp directory (named from a hash of the project path). If the stamp is younger than 24 hours, the audit is skipped and reported as "not run". The stamp is written before the audit starts, so a timeout or failure also holds off an immediate retry. The other scans (pip-audit, semgrep, bandit, secret scan) are unchanged.</p>
+
+<h2>Try it</h2>
+<div class="box">
+  <label for="age">Hours since the last audit of this project: <strong id="hours">0</strong></label>
+  <input id="age" type="range" min="0" max="48" step="1" value="0">
+  <div class="result" id="out"></div>
+</div>
+
+<h2>Behavior</h2>
+<table>
+  <tr><th>Situation</th><th>npm audit</th></tr>
+  <tr><td>First stop, no stamp</td><td>runs, stamp written</td></tr>
+  <tr><td>Stop within 24 hours</td><td>skipped</td></tr>
+  <tr><td>Stamp older than 24 hours</td><td>runs again</td></tr>
+  <tr><td>Temp directory not writable</td><td>runs on every stop, as before</td></tr>
+</table>
+
+<h2>Tests</h2>
+<p>Two tests in <code>security-scan-aggregator.test.ts</code> put a fake <code>npm</code> first on <code>PATH</code> and count real calls: a second stop inside 24 hours runs nothing, and a stamp older than 24 hours lets the audit run again. Against the unchanged source they fail, so they test the change.</p>
+
+<script>
+  var age = document.getElementById('age');
+  var hours = document.getElementById('hours');
+  var out = document.getElementById('out');
+  function update() {
+    var h = Number(age.value);
+    hours.textContent = h;
+    if (h >= 24) {
+      out.className = 'result run';
+      out.textContent = 'npm audit runs (the stamp is 24 hours old or older).';
+    } else {
+      out.className = 'result skip';
+      out.textContent = 'npm audit is skipped (audited ' + h + ' hours ago).';
+    }
+  }
+  age.addEventListener('input', update);
+  update();
+</script>
+<!-- ork-lab-chrome:start --><footer id="ork-lab-chrome" style="position:relative;z-index:2147483000;clear:both;box-sizing:border-box;width:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px;margin:48px 0 0;padding:16px 24px;border:0;border-top:1px solid rgba(148,163,184,.25);background:#0d1017;color:#cbd5e1;font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;text-align:left"><a href="/" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0;color:#f8fafc;font-weight:700">OrchestKit</a><nav aria-label="OrchestKit site" style="display:flex;flex-wrap:wrap;gap:8px 20px;margin:0;padding:0"><a href="/docs" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">Read the docs</a><a href="/docs/getting-started/installation" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">Install</a><a href="/docs/showcase/lab" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">More playgrounds</a><a href="https://github.com/yonatangross/orchestkit" rel="noopener" style="color:#a5b4fc;text-decoration:none;font:inherit;background:none;border:0;padding:0;margin:0">GitHub</a></nav></footer><script>(function(){var f=document.getElementById("ork-lab-chrome"),framed;try{framed=window.self!==window.top}catch(e){framed=true}if(framed){if(f)f.remove();return}var h=location.hostname;if(h==="localhost"||h==="127.0.0.1")return;try{var b=JSON.stringify({project_id:"orchestkit",events:[{name:"page_view",path:location.pathname,referrer:document.referrer||"",timestamp:new Date().toISOString()}]});if(navigator.sendBeacon){navigator.sendBeacon("/api/analytics",new Blob([b],{type:"application/json"}))}else{fetch("/api/analytics",{method:"POST",headers:{"Content-Type":"application/json"},body:b,keepalive:true}).catch(function(){return null})}}catch(e){return null}})();</script><!-- ork-lab-chrome:end --></body>
+</html>
