@@ -611,3 +611,90 @@ describe('#4649 routing hint checks build intent against the agent tools', () =>
     },
   );
 });
+
+/**
+ * #4835: the 12 rows measured in the issue, each on general-purpose in the
+ * default permission mode. Part 1: the #4630 read and worktree shapes are
+ * decided on the description, so a realistic prompt keeps the nudge. Part 2:
+ * a guard-rail sentence ("do not X", "stop and report", "report only") never
+ * raises a permission ask for the agent of X.
+ */
+describe('#4835 advisor decides on the description and ignores negated asks', () => {
+  const WORKTREE_NOTE = 'git worktree add';
+  const READ_NOTE = 'Reading a file needs no subagent';
+
+  test.each([
+    ['Create a git worktree for the fix', '', WORKTREE_NOTE],
+    ['Create a git worktree for the fix', 'Create a git worktree for the fix branch and print its path.', WORKTREE_NOTE],
+    ['Create a git worktree for the fix', 'Run git worktree add ../wt -b fix/x and report the path.', WORKTREE_NOTE],
+    ['Read example-bot.yml workflow', '', READ_NOTE],
+    ['Read example-bot.yml workflow', 'Read .github/workflows/example-bot.yml and explain what triggers it.', READ_NOTE],
+    ['Read apply-db.sh', 'Read apply-db.sh and report what it does.', READ_NOTE],
+    ['Read docs/intro-to-terraform.md', '', READ_NOTE],
+    ['Read docs/terraform-intro.md', '', READ_NOTE],
+  ])('part 1: "%s" with prompt "%s" gets the nudge, never silence or ask', (description, prompt, note) => {
+    const result = taskAgentAdvisor(makeInput({ subagent_type: 'general-purpose', description, prompt }));
+    expect(result.continue).toBe(true);
+    expect(decisionOf(result)).not.toBe('ask');
+    expect(contextOf(result)).toContain(note);
+  });
+
+  test.each([
+    ['Summarize the design doc', 'If you hit merge conflicts, stop and report.', 'ork:git-operations-engineer'],
+    ['Update the docs', 'Do not deploy to production.', 'ork:deployment-manager'],
+    ['Review the release notes', 'Do not commit and push. Report only.', 'ork:release-engineer'],
+  ])('part 2: "%s" with guard rail "%s" never asks for %s', (description, prompt, agent) => {
+    const result = taskAgentAdvisor(makeInput({ subagent_type: 'general-purpose', description, prompt }));
+    expect(result.continue).toBe(true);
+    expect(decisionOf(result)).not.toBe('ask');
+    expect(reasonOf(result)).not.toContain(agent);
+  });
+
+  test('part 2: "Build the changelog page React component" asks for the frontend agent, not release', () => {
+    const result = taskAgentAdvisor(
+      makeInput({ subagent_type: 'general-purpose', description: 'Build the changelog page React component' }),
+    );
+    expect(decisionOf(result)).toBe('ask');
+    expect(reasonOf(result)).toContain('ork:frontend-ui-developer');
+    expect(reasonOf(result)).not.toContain('ork:release-engineer');
+  });
+
+  // Guards on the guard: the fix must not silence real asks.
+  test.each([
+    ['Plan a blue-green deploy to production. Do not commit.', 'ork:deployment-manager'],
+    ['Do not forget to deploy to production after the review', 'ork:deployment-manager'],
+    ['Do not just review: resolve the merge conflicts on the feature branch', 'ork:git-operations-engineer'],
+    ['Write the changelog for 2.3.0', 'ork:release-engineer'],
+  ])('a real domain ask next to a negation still routes: "%s" → %s', (text, expected) => {
+    expect(matchSpecialistDomain(text, '')).toBe(expected);
+  });
+
+  test.each([
+    ['Do not deploy to production.', null],
+    ["Don't touch the terraform module.", null],
+    ['Never rebase the release branch onto main.', null],
+    ['If you hit merge conflicts, stop and report.', null],
+    ['When the CVE-2026-1234 scan fails, stop and ask.', null],
+  ])('a guard-rail sentence alone matches no specialist: "%s"', (text, expected) => {
+    expect(matchSpecialistDomain('', text)).toBe(expected);
+  });
+
+  test('a read-only task with a real domain match gets a note, not an ask', () => {
+    const result = taskAgentAdvisor(
+      makeInput({ subagent_type: 'general-purpose', description: 'Review the release notes', prompt: 'Read only.' }),
+    );
+    expect(decisionOf(result)).not.toBe('ask');
+    expect(contextOf(result)).toContain('ork:release-engineer');
+  });
+
+  test('a prompt that asks to build still turns the read nudge off', () => {
+    const result = taskAgentAdvisor(
+      makeInput({
+        subagent_type: 'general-purpose',
+        description: 'Read apply-db.sh',
+        prompt: 'Read apply-db.sh, then fix the lock timeout and commit.',
+      }),
+    );
+    expect(contextOf(result)).not.toContain(READ_NOTE);
+  });
+});
