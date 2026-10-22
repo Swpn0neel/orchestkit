@@ -711,3 +711,47 @@ describe('learningTracker', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Hardening (card ork-autoapprove-fix-2026-10-22): learned patterns match on a
+// token boundary and never bypass the reject and expansion checks.
+// ---------------------------------------------------------------------------
+
+describe('learningTracker learned-pattern hardening', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    _resetPatternCacheForTesting();
+  });
+
+  function learn(patterns: string[]): void {
+    (existsSync as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    (readFileSync as ReturnType<typeof vi.fn>).mockReturnValue(JSON.stringify({ autoApprovePatterns: patterns }));
+  }
+
+  function allowed(cmd: string): boolean {
+    const r = learningTracker(createBashInput(cmd));
+    return r.hookSpecificOutput?.decision?.behavior === 'allow' || r.hookSpecificOutput?.permissionDecision === 'allow';
+  }
+
+  test('a learned prefix only matches at a word boundary', () => {
+    learn(['git st']);
+    expect(allowed('git stash drop')).toBe(false);
+  });
+
+  test('a learned pattern does not cover glob or expansion characters', () => {
+    learn(['cat']);
+    expect(allowed('cat $HOME/notes.txt')).toBe(false);
+    expect(allowed('cat ~/.ss?/config')).toBe(false);
+  });
+
+  test('a learned pattern does not cover a reject-listed shape', () => {
+    learn(['cat']);
+    expect(allowed('cat ~/.ssh/config')).toBe(false);
+  });
+
+  test('control: an exact learned command and its arguments still allow', () => {
+    learn(['git status']);
+    expect(allowed('git status')).toBe(true);
+    expect(allowed('git status --short')).toBe(true);
+  });
+});

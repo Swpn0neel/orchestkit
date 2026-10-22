@@ -39,6 +39,11 @@ export const REJECT_PATTERNS: RegExp[] = [
   // under Bash(find:*); we mirror it.
   /^find\b[^\n]*?\s-(delete|fprint[0-9a-z]*|fls|ok|exec|execdir)\b/,
 
+  // git options that run a configured or supplied program, write a file, or
+  // point git at another repository (whose config can run programs). The
+  // read-only subcommand allowlist cannot see these, so they drop to a prompt.
+  /^git\s[^\n]*?(?:^|\s)(?:-c|-C|--upload-pack|--receive-pack|--exec|--output|--ext-diff|--config-env|--git-dir|--work-tree)(?=[=\s]|$)/,
+
   // Credential-path arguments (#4216 HR-1): secret material must never
   // auto-approve under a read-only prefix. Keying on the reader left the
   // door open: `fmt ~/.ssh/id_rsa`, `pr ~/.aws/credentials`, `comm` and
@@ -48,7 +53,10 @@ export const REJECT_PATTERNS: RegExp[] = [
   // Covers the usual secret stores; envrc sits next to env (direnv dumps
   // exports), master.passwd is the macOS shadow, and gh/hosts.yml holds
   // the gh CLI OAuth tokens.
-  /(?:\/etc\/(?:shadow|gshadow|sudoers|master\.passwd)|\.(?:ssh|aws|gnupg|kube|docker|netrc|git-credentials|npmrc|pypirc|env|envrc|credentials?)\b|id_(?:rsa|ed25519|ecdsa|dsa)\b|\.(?:pem|key|p12|pfx|keystore)\b|\.config\/gh\/hosts\.yml\b)/,
+  // Case-insensitive: macOS filesystems are, so .SSH names the same store.
+  // Globs and expansion can still spell a store indirectly; the auto-approve
+  // and retry hooks refuse those up front (hasUnquotedExpansion).
+  /(?:\/etc\/(?:shadow|gshadow|sudoers|master\.passwd)|\.(?:ssh|aws|gnupg|kube|docker|netrc|git-credentials|npmrc|pypirc|env|envrc|credentials?)\b|id_(?:rsa|ed25519|ecdsa|dsa)\b|\.(?:pem|key|p12|pfx|keystore)\b|\.config\/gh\/hosts\.yml\b)/i,
 ];
 
 // Note: For compound command detection, use isCompoundCommand() from
