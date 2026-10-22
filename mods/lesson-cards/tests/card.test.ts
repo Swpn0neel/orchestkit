@@ -64,6 +64,20 @@ describe('allowed_form from a real hq-ext lesson reaches the context', () => {
     ]);
   });
 
+  test('an allowed form longer than the cap still respects the cap (CodeRabbit 4345028410)', () => {
+    const [m] = matchBashCommand('git ls-files | grep name', [real]);
+    const allowedLine = `\nALLOWED-FORM: ${m!.allowedForm}`;
+    for (const cap of [0, 2, 3, 10, allowedLine.length - 1, allowedLine.length, allowedLine.length + 2]) {
+      expect(formatContext(m!, cap).length).toBeLessThanOrEqual(cap);
+    }
+  });
+
+  test('when the allowed form fills the cap exactly, the body is dropped, not prefixed with dots', () => {
+    const [m] = matchBashCommand('git ls-files | grep name', [real]);
+    const allowedLine = `\nALLOWED-FORM: ${m!.allowedForm}`;
+    expect(formatContext(m!, allowedLine.length)).toBe(allowedLine);
+  });
+
   test('the cap never cuts the ALLOWED-FORM line', () => {
     const [m] = matchBashCommand('git ls-files | grep name', [real]);
     const text = formatContext(m!, 120);

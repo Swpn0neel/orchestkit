@@ -80,9 +80,16 @@ export function formatContext(lesson: MatchedLesson, maxLength = 32000): string 
   // The ALLOWED-FORM line is the command the agent should run instead, so it is
   // never cut by the cap: the body is trimmed to make room for it.
   const allowed = lesson.allowedForm ? `\nALLOWED-FORM: ${lesson.allowedForm}` : '';
-  const room = Math.max(0, maxLength - allowed.length);
-  if (text.length > room) {
-    text = text.slice(0, Math.max(0, room - 3)) + '...';
+  const room = maxLength - allowed.length;
+  if (allowed && room < 3) {
+    // No room left for any body: the cap still holds, the allowed form wins.
+    return allowed.length > maxLength ? truncate(allowed, maxLength) : allowed;
   }
-  return text + allowed;
+  return truncate(text, room) + allowed;
+}
+
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  if (max <= 3) return s.slice(0, Math.max(0, max));
+  return s.slice(0, max - 3) + '...';
 }
