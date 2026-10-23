@@ -28,7 +28,7 @@ import {
   hasBackgroundOperator,
   hasUnusualWhitespace,
 } from '../lib/normalize-command.js';
-import { REJECT_PATTERNS } from '../lib/bash-patterns.js';
+import { REJECT_PATTERNS, hasQuotedPackageManagerArgs } from '../lib/bash-patterns.js';
 import { NOOP_CTX } from '../lib/context.js';
 
 const HOOK_NAME = 'safe-command-retry';
@@ -102,6 +102,11 @@ export function safeCommandRetry(input: HookInput, ctx: HookContext = NOOP_CTX):
 
   if (hasUnquotedExpansion(command) || hasBackgroundOperator(command) || hasUnusualWhitespace(command)) {
     ctx.log(HOOK_NAME, 'Expansion or background operator — not retrying');
+    return outputSilentSuccess();
+  }
+
+  if (hasQuotedPackageManagerArgs(command)) {
+    ctx.log(HOOK_NAME, 'Quoted package-manager arguments — not retrying');
     return outputSilentSuccess();
   }
 

@@ -18,7 +18,7 @@ import {
   hasBackgroundOperator,
   hasUnusualWhitespace,
 } from '../lib/normalize-command.js';
-import { REJECT_PATTERNS } from '../lib/bash-patterns.js';
+import { REJECT_PATTERNS, hasQuotedPackageManagerArgs } from '../lib/bash-patterns.js';
 import { isPermissionAutoApproveEnabled } from '../lib/permission-auto-approve.js';
 import { NOOP_CTX } from '../lib/context.js';
 
@@ -122,6 +122,12 @@ export function autoApproveSafeBash(input: HookInput, ctx: HookContext = NOOP_CT
   // which file is read from the literal patterns below.
   if (command && (hasUnquotedExpansion(command) || hasBackgroundOperator(command) || hasUnusualWhitespace(command))) {
     ctx.log('auto-approve-safe-bash', 'Expansion or background operator, requiring manual approval');
+    return outputSilentSuccess();
+  }
+
+  // SEC: quoting must not reshape a package-manager script name.
+  if (command && hasQuotedPackageManagerArgs(command)) {
+    ctx.log('auto-approve-safe-bash', 'Quoted package-manager arguments, requiring manual approval');
     return outputSilentSuccess();
   }
 

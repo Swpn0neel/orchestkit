@@ -763,8 +763,8 @@ describe('learningTracker learned-pattern hardening', () => {
     }
     expect(allowed('git grep -n foo')).toBe(true);
     expect(allowed('git log -1')).toBe(true);
-    learn(['npm test']);
-    for (const cmd of ['npm test --script-shell=x', 'npm test --node-options=x', 'npm test --prefi=o']) {
+    learn(['npm test', 'npm run test']);
+    for (const cmd of ['npm test --script-shell=x', 'npm test --node-options=x', 'npm test --prefi=o', "npm run 'test x'", 'npm run "test x"']) {
       expect(allowed(cmd), cmd).toBe(false);
     }
     expect(allowed('npm test')).toBe(true);
