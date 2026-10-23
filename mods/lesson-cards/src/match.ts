@@ -205,7 +205,7 @@ function pathExcluded(pattern: LessonPattern, filePath: string): boolean {
  *
  * Steps:
  * 1. Blank quoted content and heredoc bodies for shell-faithful matching
- * 2. Check tool_names filter if present
+ * 2. Require an explicit Bash tool name
  * 3. Check trigger_pattern or pattern
  * 4. If block_pattern is set, must also match that (for guard patterns)
  */
@@ -223,7 +223,7 @@ export function matchBashCommand(
 
   for (const pat of patterns) {
     // Check tool_names filter
-    if (pat.tool_names && !pat.tool_names.includes('Bash')) {
+    if (!pat.tool_names?.includes('Bash')) {
       continue;
     }
 
@@ -269,6 +269,7 @@ export function matchBashCommand(
       severity: pat.severity,
       message: pat.message,
       fix: pat.example_fix,
+      allowedForm: pat.allowed_form,
       source: 'pattern',
     });
   }
@@ -345,13 +346,14 @@ export function matchFileEdit(
   filePath: string,
   content: string,
   patterns: LessonPattern[],
+  toolName: 'Edit' | 'Write',
   currentRepo?: string
 ): MatchedLesson[] {
   const matches: MatchedLesson[] = [];
 
   for (const pat of patterns) {
     // Check tool_names filter
-    if (pat.tool_names && !pat.tool_names.includes('Edit') && !pat.tool_names.includes('Write')) {
+    if (pat.tool_names && !pat.tool_names.includes(toolName)) {
       continue;
     }
 
@@ -364,7 +366,7 @@ export function matchFileEdit(
     // glob, exclude and check_patterns steps below do not apply to them.
     if (pat.type === 'block-check' || pat.type === 'dockerfile-check') {
       if (typedCheckFires(pat, filePath, content)) {
-        matches.push({ id: pat.id, severity: pat.severity, message: pat.message, fix: pat.example_fix, source: 'pattern' });
+        matches.push({ id: pat.id, severity: pat.severity, message: pat.message, fix: pat.example_fix, allowedForm: pat.allowed_form, source: 'pattern' });
       }
       continue;
     }
@@ -429,6 +431,7 @@ export function matchFileEdit(
       severity: pat.severity,
       message: pat.message,
       fix: pat.example_fix,
+      allowedForm: pat.allowed_form,
       source: 'pattern',
     });
   }

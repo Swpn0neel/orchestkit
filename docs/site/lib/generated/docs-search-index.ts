@@ -146,6 +146,11 @@ export const DOCS_SEARCH_INDEX: DocSearchEntry[] = [
     "description": "Skills are knowledge, agents are specialists, hooks are automation. Here's how they work together."
   },
   {
+    "url": "/docs/foundations/worktree",
+    "title": "Worktree isolation",
+    "description": "When to keep the default EnterWorktree isolation for background sessions, and when worktree.bgIsolation \\\"none\\\" is the right opt-in."
+  },
+  {
     "url": "/docs/getting-started/agy",
     "title": "Antigravity",
     "description": "Install OrchestKit skills in Google's Antigravity (agy). Agent Skills via skills.sh and workspace .agents/skills. No ork-agy pack; hooks and MCP config are a different contract."
@@ -263,7 +268,7 @@ export const DOCS_SEARCH_INDEX: DocSearchEntry[] = [
   {
     "url": "/docs/hooks/architecture",
     "title": "Hook Architecture",
-    "description": "How OrchestKit's 162-hook system works: bundles, dispatchers, execution modes, and the stop pipeline."
+    "description": "How OrchestKit's 163-hook system works: bundles, dispatchers, execution modes, and the stop pipeline."
   },
   {
     "url": "/docs/hooks",
@@ -282,7 +287,7 @@ export const DOCS_SEARCH_INDEX: DocSearchEntry[] = [
   },
   {
     "url": "/docs/hooks/overview",
-    "title": "162 Hooks: What Fires When",
+    "title": "163 Hooks: What Fires When",
     "description": "Every Claude Code lifecycle event in order, and the OrchestKit hooks that fire on it: unsafe command blocks, context injection, memory sync and quality gates."
   },
   {
@@ -563,7 +568,7 @@ export const DOCS_SEARCH_INDEX: DocSearchEntry[] = [
   {
     "url": "/docs/reference/hooks",
     "title": "OrchestKit Hooks Reference",
-    "description": "Complete reference for all 152 global lifecycle hook entries across 32 event categories."
+    "description": "Complete reference for all 153 global lifecycle hook entries across 32 event categories."
   },
   {
     "url": "/docs/reference/hooks/instructions-loaded",
@@ -628,7 +633,7 @@ export const DOCS_SEARCH_INDEX: DocSearchEntry[] = [
   {
     "url": "/docs/reference/hooks/pre-tool-use",
     "title": "PreToolUse",
-    "description": "Hooks triggered on PreToolUse events (20 hooks)."
+    "description": "Hooks triggered on PreToolUse events (21 hooks)."
   },
   {
     "url": "/docs/reference/hooks/session-end",
@@ -823,7 +828,7 @@ export const DOCS_SEARCH_INDEX: DocSearchEntry[] = [
   {
     "url": "/docs/reference/skills/browser-tools",
     "title": "Browser Tools",
-    "description": "Security wrapper over the upstream agent-browser skill, adding URL blocklisting, rate limiting, robots.txt enforcement, and scraping guardrails. Use when automating browser workflows that need safety limits."
+    "description": "Safety rules over the upstream agent-browser skill (scraping ethics, auth, request pacing, local URLs). URL policy is the Claude Code sandbox's job when the operator enables it. Use for browser automation."
   },
   {
     "url": "/docs/reference/skills/business-case",
@@ -998,7 +1003,7 @@ export const DOCS_SEARCH_INDEX: DocSearchEntry[] = [
   {
     "url": "/docs/reference/skills/doctor/references/hook-validation",
     "title": "Doctor: Hook Validation",
-    "description": "OrchestKit uses 152 global hook entries across 29 event types, compiled into 11 bundles."
+    "description": "OrchestKit uses 153 global hook entries across 32 event types, compiled into 11 bundles."
   },
   {
     "url": "/docs/reference/skills/doctor/references/mcp-pinning-check",

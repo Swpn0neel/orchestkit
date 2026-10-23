@@ -12,8 +12,11 @@ report a problem.
 Use GitHub's private reporting: [**Report a vulnerability**](https://github.com/yonatangross/orchestkit/security/advisories/new)
 (private vulnerability reporting is enabled on this repository).
 
-If you cannot use GitHub advisories, open a public issue containing **only** a
-request for a private channel — no details, no reproduction — and you will be
+**Security contact:** [hi@yonyon.ai](mailto:hi@yonyon.ai). Use it if you cannot use
+GitHub advisories. Reports from automated security scanners also go to this address.
+
+If you cannot use either, open a public issue containing **only** a
+request for a private channel, with no details and no reproduction, and you will be
 contacted to continue privately.
 
 Please include: the affected skill / agent / hook, the version or commit, what an
@@ -55,7 +58,7 @@ Out of scope:
   [skills.sh](https://skills.sh) are scanned by Snyk on install across its policy
   categories, including malicious code, prompt injection, toxic flows, suspicious
   downloads, and exposed credentials.
-- **CI gates.** CodeQL, dependency review with Dependabot auto-merge for patches,
+- **CI gates.** CodeQL, dependency review with a held label on Dependabot major bumps,
   an OpenSSF Scorecard run, and hook-contract tests run on the repository.
   Runtime secret controls ship in the plugin: `redact-secrets` warns on leaked
   tokens in tool output, `secret-handler` defaults to `ORK_SECRET_HOOK=AUDIT`

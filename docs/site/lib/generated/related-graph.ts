@@ -111,7 +111,7 @@ export const RELATED_GRAPH: RelatedGraphData = {
     },
     "/docs/foundations/mcp-servers": {
       "title": "OrchestKit MCP Servers",
-      "inbound": 4
+      "inbound": 5
     },
     "/docs/foundations/overview": {
       "title": "What is OrchestKit?",
@@ -120,6 +120,10 @@ export const RELATED_GRAPH: RelatedGraphData = {
     "/docs/foundations/skills-agents-hooks": {
       "title": "The 3 Building Blocks",
       "inbound": 5
+    },
+    "/docs/foundations/worktree": {
+      "title": "Worktree isolation",
+      "inbound": 1
     },
     "/docs/getting-started": {
       "title": "Getting Started",
@@ -1392,7 +1396,8 @@ export const RELATED_GRAPH: RelatedGraphData = {
       "/docs/foundations/choosing-a-plugin",
       "/docs/foundations/mcp-servers",
       "/docs/foundations/overview",
-      "/docs/foundations/skills-agents-hooks"
+      "/docs/foundations/skills-agents-hooks",
+      "/docs/foundations/worktree"
     ],
     "/docs/foundations/agent-attribution": [],
     "/docs/foundations/choosing-a-plugin": [
@@ -1414,6 +1419,7 @@ export const RELATED_GRAPH: RelatedGraphData = {
       "/docs/foundations/choosing-a-plugin",
       "/docs/getting-started/installation"
     ],
+    "/docs/foundations/worktree": [],
     "/docs/getting-started": [
       "/docs/getting-started/configuration",
       "/docs/getting-started/first-10-minutes",
@@ -2674,6 +2680,7 @@ export const RELATED_GRAPH: RelatedGraphData = {
     "/docs/troubleshooting/hook-debugging": [],
     "/docs/whats-new-v10": [
       "/docs/agents/overview",
+      "/docs/foundations/mcp-servers",
       "/docs/getting-started/agy",
       "/docs/getting-started/hosts",
       "/docs/getting-started/installation",

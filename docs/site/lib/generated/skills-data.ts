@@ -780,15 +780,14 @@ export const SKILLS: Record<string, SkillMeta> = {
   },
   "browser-tools": {
     "name": "browser-tools",
-    "description": "Security wrapper over the upstream agent-browser skill, adding URL blocklisting, rate limiting, robots.txt enforcement, and scraping guardrails. Use when automating browser workflows that need safety limits.",
+    "description": "Safety rules over the upstream agent-browser skill (scraping ethics, auth, request pacing, local URLs). URL policy is the Claude Code sandbox's job when the operator enables it. Use for browser automation.",
     "version": "6.1.0",
-    "sha256": "e4dd64b04885d28a9bde9f248795861c68a2cd3e36c6a5d8164d5a2ad0a7d906",
+    "sha256": "650e0b86176f1379f755fb34a59f9e9a75faf3a56bdee546288c9c51f97e151a",
     "author": "OrchestKit",
     "tags": [
       "browser",
       "automation",
       "security",
-      "rate-limiting",
       "scraping-ethics"
     ],
     "userInvocable": false,
@@ -976,7 +975,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "ci-sentinel",
     "description": "Daily autonomous classifier for failing PRs across your repos. Runs /ci-debug headless against every open PR with red required checks, posts the verdict as a collapsed PR comment, and appends to a per-repo .sentinel/ledger.jsonl. v1 is propose-don't-apply, NEVER auto-pushes a fix. Use when you're tired of /status sweeps catching the same 10 CI failure patterns over and over.",
     "version": "0.1.0",
-    "sha256": "a01948035c21c37a9def4f5e1e6fcefa8787892f2a4f5e89a1f7d661ee442821",
+    "sha256": "ba103bca24a7b55e72a3104ddbb5db9bd076376f1cde541b1eafb7c05e1bafaf",
     "author": "OrchestKit",
     "tags": [
       "ci",
@@ -1937,7 +1936,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "doctor",
     "description": "OrchestKit doctor for health diagnostics across manifest integrity, hook configuration, skill validation, agent frontmatter, MCP server connectivity, CC version compatibility, and permission rules. Reports issues with severity levels and auto-remediation suggestions. Validates component counts, detects orphaned entries, and checks CC version matrix compliance. Use when diagnosing plugin health, troubleshooting configuration issues, or running pre-release checks.",
     "version": "3.3.0",
-    "sha256": "7ad74ab6a9624e00088acba60e3279f8d0c8dfe8a158d8ba8288073c2aeb5e2f",
+    "sha256": "450392e63e8ed96691a4d8786144b1e69f022725fc51a3be143a1d1aeb717b3b",
     "author": "OrchestKit",
     "tags": [
       "health-check",
@@ -2334,7 +2333,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "explore",
     "description": "Multi-angle codebase exploration spawning 3-5 parallel agents for code structure, data flow, architecture patterns, and health assessment. Generates ASCII visualizations, import graphs, and design pattern detection with cross-session memory storage. Use when exploring a repo, discovering architecture, onboarding to a new codebase, or analyzing design patterns.",
     "version": "2.6.0",
-    "sha256": "ef9b58215cc9802ebcc8c99b842cb61d2e2d989c34fe07e59ff646bfa799527b",
+    "sha256": "4cf09ff267bc006fc577e6cf9a6d0620d42635f8ac399a96f2add2d933e96665",
     "author": "OrchestKit",
     "tags": [
       "exploration",
@@ -2612,7 +2611,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "glyph",
     "description": "Render an answer as ASCII art plus semantic emojis inline with no setup questions: one render per reply, verdict first. Use for any answer with shape: status, inventories, audits, budgets, comparisons, rankings, pipelines, 'what is using X', or any ad-hoc 'show me X visually' ask. Not for definitions, conceptual explanations, or one-liner asks. For a full multi-artifact plan playground, use visualize-plan instead.",
     "version": "3.2.0",
-    "sha256": "e61e603e67dbab190b9da29243f9d087cb4f5227d6cbd4e331f57e7b660772a7",
+    "sha256": "72454ea17c189097eac9b0f85d8158dce4a603090a175d6ddee3120e138b292c",
     "author": "OrchestKit",
     "tags": [
       "ascii",
@@ -3151,7 +3150,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "mcp-visual-output",
     "description": "Interactive MCP visual output via @json-render/mcp: upgrade plain JSON tool responses to dashboards rendered in sandboxed iframes inside MCP clients like Claude, Cursor, and ChatGPT. Use when a tool result would read better as a stat grid, data table, or status badge than as text. For the server itself (transport, auth, tool handlers, security) reach for ork:mcp-patterns.",
     "version": "1.1.0",
-    "sha256": "285d44557b1874b315656def1d3e023636e976440f62d5ecf8403a2d097fb5bb",
+    "sha256": "964603261072974ce6dfe98d29fcd061abf6af01a5f416d3e6a8177093716ff5",
     "author": "OrchestKit",
     "tags": [
       "mcp",
@@ -3174,6 +3173,9 @@ export const SKILLS: Record<string, SkillMeta> = {
         "component-recipes.md",
         "mcp-integration.md",
         "upstream-mcp.md"
+      ],
+      "scripts": [
+        "glyph-card-server.mjs"
       ]
     },
     "plugins": [
@@ -4156,7 +4158,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "remember",
     "description": "Write-side memory: stores decisions, patterns, and outcomes in the MCP memory knowledge graph as entities with typed observations and relations. Use when something worth persisting across sessions was just learned or decided. To search or read existing memory, invoke memory; to debug retrieval internals, memory-fabric; to consolidate, dream.",
     "version": "3.0.1",
-    "sha256": "4e5312eac897a446cf4f647a9485287118ed2715e9999d7f549306c5bda4db7c",
+    "sha256": "33202f9744c3561159e294f4399564da15c6e863eaa15d53f5f5a7d439ce07d0",
     "author": "OrchestKit",
     "tags": [
       "memory",
@@ -4286,7 +4288,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "review-pr",
     "description": "PR review using parallel specialized agents for code quality, security, testing, architecture, and performance analysis. Synthesizes findings into a review report with conventional comments (praise/issue/suggestion/nitpick) and approve or request-changes verdict. Use when reviewing pull requests, conducting security audits, or validating changes before merge.",
     "version": "1.9.0",
-    "sha256": "2419b6d35f70b79fd84335910ccbc2f09c3cf059dd8a7f4560ecd16e81e30250",
+    "sha256": "9a97e52e5545b11c7ba792b9415c71a178f1a181636577ef0ff20b7d8bb4ac0d",
     "author": "OrchestKit",
     "tags": [
       "code-review",
@@ -4472,7 +4474,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "setup",
     "description": "Personalized 7-phase onboarding wizard that scans the codebase, detects tech stack, recommends skills and MCP servers, and generates an improvement plan with readiness score. Includes safety checks and project-scoped configuration. Use when setting up OrchestKit for a new project or rescanning after major changes.",
     "version": "2.1.0",
-    "sha256": "5a8fb89b6e3a0d42c9b5633773358f2959d54fd8869eeec8fc9dec63a72b54f0",
+    "sha256": "b675fb874a3b1c6940bcd0b5d4539ad19ccbdc0c2980b757a824443851299a69",
     "author": "OrchestKit",
     "tags": [
       "onboarding",
@@ -4668,7 +4670,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "task-dependency-patterns",
     "description": "Task Management patterns with TaskCreate, TaskUpdate, TaskGet, TaskList tools. Decompose complex work into trackable tasks with dependency chains. Use when managing multi-step implementations, coordinating parallel work, or tracking completion status.",
     "version": "1.0.0",
-    "sha256": "1690bddc0b26646371377870dc564670137f9e35f72db50a17da6c60d0825526",
+    "sha256": "dad54de4e6f1549cd3078cb734cdb3bf4526fa1d7e30bac5a366e6f6bea64dda",
     "author": "OrchestKit",
     "tags": [
       "task-management",
@@ -4712,7 +4714,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "telemetry-inspect",
     "description": "Inspects the OrchestKit telemetry pipeline for the current project, lists all known telemetry files with write counts, sizes, schema status, growth trend, and orphan detection. Use when verifying the observability pipeline is healthy, debugging a missing writer, or auditing which files have schema locks vs. which are drift-vulnerable. Read-only, never modifies telemetry files.",
     "version": "1.0.0",
-    "sha256": "93227b6d1d3c79e23b5fdeafb59550465010ee358df0a82a0af2355b979f0a6f",
+    "sha256": "32960c6e10cf0f95b02af8a5f590f95dded398515e70a9d5460e073f011ce221",
     "author": "OrchestKit",
     "tags": [
       "telemetry",
