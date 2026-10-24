@@ -1,6 +1,6 @@
 ---
 name: create-research
-description: "Documents how the codebase works today for a task's research questions and saves it as a file artifact (.ork/tasks/<task>/NN-research-<slug>.md) with file:line citations, so the plan and reviewers build on a reviewable record. Use before planning a change in unfamiliar code; describes what exists only, never proposes changes. Pair with iterate-research."
+description: "Documents how the codebase works today for a task's research questions and saves it as a file artifact (.ork/tasks/TASK/NN-research-SLUG.md) with file:line citations, so the plan and reviewers build on a reviewable record. Use before planning a change in unfamiliar code; describes what exists only, never proposes changes. Pair with iterate-research."
 argument-hint: "<task> <question or questions file>"
 user-invocable: true
 allowed-tools: "Bash Read Write Grep Glob Agent"

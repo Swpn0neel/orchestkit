@@ -1296,9 +1296,9 @@ export const SKILLS: Record<string, SkillMeta> = {
   },
   "create-plan": {
     "name": "create-plan",
-    "description": "Writes an implementation plan as a file artifact in the task directory (.ork/tasks/<task>/NN-plan-<slug>.md) with phases, exact file changes and runnable success criteria, so reviewers comment on the file instead of in chat. Use when a task has its research done and needs a reviewable plan before code; pair with iterate-plan for revisions and review-artifact-comments for feedback.",
+    "description": "Writes an implementation plan as a file artifact in the task directory (.ork/tasks/TASK/NN-plan-SLUG.md) with phases, exact file changes and runnable success criteria, so reviewers comment on the file instead of in chat. Use when a task has its research done and needs a reviewable plan before code; pair with iterate-plan for revisions and review-artifact-comments for feedback.",
     "version": "1.0.0",
-    "sha256": "e4d8fb04bea918c0030947c19612c635d03cdce8b7fc46cb226b3700e109f507",
+    "sha256": "058090b115d4b96acda45618b5846755877d7955327395be53654a91d49ed2f7",
     "author": "OrchestKit",
     "tags": [
       "planning",
@@ -1394,9 +1394,9 @@ export const SKILLS: Record<string, SkillMeta> = {
   },
   "create-research": {
     "name": "create-research",
-    "description": "Documents how the codebase works today for a task's research questions and saves it as a file artifact (.ork/tasks/<task>/NN-research-<slug>.md) with file:line citations, so the plan and reviewers build on a reviewable record. Use before planning a change in unfamiliar code; describes what exists only, never proposes changes. Pair with iterate-research.",
+    "description": "Documents how the codebase works today for a task's research questions and saves it as a file artifact (.ork/tasks/TASK/NN-research-SLUG.md) with file:line citations, so the plan and reviewers build on a reviewable record. Use before planning a change in unfamiliar code; describes what exists only, never proposes changes. Pair with iterate-research.",
     "version": "1.0.0",
-    "sha256": "f52efdb34fae6c33ef695540fb19e68204fe71918f3933d64675e62448336ac3",
+    "sha256": "2c7c91b324f9d1e01f3ad97f9330e1b2ae953f899c9e2bf6937c4c5f16f4e4ad",
     "author": "OrchestKit",
     "tags": [
       "research",
@@ -3011,9 +3011,9 @@ export const SKILLS: Record<string, SkillMeta> = {
   },
   "iterate-plan": {
     "name": "iterate-plan",
-    "description": "Revises an existing plan artifact (.ork/tasks/<task>/NN-plan-<slug>.md) from review comments or new instructions, rewriting the body in place while keeping every earlier review comment and bumping the revision. Use when a plan from create-plan got feedback in its comment block or the scope changed; never use it to start a new plan.",
+    "description": "Revises an existing plan artifact (.ork/tasks/TASK/NN-plan-SLUG.md) from review comments or new instructions, rewriting the body in place while keeping every earlier review comment and bumping the revision. Use when a plan from create-plan got feedback in its comment block or the scope changed; never use it to start a new plan.",
     "version": "1.0.0",
-    "sha256": "7c749ae9c721d10cf89acd1713d604d0b87e7577e3bd5c32032b7d1b43949d4a",
+    "sha256": "a7a87302d1e950ce5b5a167227d12b702934a66b85c70faa91ce62aa1d378868",
     "author": "OrchestKit",
     "tags": [
       "planning",
@@ -3046,9 +3046,9 @@ export const SKILLS: Record<string, SkillMeta> = {
   },
   "iterate-research": {
     "name": "iterate-research",
-    "description": "Revises an existing research artifact (.ork/tasks/<task>/NN-research-<slug>.md) from review comments or follow-up questions, re-checking the code, rewriting the body in place and keeping every earlier review comment. Use when a research file from create-research got comments, a claim was challenged, or the question widened; it stays descriptive and never proposes changes.",
+    "description": "Revises an existing research artifact (.ork/tasks/TASK/NN-research-SLUG.md) from review comments or follow-up questions, re-checking the code, rewriting the body in place and keeping every earlier review comment. Use when a research file from create-research got comments, a claim was challenged, or the question widened; it stays descriptive and never proposes changes.",
     "version": "1.0.0",
-    "sha256": "7358bedf0890b88b0d80ff684e89247d2465607d60dbc80de2e38e361a232478",
+    "sha256": "3128fab66d227d2bd67f00118878d26108b419721f2ac785cc38ac7a5aec31bf",
     "author": "OrchestKit",
     "tags": [
       "research",
@@ -4435,9 +4435,9 @@ export const SKILLS: Record<string, SkillMeta> = {
   },
   "review-artifact-comments": {
     "name": "review-artifact-comments",
-    "description": "Works through the review comments written into a task artifact (plan or research under .ork/tasks/<task>/): lists the open ones, asks how to proceed, then replies, resolves or hands off to iterate-plan or iterate-research, and approves the artifact once nothing is open. Use when a reviewer has commented on an artifact file or asks to address, resolve or approve its comments.",
+    "description": "Works through the review comments written into a task artifact (plan or research under .ork/tasks/TASK/): lists the open ones, asks how to proceed, then replies, resolves or hands off to iterate-plan or iterate-research, and approves the artifact once nothing is open. Use when a reviewer has commented on an artifact file or asks to address, resolve or approve its comments.",
     "version": "1.0.0",
-    "sha256": "9e12db18d593859083189ce81c1a8317bd5e1a6ccf695a9b43d511b4b333b843",
+    "sha256": "77ab62a281111cdfea586b3e1c0ed8090811f880aa59b27a2c277d80d8afa53f",
     "author": "OrchestKit",
     "tags": [
       "review",

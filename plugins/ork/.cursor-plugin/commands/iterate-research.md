@@ -1,5 +1,5 @@
 ---
-description: "Revises an existing research artifact (.ork/tasks/<task>/NN-research-<slug>.md) from review comments or follow-up questions, re-checking the code, rewriting the body in place and keeping every earlier review comment. Use when a research file from create-research got comments, a claim was challenged, or the question widened; it stays descriptive and never proposes changes."
+description: "Revises an existing research artifact (.ork/tasks/TASK/NN-research-SLUG.md) from review comments or follow-up questions, re-checking the code, rewriting the body in place and keeping every earlier review comment. Use when a research file from create-research got comments, a claim was challenged, or the question widened; it stays descriptive and never proposes changes."
 argument-hint: "<research file> [follow-up]"
 user-invocable: true
 name: iterate-research
