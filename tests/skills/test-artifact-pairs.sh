@@ -31,7 +31,7 @@ console.log(l ? l.slice(k.length+2) : "");' "$1" "$2"; }
 
 # 1. create: NN prefix, kind and slug in the name, under <tasks>/<task>/
 printf '# Research body one\n' > "$T/r1.md"
-P1="$(node "$A" create --tasks-dir "$D" --task demo-task --kind research --slug hook-layout --title "Hook layout" --body "$T/r1.md")"
+P1="$(node "$A" create --tasks-dir "$D" --task demo-task --kind research --slug hook-layout --title "Hook layout" --author lane-r --body "$T/r1.md")"
 [ "$P1" = "$D/demo-task/01-research-hook-layout.md" ] && ok "first artifact is 01-research-hook-layout.md" || bad "first path: $P1"
 printf '# Plan body one\n\nStep A.\n' > "$T/p1.md"
 P2="$(node "$A" create --tasks-dir "$D" --task demo-task --kind plan --slug add-pairs --title "Add pairs" --author lane-x --body "$T/p1.md")"
@@ -117,6 +117,39 @@ t=t.replace("<!-- /ork:comments -->", "<comment id=\"c1\" author=\"Operator\" st
 fs.writeFileSync(p,t);' "$P1"
 N="$(node "$A" list --file "$P1" --open --json | node -e 'let s="";process.stdin.on("data",(d)=>s+=d).on("end",()=>console.log(JSON.parse(s).length))')"
 [ "$N" = "1" ] && ok "hand-typed comment is listed as open" || bad "hand comment count: $N"
+
+# 10. the approval gate fails closed: an open comment in a shape the parser
+#     misreads must still block approve and keep status done=false (HOLD on
+#     #4897, MUST 1). Each case gets its own artifact by lane-x, reviewed by reviewer-y.
+gate_case() { # $1 slug, $2 JS that edits the file text t
+  local p; p="$(node "$A" create --tasks-dir "$D" --task gate-task --kind plan --slug "$1" --author lane-x --body "$T/p1.md")"
+  node -e 'const fs=require("fs"); const p=process.argv[1]; let t=fs.readFileSync(p,"utf8"); '"$2"'; fs.writeFileSync(p,t);' "$p"
+  local rc=0; node "$A" approve --file "$p" --by reviewer-y --ref land-1 >/dev/null 2>&1 || rc=$?
+  local done; done="$(node "$A" status --task-dir "$D/gate-task" --json | node -e 'let s="";process.stdin.on("data",(d)=>s+=d).on("end",()=>{const r=JSON.parse(s).find((x)=>x.slug===process.argv[1]); console.log(r ? r.done : "missing")})' "$1")"
+  echo "$rc $(fm "$p" status) $done"
+}
+R="$(gate_case one-line 't=t.replace("<!-- /ork:comments -->", "<comment id=\"c1\" author=\"Operator\" status=\"open\">Cite the hook file.</comment>\n<!-- /ork:comments -->")')"
+[ "$R" = "1 draft false" ] && ok "one-line hand-typed open comment blocks approve" || bad "one-line comment: rc status done = $R"
+R="$(gate_case gt-author 't=t.replace("<!-- /ork:comments -->", "<comment id=\"c1\" author=\"ops > reviewer\" status=\"open\" at=\"2026-10-24T00:00:00Z\">\nCite the hook file.\n</comment>\n<!-- /ork:comments -->")')"
+[ "$R" = "1 draft false" ] && ok "open comment with > in its author blocks approve" || bad "> in author: rc status done = $R"
+R="$(gate_case crlf 't=t.replace("<!-- /ork:comments -->", "<comment id=\"c1\" author=\"Operator\" status=\"open\">\r\nCite the hook file.\r\n</comment>\r\n<!-- /ork:comments -->")')"
+[ "$R" = "1 draft false" ] && ok "CRLF hand-typed open comment blocks approve" || bad "CRLF comment: rc status done = $R"
+R="$(gate_case broken 't=t.replace("<!-- /ork:comments -->", "<comment id=\"c1\" status=\"open\"\nCite the hook file.\n<!-- /ork:comments -->")')"
+[ "$R" = "1 draft false" ] && ok "an unreadable <comment opening blocks approve" || bad "unreadable comment: rc status done = $R"
+# The writer must never emit an attribute value it cannot read back.
+P3="$(node "$A" create --tasks-dir "$D" --task gate-task --kind plan --slug writer-gt --author lane-x --body "$T/p1.md")"
+SUM_BEFORE="$(cksum < "$P3")"
+RC=0; node "$A" comment --file "$P3" --author 'ops > reviewer' --text "Cite the hook file." >/dev/null 2>&1 || RC=$?
+[ "$RC" -eq 2 ] && [ "$(cksum < "$P3")" = "$SUM_BEFORE" ] && ok "comment refuses an author with > and writes nothing" || bad "comment with > in author rc=$RC"
+
+# 11. create requires --author, so the non-author check compares two real seat names
+RC=0; node "$A" create --tasks-dir "$D" --task gate-task --kind plan --slug no-author --body "$T/p1.md" >/dev/null 2>&1 || RC=$?
+[ "$RC" -eq 2 ] && ok "create without --author exits 2" || bad "create without --author rc=$RC"
+
+# 12. a symlinked path to the helper still runs it (no silent exit 0)
+mkdir -p "$T/real" && cp "$A" "$T/real/artifact.mjs" && ln -s "$T/real" "$T/link"
+RC=0; node "$T/link/artifact.mjs" bogus >/dev/null 2>&1 || RC=$?
+[ "$RC" -eq 2 ] && ok "unknown command through a symlinked path exits 2" || bad "symlinked path rc=$RC"
 
 echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
