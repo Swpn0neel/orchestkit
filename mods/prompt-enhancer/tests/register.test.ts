@@ -1179,15 +1179,79 @@ describe("stack catalog and prompt cache", () => {
   const LOCAL = "/home/u/.claude/prompt-enhancer/catalog.md";
   const blocks = (h: ReturnType<typeof harness>, call = 0) => h.complete.mock.calls[call][0].prompt as readonly Block[];
 
-  test("with no local catalog, Enhance sends the bundled one before the draft", async () => {
+  // XREVIEW HOLD 6345168918 must: the bundled OrchestKit catalog was sent with no
+  // check that OrchestKit is installed. With no local catalog the mod now reads
+  // what is installed (enabled plugins, their MCP servers, user MCP servers) and
+  // sends OrchestKit's tools only when an ork plugin is installed and enabled.
+  const HOME = "/home/u";
+  const installed = (files: Record<string, string>) => async (path: string) => {
+    if (path in files) return files[path];
+    throw new Error(`ENOENT ${path}`);
+  };
+  const ORK_SETUP: Record<string, string> = {
+    [`${HOME}/.claude/settings.json`]: JSON.stringify({ enabledPlugins: { "ork@orchestkit": true, "other@market": false } }),
+    [`${HOME}/.claude/plugins/installed_plugins.json`]: JSON.stringify({ plugins: {
+      "ork@orchestkit": [{ installPath: "/plugins/ork" }],
+      "other@market": [{ installPath: "/plugins/other" }],
+    } }),
+    "/plugins/ork/.claude-plugin/plugin.json": JSON.stringify({ name: "ork" }),
+    "/plugins/ork/.mcp.json": JSON.stringify({ mcpServers: { memory: { command: "npx", env: { TOKEN: "do-not-leak" } } } }),
+    "/plugins/other/.claude-plugin/plugin.json": JSON.stringify({ name: "other" }),
+    "/plugins/other/.mcp.json": JSON.stringify({ mcpServers: { disabled_server: {} } }),
+    [`${HOME}/.claude.json`]: JSON.stringify({ mcpServers: { tavily: { url: "https://secret.example/key=abc" } } }),
+  };
+
+  test("with no local catalog and nothing installed, Enhance names no OrchestKit tool", async () => {
     const h = harness("herdr agents cross harness");
     await h.press("Enhance");
     const call = h.complete.mock.calls[0][0];
     expect(call).toMatchObject({ model: "haiku", system: SYSTEM, maxTokens: 1024, effort: "low" });
     const [prefix, draft] = blocks(h);
     expect(prefix.cache).toBe(true);
-    expect(prefix.text).toContain(CATALOG.trim());
+    expect(prefix.text).not.toContain("ork:");
+    expect(prefix.text).not.toContain(CATALOG.trim());
     expect(draft).toEqual({ text: "herdr agents cross harness" });
+  });
+
+  test("with no local catalog, the installed and enabled ork plugin brings OrchestKit's tools", async () => {
+    const h = harness("draft");
+    h.$.env.get = async () => HOME;
+    h.$.fs = { exists: async path => path in ORK_SETUP, read: installed(ORK_SETUP) };
+    await h.press("Enhance");
+    expect(blocks(h)[0].text).toContain(CATALOG.trim());
+  });
+
+  test("MCP servers come from the installed setup by name only, never their config", async () => {
+    const h = harness("draft");
+    h.$.env.get = async () => HOME;
+    h.$.fs = { exists: async path => path in ORK_SETUP, read: installed(ORK_SETUP) };
+    await h.press("Enhance");
+    const text = blocks(h)[0].text;
+    expect(text).toContain("- ork:memory");
+    expect(text).toContain("- tavily");
+    expect(text).not.toContain("disabled_server");
+    expect(text).not.toMatch(/do-not-leak|secret\.example|npx/);
+  });
+
+  test("an installed but disabled ork plugin brings no OrchestKit tools", async () => {
+    const h = harness("draft");
+    const off = { ...ORK_SETUP, [`${HOME}/.claude/settings.json`]: JSON.stringify({ enabledPlugins: { "ork@orchestkit": false } }) };
+    h.$.env.get = async () => HOME;
+    h.$.fs = { exists: async path => path in off, read: installed(off) };
+    await h.press("Enhance");
+    expect(blocks(h)[0].text).not.toContain(CATALOG.trim());
+  });
+
+  test("the live inventory prefix is byte-identical across Enhance calls", async () => {
+    const h = harness("first draft");
+    h.$.env.get = async () => HOME;
+    h.$.fs = { exists: async path => path in ORK_SETUP, read: installed(ORK_SETUP) };
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: "R1" });
+    await h.press("Enhance");
+    h.edit("second draft");
+    await h.press("Enhance");
+    expect(blocks(h, 0)[0]).toEqual(blocks(h, 1)[0]);
+    expect(h.complete.mock.calls[0][0].system).toBe(h.complete.mock.calls[1][0].system);
   });
 
   test("a local catalog under HOME replaces the bundled one", async () => {
@@ -1209,16 +1273,57 @@ describe("stack catalog and prompt cache", () => {
     expect(blocks(h)[0].text).toContain("- only-mine");
   });
 
-  test("an unreadable or empty local catalog falls back to the bundled one and still rewrites", async () => {
-    for (const read of [async () => { throw new Error("EACCES"); }, async () => "  \n"]) {
+  test("an unreadable or empty local catalog falls back to the installed setup and still rewrites", async () => {
+    for (const empty of [async () => { throw new Error("EACCES"); }, async () => "  \n"]) {
       const h = harness("draft");
-      h.$.env.get = async () => "/home/u";
-      h.$.fs = { exists: async () => true, read };
+      h.$.env.get = async () => HOME;
+      const read = installed(ORK_SETUP);
+      h.$.fs = { exists: async () => true, read: async path => path === LOCAL ? empty() : read(path) };
       h.complete.mockResolvedValueOnce({ isAnswered: true, text: "Rewrite" });
       await h.press("Enhance");
       expect(blocks(h)[0].text).toContain(CATALOG.trim());
       expect(h.box()).toBe("Rewrite");
     }
+  });
+
+  // The rewrite is capped in code, not only asked for in the system prompt.
+  test("a long rewrite is cut to 6 lines and keeps its Done when line", async () => {
+    const h = harness("draft");
+    const long = [...Array.from({ length: 9 }, (_, i) => `Line ${i + 1}.`), "Done when: the tests pass."].join("\n");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: long });
+    await h.press("Enhance");
+    const lines = h.box().split("\n");
+    expect(lines.length).toBeLessThanOrEqual(6);
+    expect(lines.at(-1)).toBe("Done when: the tests pass.");
+    expect(h.box().length).toBeLessThanOrEqual(1200);
+  });
+
+  test("an over-long single line is cut to the character cap", async () => {
+    const h = harness("draft");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: "word ".repeat(600).trim() });
+    await h.press("Enhance");
+    expect(h.box().length).toBeLessThanOrEqual(1200);
+    expect(h.box().length).toBeGreaterThan(0);
+  });
+
+  // It rewrites or passes through; it never puts a question to the user in the box.
+  test.each([
+    "Which repo do you mean?",
+    "Do you want me to fix the tests or the build?",
+    "Could you clarify the scope?\nDone when: it is clear.",
+    "Please clarify which branch to use.",
+  ])('a rewrite that asks the user ("%s") passes the draft through', async (answer) => {
+    const h = harness("fix teh build");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: answer });
+    await h.press("Enhance");
+    expect(h.box()).toBe("fix teh build");
+  });
+
+  test("a rewrite that is a question for Claude, not the user, is kept", async () => {
+    const h = harness("why build fail");
+    h.complete.mockResolvedValueOnce({ isAnswered: true, text: "Why does the build fail? Find the cause and fix it.\nDone when: the build passes." });
+    await h.press("Enhance");
+    expect(h.box()).toBe("Why does the build fail? Find the cause and fix it.\nDone when: the build passes.");
   });
 
   test("an oversized local catalog is cut, so one file cannot blow up the input", async () => {

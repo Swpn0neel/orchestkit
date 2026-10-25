@@ -21,6 +21,7 @@ The collapse control hides the buttons. Press the expand control to show them.
 
 The rewrite stays close to your draft. It fixes typos and fast-typing slips, decodes English typed on a Hebrew keyboard layout (`גם ןא שךך` is `do it all`), adds at most 3 lines, and ends with one `Done when:` line that names an observable check.
 It never asks questions and never lists interpretations: an ambiguous draft gets its most likely meaning.
+Two of these rules are also enforced in code (`shapeRewrite` in `src/system.ts`): a reply that asks you something (such as "which repo do you mean?") is dropped and your draft stays in the box, and a reply longer than 6 lines or 1,200 characters is cut to that size, keeping its `Done when:` line. A question for Claude in the rewrite ("why does the build fail?") is kept.
 It names at most 3 of your real tools (a subagent to delegate to, a skill or slash command, an MCP server), copied exactly from the catalog, and only when they clearly fit. Broad work gets a line about parallel subagents; small work gets none.
 The rules are fixed in `src/system.ts`.
 
@@ -28,9 +29,9 @@ The rules are fixed in `src/system.ts`.
 
 Each call sends a compact catalog of names and one-line purposes ahead of the draft, so the rewrite can point at tools you actually have.
 
-- Bundled: OrchestKit's own agents and skills, generated into `src/catalog.ts` from the repo's `src/agents` and `src/skills` (`npm run catalog`; `npm run catalog:check` fails when it is stale).
-- Local: run `npm run catalog:local` in this directory to write `~/.claude/prompt-enhancer/catalog.md` from your `~/.claude` agents, skills and commands, your enabled plugins' agents, skills, commands and MCP servers, and the MCP servers in `~/.claude.json`. When that file exists, Enhance uses it instead of the bundled one. Rerun it after you add or remove plugins.
-- Notes: anything in `~/.claude/prompt-enhancer/notes.md` (up to 2,000 characters) is added to the local catalog, for facts about your setup that no manifest says.
+- Local: run `npm run catalog:local` in this directory to write `~/.claude/prompt-enhancer/catalog.md` from your `~/.claude` agents, skills and commands, your enabled plugins' agents, skills, commands and MCP servers, and the MCP servers in `~/.claude.json`. When that file exists, Enhance uses it. Rerun it after you add or remove plugins.
+- Installed (no local file): Enhance reads what is installed at each call (`src/inventory.ts`): your enabled plugins from `~/.claude/settings.json` and `~/.claude/plugins/installed_plugins.json`, each one's MCP server names, and the MCP server names in `~/.claude.json`. OrchestKit's own agents and skills (the bundled list in `src/catalog.ts`, from `npm run catalog`; `npm run catalog:check` fails when it is stale) are included only when an `ork` plugin is installed and enabled. The mods API cannot list a directory, so other plugins' agents and skills appear only in the local catalog. With nothing found, the catalog says so and the rewrite names no tool.
+- Notes: anything in `~/.claude/prompt-enhancer/notes.md` (up to 2,000 characters) is added to the local catalog, for facts about your setup that no manifest says. It is sent to the model with every Enhance, as part of the catalog, so keep secrets and anything private out of it.
 
 Only names and purposes are written. An MCP server's command, arguments, environment and URL are never read into the catalog, since they can carry credentials.
 A catalog is cut at 24,000 characters; the builder shortens purposes first so a large install still fits.
@@ -58,7 +59,7 @@ Another installed mod can still change a fill or submission through its own hook
 ## Mods API calls
 
 - `$.model.complete`: one Haiku call per Enhance, with prompt blocks and a cache breakpoint
-- `$.env.get('HOME')`, `$.fs.exists`, `$.fs.read`: the optional local catalog
+- `$.env.get('HOME')`, `$.fs.exists`, `$.fs.read`: the optional local catalog, and the installed-setup files when there is none
 - `$.prompt.read`, `$.prompt.fill`, `$.prompt.submit`, `$.state.get`, `$.state.set`, `$.ui.toast`, `$.ui.resolve`
 
 ## Local checks

@@ -40,6 +40,42 @@ Rewrite:
 The sign-in flow is broken again. Reproduce the failure, find the root cause in the recent changes and fix it.
 Done when: sign-in works end to end and the auth tests pass.`;
 
+/** The longest rewrite the box gets, in lines and in characters (rule 4, enforced). */
+export const MAX_REWRITE_LINES = 6;
+export const MAX_REWRITE_CHARS = 1200;
+
+/**
+ * A rewrite that puts a question to the user. A question for Claude ("why does
+ * the build fail?") is a fine prompt; one addressed to the person typing is not.
+ */
+const ASKS_THE_USER =
+  /\b(?:do you (?:want|mean|prefer|need)|would you (?:like|prefer)|(?:could|can) you (?:clarify|confirm|specify)|please (?:clarify|confirm|specify)|which [^?\n]{1,60}\b(?:do|did) you mean|what do you mean|should i\b)/i;
+
+/**
+ * The text to put in the box, or null to pass the draft through. Rule 3 says the
+ * rewrite never asks the user anything, so a reply that does is dropped and the
+ * draft stays. Rule 4 caps the length; the cap is applied here too, keeping the
+ * "Done when:" line when the model ran long.
+ */
+export function shapeRewrite(text: string): string | null {
+  const trimmed = text.replace(/\r\n/g, "\n").trim();
+  if (!trimmed || ASKS_THE_USER.test(trimmed)) return null;
+  let lines = trimmed.split("\n");
+  if (lines.length > MAX_REWRITE_LINES) {
+    const done = lines.findLast(line => /^done when:/i.test(line.trim()));
+    lines = done !== undefined
+      ? [...lines.filter(line => line !== done).slice(0, MAX_REWRITE_LINES - 1), done]
+      : lines.slice(0, MAX_REWRITE_LINES);
+  }
+  let out = lines.join("\n");
+  if (out.length > MAX_REWRITE_CHARS) {
+    const cut = out.slice(0, MAX_REWRITE_CHARS);
+    const space = cut.lastIndexOf(" ");
+    out = (space > MAX_REWRITE_CHARS / 2 ? cut.slice(0, space) : cut).trimEnd();
+  }
+  return out;
+}
+
 /** The catalog block that sits between SYSTEM and the draft. */
 export const contextBlock = (catalog: string): string =>
   `Catalog of this user's stack. Names are exact: use them as written, and only these.\n\n${catalog.trim()}\n\nRewrite the draft in the next block.`;

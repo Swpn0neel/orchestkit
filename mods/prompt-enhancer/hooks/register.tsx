@@ -1,6 +1,6 @@
 import type { BandState, Dollar, On } from "../src/api.js";
-import { CATALOG } from "../src/catalog.js";
-import { LOCAL_CATALOG, MAX_CATALOG_CHARS, request } from "../src/system.js";
+import { NO_TOOLS, installedCatalog } from "../src/inventory.js";
+import { LOCAL_CATALOG, MAX_CATALOG_CHARS, request, shapeRewrite } from "../src/system.js";
 
 const BAND = { plugin: "prompt-enhancer", key: "band" } as const;
 const INITIAL: BandState = { visible: true, collapsed: false, busy: false, original: null };
@@ -23,13 +23,15 @@ interface Control { current: Run | null; held: string | null; reviewed: string |
 
 /**
  * The stack catalog for the next Enhance: this machine's own, written by
- * `npm run catalog:local`, or the bundled OrchestKit one when there is none.
- * Read on every Enhance so a regenerated file is used at once; the bytes only
- * change when the file does, so the cached prefix holds between calls.
+ * `npm run catalog:local`, or, when there is none, what is installed here
+ * (src/inventory.ts): never a bundled list that assumes OrchestKit is installed.
+ * Read on every Enhance so a change is used at once; the bytes only change when
+ * the setup does, so the cached prefix holds between calls.
  */
 const catalog = async ($: Dollar): Promise<string> => {
+  let home: string | undefined;
   try {
-    const home = await $.env.get("HOME");
+    home = await $.env.get("HOME");
     if (home) {
       const path = `${home.replace(/\/+$/, "")}/${LOCAL_CATALOG}`;
       // Ask exists first so a machine without a local catalog logs no ENOENT.
@@ -43,9 +45,14 @@ const catalog = async ($: Dollar): Promise<string> => {
       }
     }
   } catch {
-    // No HOME, no file or no read access: the bundled catalog still works.
+    // No HOME, no file or no read access: fall through to the installed setup.
   }
-  return CATALOG;
+  if (!home) return NO_TOOLS;
+  try {
+    return (await installedCatalog(path => $.fs.read(path), home)).slice(0, MAX_CATALOG_CHARS);
+  } catch {
+    return NO_TOOLS;
+  }
 };
 
 const read = async ($: Dollar): Promise<BandState> => (await $.state.get(BAND)).value ?? { ...INITIAL };
@@ -96,6 +103,13 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
       await $.ui.toast("Enhance failed. Kept your original prompt.");
       return;
     }
+    // Rules 3 and 4, enforced: a reply that asks the user something passes the
+    // draft through, and a long one is cut to the cap.
+    const rewrite = shapeRewrite(result.text);
+    if (rewrite === null) {
+      await $.ui.toast("The rewrite asked a question. Kept your original prompt.");
+      return;
+    }
     const box = (await $.prompt.read()).text;
     // From here Undo waits for this run instead of canceling it. The check and
     // the flag sit with no await between them, so Undo sees one or the other.
@@ -105,12 +119,12 @@ const enhance = async ($: Dollar, c: Control, original: string): Promise<void> =
       return;
     }
     run.filling = true;
-    run.expected = result.text;
-    if ((await $.prompt.fill({ text: result.text })).isFilled) {
+    run.expected = rewrite;
+    if ((await $.prompt.fill({ text: rewrite })).isFilled) {
       // The original is saved only after a fill, and only by a run that is
       // still current, so a canceled or failed run never leaves one behind.
       if (live()) {
-        c.reviewed = result.text;
+        c.reviewed = rewrite;
         await patch($, c, state => ({ original: chained && state.original !== null ? state.original : original }));
       }
     } else {
