@@ -50,12 +50,12 @@ from dataclasses import dataclass
 @dataclass
 class ContextSchema:
     llm_provider: str = "anthropic"
-    temperature: float = 0.7
+    effort: str = "medium"  # Claude takes effort, not temperature (400 on API 2026-10-21)
 
 graph = StateGraph(WorkflowState, context_schema=ContextSchema)
 
 def my_node(state: WorkflowState, context: ContextSchema):
-    return {"output": call_llm(state["input"], context.temperature)}
+    return {"output": call_llm(state["input"], context.effort)}
 ```
 
 **Node Caching (2026 pattern):**
@@ -70,7 +70,7 @@ graph = builder.compile(cache=InMemoryCache())
 **Key rules:**
 - Always use `Annotated[list[T], add]` for multi-agent accumulation
 - Return partial state updates from nodes, never mutate in place
-- Use `context_schema` for runtime config (temperature, provider)
+- Use `context_schema` for runtime config (effort, provider)
 - Use `CachePolicy` for expensive operations (embeddings, API calls)
 
 Reference: [LangGraph State Concepts](https://langchain-ai.github.io/langgraph/concepts/low_level/#state)

@@ -64,7 +64,7 @@ async def analyze_with_langchain(content: str, analysis_id: str) -> str:
 
     # Create LLM with callback
     llm = ChatAnthropic(
-        model="claude-sonnet-5-5",  # 5-series: no temperature/top_p/top_k (non-default values return a 400)
+        model="claude-sonnet-5-5",  # no temperature/top_p/top_k: any value returns a 400 on API 2026-10-21
         max_tokens=4096,
         callbacks=[langfuse_handler],  # Pass as list!
     )
@@ -214,7 +214,7 @@ async def multi_context_analysis(content: str, analysis_id: str):
 
     # Retrieval LLM
     retrieval_llm = ChatAnthropic(
-        model="claude-haiku-4-5-20251001",  # Faster, cheaper for retrieval
+        model="claude-haiku-5-5",  # Faster, cheaper for retrieval
         callbacks=[retrieval_handler],
     )
 

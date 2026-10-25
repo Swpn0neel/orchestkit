@@ -815,7 +815,7 @@ List any unsupported claims."""
 ```
 
 Key decisions:
-- Judge model: `claude-haiku-4-5-20251001` or `gpt-5.5` (different from evaluated model)
+- Judge model: `claude-haiku-5-5` or `gpt-5.5` (different from evaluated model)
 - Quality threshold: 0.7 production, 0.6 drafts
 - Dimensions: 3-5 most relevant to use case
 - Sample size: 50+ for reliable metrics
@@ -1562,13 +1562,11 @@ async def self_consistent_answer(
 
     model_thinks controls only the CoT suffix: models that reason by default
     (Claude Opus 5.5 always thinks) get the bare question.
-    accepts_sampling controls only temperature. Current Claude models (Opus 5.5,
-    Opus 5, Opus 4.8/4.7, Sonnet 5, Fable 5/5.1) return 400 on temperature,
-    top_p and top_k even with thinking off, so it defaults to False; set it True
-    only for a model older than the Opus 4.7 generation (the claude-api skill's
-    Thinking and Effort table lists them) or a non-Claude model.
-    On current Claude models, path diversity comes from independent calls and
-    the effort setting, not temperature.
+    accepts_sampling controls only temperature. On API version 2026-10-21
+    every Claude model returns 400 on temperature, top_p and top_k, so it
+    defaults to False; set it True only for a non-Claude model.
+    On Claude, path diversity comes from independent calls and the effort
+    setting, not temperature.
     """
     content = question if model_thinks else f"{question}\n\nThink step by step."
     sampling = {"temperature": 0.7} if accepts_sampling else {}
@@ -2100,7 +2098,7 @@ trainer = DPOTrainer(
 async def evaluate_alignment(
     model, tokenizer,
     test_prompts: list[str],
-    judge_model: str = "claude-haiku-4-5-20251001",
+    judge_model: str = "claude-haiku-5-5",
 ) -> dict:
     """Evaluate model alignment quality."""
     scores = []
@@ -2448,7 +2446,7 @@ Upstream: https://platform.openai.com/docs/guides/function-calling
 Why: house convention repeated across the retired dpo-alignment and
 synthetic-data references and the surviving
 `rules/evaluation-metrics.md`, which pins the judge to
-`claude-haiku-4-5-20251001` and the quality gate to 0.7 production / 0.6
+`claude-haiku-5-5` and the quality gate to 0.7 production / 0.6
 drafts. Self-judging inflates scores, and judging on the expensive tier makes
 the eval loop cost more than the feature.
 

@@ -25,14 +25,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, TypeVar
 
-# Claude 5-series models reject non-default sampling params (temperature, top_p,
-# top_k) with a 400, so they are dropped per provider call, never chain-wide.
-_NO_SAMPLING_PREFIXES = ("claude-sonnet-5", "claude-opus-5", "claude-fable-5", "claude-mythos-5")
+# On API version 2026-10-21 every Claude model rejects temperature, top_p and
+# top_k with a 400, so they are dropped per provider call, never chain-wide.
+_NO_SAMPLING_PREFIXES = ("claude-",)
 _SAMPLING_KEYS = ("temperature", "top_p", "top_k")
 
 
 def _call_kwargs(model: str, kwargs: dict[str, Any]) -> dict[str, Any]:
-    """Return the kwargs one provider may receive (no sampling params for 5-series)."""
+    """Return the kwargs one provider may receive (no sampling params for Claude)."""
     if model.startswith(_NO_SAMPLING_PREFIXES):
         return {k: v for k, v in kwargs.items() if k not in _SAMPLING_KEYS}
     return kwargs
@@ -80,7 +80,7 @@ class LLMConfig:
     api_key: str | None = None
     timeout: float = 30.0
     max_tokens: int = 4096
-    temperature: float = 0.7  # providers must not send it to Claude 5-series models (400); see _call_kwargs
+    temperature: float = 0.7  # never sent to Claude models (400 on API 2026-10-21); see _call_kwargs
     # Cost per 1M tokens (input, output)
     cost_per_million_input: float = 1.0
     cost_per_million_output: float = 3.0
@@ -399,7 +399,7 @@ class QualityAwareFallbackChain(LLMFallbackChain):
             )
 
             # Adjust parameters for retry. _call_kwargs drops them again for any
-            # Claude 5-series provider (primary or fallback) right before its call.
+            # Claude provider (primary or fallback) right before its call.
             kwargs["temperature"] = max(0.3, kwargs.get("temperature", 0.7) - 0.15)
 
         # Return best effort with warning
