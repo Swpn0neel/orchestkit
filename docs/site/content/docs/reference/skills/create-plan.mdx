@@ -61,9 +61,9 @@ the front matter.
 
 ## Related
 
-- `iterate-plan`: revise this plan from review comments, keeping every comment.
-- `create-research`: the research artifact this plan should read first.
-- `review-artifact-comments`: read, answer and resolve comments on any artifact.
+- `/ork:iterate-plan`: revise this plan from review comments, keeping every comment.
+- `/ork:create-research`: the research artifact this plan should read first.
+- `/ork:review-artifact-comments`: read, answer and resolve comments on any artifact.
 
 
 ---
@@ -114,7 +114,7 @@ Plain `key: value` lines between `---` fences, in this order:
 | `kind` | `research` or `plan` | create |
 | `slug` | the slug in the file name | create |
 | `title` | a JSON string | create |
-| `author` | the seat that wrote the artifact (`--author`, default `claude`) | create |
+| `author` | the seat that wrote the artifact (`--author`, required; no `<` or `>`) | create |
 | `revision` | integer, `1` on create, plus 1 on every iterate | create, iterate |
 | `status` | `draft`, `in-review` or `approved` | see Status |
 | `created` | ISO 8601 UTC, never changes | create |
@@ -151,7 +151,14 @@ Say which file step A touches.
 | `</comment>` | end of the comment |
 
 A reviewer may type a comment into the block by hand in this shape; the script reads it like any
-other. Resolving keeps the comment (status `resolved` plus a reply saying how). Nothing deletes a
+other. A comment on one line (`<comment id="c2" author="Operator" status="open">Cite the hook file.</comment>`)
+and CRLF line endings read the same way. Attribute values are double-quoted and carry no `"`, `<`
+or `>` (the script refuses those in `--author` and `--by`).
+
+**The gate fails closed.** Every `<comment` opening in the block counts. One the script cannot read
+(no `</comment>`, or an open tag in another shape) is listed as an open comment with id `?` and the
+block line it starts on, so `approve` refuses and `status` reports `done: false` until someone fixes
+its shape. Resolving keeps the comment (status `resolved` plus a reply saying how). Nothing deletes a
 comment.
 
 **Iterate keeps every comment byte for byte.** `iterate` rewrites the front matter and the body and
@@ -170,8 +177,11 @@ An artifact is **done** when `status: approved`, it has no open comment, and `ap
 
 ```bash
 node scripts/artifact.mjs status --task-dir .ork/tasks/<task> --json
-# [{"file":"01-plan-x.md","kind":"plan","slug":"x","revision":2,"status":"approved","open_comments":0,"done":true}]
+# [{"file":"01-plan-x.md","kind":"plan","slug":"x","revision":2,"status":"approved","open_comments":0,"approved_by":"reviewer-y","done":true}]
 ```
+
+A file named like an artifact that no longer parses is listed with `"status":"unreadable"`,
+`"done":false` and an `error`, never dropped.
 
 A phase is done when its kind has at least one `done` artifact. L2 should read `done` and not
 re-derive it from the fields.

@@ -16,6 +16,8 @@
 // comments), 2 bad usage or invalid input (nothing written).
 
 import { readFile, writeFile, mkdir, readdir, rename } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { join, resolve } from 'node:path';
@@ -71,15 +73,21 @@ function oneLine(s, what) {
   return v;
 }
 
-function attr(s) { return oneLine(s, 'attribute').replace(/"/g, "'"); }
+// An attribute value must read back through comments(): no quote, and no < or >,
+// which also keep the editComment() tag match and the reply line unambiguous.
+function attr(s) {
+  const v = oneLine(s, 'attribute').replace(/"/g, "'");
+  if (/[<>]/.test(v)) throw new UsageError('names and references must not contain < or >');
+  return v;
+}
 
 // ---- parse and write ------------------------------------------------------
 
 export function parse(text) {
-  const m = text.match(/^---\n([\s\S]*?)\n---\n/);
+  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
   if (!m) throw new UsageError('not an ork artifact: no front matter');
   const fm = {};
-  for (const line of m[1].split('\n')) {
+  for (const line of m[1].split(/\r?\n/)) {
     const i = line.indexOf(': ');
     if (i > 0) fm[line.slice(0, i)] = line.slice(i + 2);
   }
@@ -107,16 +115,34 @@ async function save(path, text) {
   await rename(tmp, path);
 }
 
+// Every `<comment` opening in the block yields an entry. One the parser cannot
+// read (no closing tag, an open tag with an unquoted or unknown shape) comes back
+// as an open comment marked `unreadable`, so approve refuses and status reports
+// done=false: a comment is never silently skipped (review HOLD on #4897).
+// CRLF and a comment on one line are read like the documented shape.
+const OPEN_TAG = /<comment((?:\s+[a-z_]+="[^"]*")*)\s*>/y;
+
 export function comments(block) {
+  const src = block.replace(/\r\n?/g, '\n');
   const out = [];
-  const re = /<comment ([^>]*)>\n([\s\S]*?)\n?<\/comment>/g;
+  const opening = /<comment\b/g;
   let m;
-  while ((m = re.exec(block))) {
+  while ((m = opening.exec(src))) {
+    OPEN_TAG.lastIndex = m.index;
+    const h = OPEN_TAG.exec(src);
+    const end = h ? src.indexOf('</comment>', OPEN_TAG.lastIndex) : -1;
+    const next = h ? src.indexOf('<comment', OPEN_TAG.lastIndex) : -1;
+    if (!h || end < 0 || (next >= 0 && next < end)) {
+      const line = src.slice(0, m.index).split('\n').length;
+      out.push({ id: null, author: '', status: 'open', unreadable: true, quote: '',
+        text: `unreadable comment at block line ${line}: ${src.slice(m.index).split('\n')[0]}`, replies: [] });
+      continue;
+    }
     const at = {};
-    for (const [, k, v] of m[1].matchAll(/([a-z_]+)="([^"]*)"/g)) at[k] = v;
+    for (const [, k, v] of h[1].matchAll(/([a-z_]+)="([^"]*)"/g)) at[k] = v;
     const c = { id: at.id, author: at.author || '', status: at.status || 'open', quote: '', text: '', replies: [] };
     const text = [];
-    for (const line of m[2].split('\n')) {
+    for (const line of src.slice(OPEN_TAG.lastIndex, end).split('\n')) {
       if (line.startsWith('> ')) c.quote = c.quote ? `${c.quote}\n${line.slice(2)}` : line.slice(2);
       else if (/^ {2}\S[^:]*: /.test(line)) {
         const j = line.indexOf(': ');
@@ -125,6 +151,7 @@ export function comments(block) {
     }
     c.text = text.join('\n');
     out.push(c);
+    opening.lastIndex = end + '</comment>'.length;
   }
   return out;
 }
@@ -157,7 +184,7 @@ async function cmdCreate(o) {
     kind,
     slug,
     title: JSON.stringify(oneLine(o.title || slug, 'title')),
-    author: attr(typeof o.author === 'string' && o.author ? o.author : 'claude'),
+    author: attr(need(o, 'author')), // a real seat name, so the non-author approval check means something
     revision: '1',
     status: 'draft',
     created: now,
@@ -205,7 +232,7 @@ async function cmdComment(o) {
 }
 
 function editComment(block, id, fn) {
-  const re = new RegExp(`(<comment id="${id.replace(/[^a-z0-9]/gi, '')}"[^>]*>)([\\s\\S]*?)(\\n?</comment>)`);
+  const re = new RegExp(`(<comment id="${id.replace(/[^a-z0-9]/gi, '')}"(?:\\s+[a-z_]+="[^"]*")*\\s*>)([\\s\\S]*?)(\\r?\\n?</comment>)`);
   if (!re.test(block)) throw new UsageError(`no comment ${id}`);
   return block.replace(re, (_, open, inner, close) => fn(open, inner, close));
 }
@@ -226,7 +253,7 @@ async function cmdList(o) {
   let list = comments(a.block);
   if (o.open) list = list.filter((c) => c.status !== 'resolved');
   if (o.json) console.log(JSON.stringify(list));
-  else for (const c of list) console.log(`${c.id} [${c.status}] ${c.author}: ${c.text}${c.quote ? `  (on: ${c.quote})` : ''}`);
+  else for (const c of list) console.log(`${c.id ?? '?'} [${c.status}] ${c.author}: ${c.text}${c.quote ? `  (on: ${c.quote})` : ''}`);
 }
 
 // An approval must come from a reviewer, never from the seat that wrote the
@@ -240,7 +267,8 @@ async function cmdApprove(o) {
   const { path, a } = await load(o);
   const open = comments(a.block).filter((c) => c.status !== 'resolved');
   if (open.length) {
-    console.error(`refused: ${open.length} open comment(s): ${open.map((c) => c.id).join(', ')}`);
+    console.error(`refused: ${open.length} open comment(s): ${open.map((c) => c.id ?? 'unreadable').join(', ')}`);
+    for (const c of open.filter((x) => x.unreadable)) console.error(`  ${c.text}; fix its shape to the documented one`);
     process.exitCode = 1;
     return;
   }
@@ -264,7 +292,13 @@ export async function status(dir) {
   for (const f of (await readdir(dir)).sort()) {
     if (!FILE_RE.test(f)) continue;
     let a;
-    try { a = parse(await readFile(join(dir, f), 'utf8')); } catch { continue; }
+    // An artifact that no longer parses is reported, never dropped: L2 must not
+    // read its absence as "nothing left to do".
+    try { a = parse(await readFile(join(dir, f), 'utf8')); } catch (e) {
+      out.push({ file: f, kind: null, slug: null, revision: null, status: 'unreadable', open_comments: null,
+        approved_by: null, done: false, error: e.message });
+      continue;
+    }
     const open = comments(a.block).filter((c) => c.status !== 'resolved').length;
     out.push({
       file: f, kind: a.fm.kind, slug: a.fm.slug, revision: Number(a.fm.revision),
@@ -283,7 +317,7 @@ async function cmdStatus(o) {
 }
 
 const USAGE = `usage: artifact.mjs <command> [options]
-  create   --task T --kind ${KINDS.join('|')} --slug S --body FILE [--title X] [--author SEAT] [--tasks-dir D]
+  create   --task T --kind ${KINDS.join('|')} --slug S --body FILE --author SEAT [--title X] [--tasks-dir D]
   iterate  --file F --body FILE
   comment  --file F --author A --text X [--quote LINE]
   reply    --file F --id cN --author A --text X
@@ -298,7 +332,10 @@ const COMMANDS = {
   list: cmdList, approve: cmdApprove, status: cmdStatus,
 };
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname);
+// Compare real paths on both sides: node reports import.meta.url as the real
+// path, so a symlinked argv path would never match and every command would exit 0.
+const real = (p) => { try { return realpathSync(p); } catch { return resolve(p); } };
+const isMain = Boolean(process.argv[1]) && real(process.argv[1]) === real(fileURLToPath(import.meta.url));
 if (isMain) {
   const [cmd, ...rest] = process.argv.slice(2);
   const fn = COMMANDS[cmd];
