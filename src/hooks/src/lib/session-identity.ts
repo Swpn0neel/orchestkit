@@ -346,6 +346,11 @@ export function spawnIdentityGenerator(
         '--mcp-config',
         '{"mcpServers":{}}',
         '--disable-slash-commands',
+        // Zero tools: the child only prints one JSON line. Without this it ran
+        // with the full built-in set (Bash, WebFetch) even when the parent
+        // session was --restricted, which a hook cannot read.
+        '--tools',
+        '',
         '--settings',
         '{"disableAllHooks":true,"enabledPlugins":{}}',
         buildGeneratorPrompt(firstPrompt, branch, language),
