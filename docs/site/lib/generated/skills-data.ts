@@ -52,7 +52,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "agent-orchestration",
     "description": "Agent orchestration patterns for agentic loops, multi-agent coordination, alternative frameworks, and multi-scenario workflows. Use when building autonomous agent loops, coordinating multiple agents, evaluating CrewAI/AutoGen/Swarm, or orchestrating complex multi-step scenarios.",
     "version": "2.0.0",
-    "sha256": "9f80a7991ac25b7f0bc15787ec938214ff9146d0f6ceff40721e471aa20ab262",
+    "sha256": "6e48d146818de0e018b888815b5e39cae50fc5170c55b7f7ad0099b09a25bd22",
     "author": "OrchestKit",
     "tags": [
       "agents",
@@ -2975,7 +2975,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "langgraph",
     "description": "LangGraph 1.x (LTS) Python workflow patterns for state management, delta channels, resilience (node timeouts, error handlers, graceful drain), routing, parallel execution, supervisor-worker, tool calling, checkpointing, human-in-loop, streaming (v2 format), subgraphs, and functional API. Use when building LangGraph pipelines, multi-agent systems, or AI workflows.",
     "version": "2.3.0",
-    "sha256": "d9e0731484b058be7d63fbe82d6b59ab2eaac056313fd2159ff8e5db02c0b410",
+    "sha256": "7efd9e1547ff72db3c5ca9660ced788c48dfedaa8fe76cc4686a9d21c3e99b37",
     "author": "OrchestKit",
     "tags": [
       "langgraph",

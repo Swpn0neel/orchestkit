@@ -99,7 +99,7 @@ Return structured workflow design:
     "type": "TypedDict",
     "fields": ["url", "content", "findings", "summary"],
     "reducers": {"findings": "add"},
-    "context_schema": {"llm_provider": "anthropic", "temperature": 0.7}
+    "context_schema": {"llm_provider": "anthropic", "effort": "medium"}
   },
   "checkpointing": {
     "backend": "postgres",

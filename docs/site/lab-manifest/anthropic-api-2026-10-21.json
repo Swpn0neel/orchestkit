@@ -1,0 +1,12 @@
+{
+  "slug": "anthropic-api-2026-10-21",
+  "source": "docs/feat--deps-forward-2026-10-15-r2/index.html",
+  "title": "Anthropic SDK majors and API 2026-10-21",
+  "description": "Paste a Messages request body and see what API version 2026-10-21 rejects: temperature, top_p and top_k return a 400 on every Claude model, even at the default value.",
+  "tags": [
+    "anthropic",
+    "deps",
+    "playground"
+  ],
+  "date": "2026-10-22"
+}

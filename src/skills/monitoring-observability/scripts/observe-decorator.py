@@ -73,7 +73,7 @@ async def generate_analysis(content: str, context: list[str]) -> str:
         output=response_text[:500],  # Truncated
         model="claude-sonnet-5-5",
         usage={"input_tokens": input_tokens, "output_tokens": output_tokens, "unit": "TOKENS"},
-        metadata={"temperature": 1.0, "max_tokens": 4096},
+        metadata={"max_tokens": 4096},
     )
 
     return response_text

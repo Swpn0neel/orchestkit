@@ -77,7 +77,9 @@ const WHEN_PATTERN =
 // against live docs.anthropic.com before the first real --publish, since
 // this script has intentionally never made the network call itself.
 const API_ENDPOINT = 'https://api.anthropic.com/v1/skills';
-const API_VERSION = '2023-06-01';
+// 2026-10-21 leaves the Skills API unchanged (its breaking changes are in
+// Messages, token counting, Batches and some Admin API fields).
+const API_VERSION = '2026-10-21';
 
 function die(msg) {
   console.error(`[publish-skills] ${msg}`);

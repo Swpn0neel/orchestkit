@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Anthropic SDK majors and API 2026-10-21: PR 4767 playground</title>
+<meta name="description" content="Paste a Messages request body and see what API version 2026-10-21 rejects: temperature, top_p and top_k return a 400 on every Claude model. The PR moves anthropic to 2.x and @anthropic-ai/sdk to 1.x.">
+<style>
+  :root { --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6b66; --line: #dedad2; --accent: #2f6f5e; --bad: #b3261e; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #171716; --fg: #ecebe6; --muted: #a3a29b; --line: #34332f; --accent: #6cc3a8; --bad: #f2b8b5; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 system-ui, "Segoe UI", Arial, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 20px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 28px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  .verdict { font-size: 17px; margin: 8px 0 16px; }
+  .muted { color: var(--muted); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .panel { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  textarea, pre { width: 100%; box-sizing: border-box; font: 13px ui-monospace, Menlo, monospace; }
+  textarea { min-height: 220px; background: transparent; color: inherit; border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+  pre { white-space: pre-wrap; margin: 0; }
+  button { font: inherit; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: var(--bg); cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent); }
+  .bad { color: var(--bad); }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  td, th { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 0.92em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Anthropic SDK majors and API version 2026-10-21</h1>
+  <p class="verdict"><strong>Verdict:</strong> the new SDK majors send <code>anthropic-version: 2026-10-21</code>, and on that version a Messages request carrying <code>temperature</code>, <code>top_p</code> or <code>top_k</code> returns a 400 on every Claude model, even at the default value. The Claude calls in OrchestKit's skill scripts drop them.</p>
+  <p class="muted">PR 4767, branch <code>feat/deps-forward-2026-10-15-r2</code>.</p>
+
+  <h2>01 / Check a request body</h2>
+  <p>Paste a Messages request body. The checker lists the fields API 2026-10-21 rejects and prints the body that passes.</p>
+  <div class="panel">
+    <textarea id="input" aria-label="Messages request body as JSON">{
+  "model": "claude-haiku-5-5",
+  "max_tokens": 1024,
+  "temperature": 0.2,
+  "top_p": 0.9,
+  "messages": [{ "role": "user", "content": "Classify this ticket." }]
+}</textarea>
+    <p><button id="check">Check</button> <button id="copy" class="ghost">Copy as prompt</button> <span id="msg" class="muted"></span></p>
+  </div>
+  <div class="grid">
+    <div class="panel"><strong>Rejected on 2026-10-21</strong><pre id="found"></pre></div>
+    <div class="panel"><strong>Body that passes</strong><pre id="clean"></pre></div>
+  </div>
+
+  <h2>02 / What the PR changes</h2>
+  <table>
+    <tr><th>Package</th><th>Before</th><th>After</th></tr>
+    <tr><td><code>anthropic</code> (Python)</td><td><code>&gt;=0.40.0,&lt;2</code></td><td><code>&gt;=2.1.0,&lt;3</code></td></tr>
+    <tr><td><code>@anthropic-ai/sdk</code></td><td><code>0.x</code></td><td><code>1.1.0</code></td></tr>
+    <tr><td><code>pytest</code></td><td><code>&gt;=8</code></td><td><code>&gt;=9.1.1</code></td></tr>
+    <tr><td>Skills API calls in <code>scripts/publish-skills.mjs</code></td><td><code>2023-06-01</code></td><td><code>2026-10-21</code> (Skills endpoints behave the same)</td></tr>
+    <tr><td>Haiku defaults (triage workflow, judges, examples)</td><td><code>claude-haiku-4-5</code></td><td><code>claude-haiku-5-5</code></td></tr>
+  </table>
+
+  <h2>03 / Not proven here</h2>
+  <ul>
+    <li>No live API call: CI makes no real model calls, so the 400 behaviour comes from the API version migration guide, not from a request this PR sent.</li>
+    <li>OpenAI, Ollama and vLLM examples keep their sampling settings; the change covers Claude calls only.</li>
+  </ul>
+</main>
+<script>
+  // Mirrors the API 2026-10-21 rule: these three fields return a 400 on every model.
+  const REJECTED = ["temperature", "top_p", "top_k"];
+  const $ = (id) => document.getElementById(id);
+
+  function check() {
+    let body;
+    try { body = JSON.parse($("input").value); } catch (e) { $("msg").textContent = "Invalid JSON: " + e.message; $("msg").className = "bad"; return; }
+    $("msg").textContent = ""; $("msg").className = "muted";
+    const found = REJECTED.filter((k) => Object.prototype.hasOwnProperty.call(body, k));
+    $("found").textContent = found.length ? found.map((k) => k + " = " + JSON.stringify(body[k]) + "  (400)").join("\n") : "Nothing: this body passes on 2026-10-21.";
+    $("found").className = found.length ? "bad" : "";
+    const clean = Object.fromEntries(Object.entries(body).filter(([k]) => !REJECTED.includes(k)));
+    $("clean").textContent = JSON.stringify(clean, null, 2);
+  }
+
+  $("check").addEventListener("click", check);
+  $("copy").addEventListener("click", async () => {
+    const prompt = "Make this Messages request valid on Anthropic API version 2026-10-21 (remove temperature, top_p and top_k):\n" + $("input").value;
+    try { await navigator.clipboard.writeText(prompt); $("msg").textContent = "Copied"; } catch { $("msg").textContent = "The browser blocked the copy"; }
+  });
+  check();
+</script>
+</body>
+</html>
