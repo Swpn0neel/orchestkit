@@ -24,7 +24,32 @@ echo "=== hook payload readiness ==="
 
 # This delayed producer represents an overloaded process that loses the
 # runner's 100 ms watchdog. The hook sees an empty payload and abstains.
-delayed_out="$( (sleep 2; printf '%s' "$payload") | node "$PROJECT_ROOT/src/hooks/bin/run-hook.mjs" "$hook" 2>"$err_file")"
+#
+# The payload must be late whatever the load. A fixed `sleep 2` was not: run-hook
+# arms its 100 ms timer only after node start and the bundle import, which took
+# over 2 s under load, so the payload was already in the pipe and the row went
+# red on unchanged main (the #4850 class). The pipe is now held open with no
+# data until the runner has emitted its verdict, and only then gets the payload.
+# runHook does not exit while stdin is open, so the wait is on its stdout, with
+# a bound so a broken runner fails this row instead of hanging the suite.
+delayed_fifo="$(mktemp -u "${TMPDIR:-/tmp}/ork-ready-fifo.XXXXXX")"
+delayed_out_file="$(mktemp "${TMPDIR:-/tmp}/ork-ready-out.XXXXXX")"
+mkfifo "$delayed_fifo"
+node "$PROJECT_ROOT/src/hooks/bin/run-hook.mjs" "$hook" <"$delayed_fifo" >"$delayed_out_file" 2>"$err_file" &
+delayed_pid=$!
+exec 3>"$delayed_fifo"
+waited=0
+while [[ ! -s "$delayed_out_file" ]] && ps -p "$delayed_pid" >/dev/null && (( waited < 1200 )); do
+  sleep 0.1
+  waited=$((waited + 1))
+done
+printf '%s' "$payload" >&3
+exec 3>&-
+delayed_rc=0
+wait "$delayed_pid" || delayed_rc=$?
+delayed_out="$(cat "$delayed_out_file")"
+rm -f "$delayed_fifo" "$delayed_out_file"
+[[ "$delayed_rc" -eq 0 ]] || echo "  note: delayed runner exited $delayed_rc"
 delayed_verdict="$(printf '%s' "$delayed_out" | jq -r '.hookSpecificOutput.permissionDecision // "abstain"')"
 if [[ "$delayed_verdict" == "abstain" ]] && grep -q 'stdin delivered 0 bytes in 100ms' "$err_file"; then
   log_pass "delayed pipe loses the watchdog race"
