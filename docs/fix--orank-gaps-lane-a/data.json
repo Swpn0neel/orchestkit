@@ -1,0 +1,32 @@
+{
+  "serves": "orank-gaps-2026-10-21",
+  "page": "index.html",
+  "title": "orchestkit.dev: the remaining orank gaps",
+  "date": "2026-10-22",
+  "orank": {
+    "before": 91,
+    "after": null,
+    "after_source": "POST https://ora.ai/api/scan after deploy"
+  },
+  "fixes": [
+    {
+      "id": 1,
+      "gap": "Actions MCP had no draft-spec server card",
+      "state": "in PR"
+    },
+    {
+      "id": 2,
+      "gap": "sandbox and test mode not linked",
+      "state": "in PR"
+    },
+    {
+      "id": 3,
+      "gap": "developer resource titles did not name the product",
+      "state": "in PR"
+    }
+  ],
+  "ai_catalog_entries": {
+    "before": 5,
+    "after": 6
+  }
+}
