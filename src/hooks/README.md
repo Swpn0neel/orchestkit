@@ -113,7 +113,7 @@ hooks/
 ├── tsconfig.json           # TypeScript configuration
 └── esbuild.config.mjs      # Build configuration (split bundles)
 
-**Total:** <!--ork:hooks-->163<!--/ork--> hooks (<!--ork:hooks-global-->153<!--/ork--> global + <!--ork:hooks-agent-->0<!--/ork--> agent-scoped + <!--ork:hooks-skill-->10<!--/ork--> skill-scoped)
+**Total:** <!--ork:hooks-->161<!--/ork--> hooks (<!--ork:hooks-global-->151<!--/ork--> global + <!--ork:hooks-agent-->0<!--/ork--> agent-scoped + <!--ork:hooks-skill-->10<!--/ork--> skill-scoped)
 ```
 
 ---
@@ -1408,13 +1408,15 @@ OrchestKit hooks are managed defaults. Users retain full control to disable any 
 **Last Updated:** 2026-02-28
 **Version:** 2.1.0 (Async hooks support)
 **Architecture:** 11 split bundles (648KB total)
-**Hooks:** <!--ork:hooks-->163<!--/ork--> hooks (<!--ork:hooks-global-->153<!--/ork--> global + <!--ork:hooks-agent-->0<!--/ork--> agent-scoped + <!--ork:hooks-skill-->10<!--/ork--> skill-scoped)
+**Hooks:** <!--ork:hooks-->161<!--/ork--> hooks (<!--ork:hooks-global-->151<!--/ork--> global + <!--ork:hooks-agent-->0<!--/ork--> agent-scoped + <!--ork:hooks-skill-->10<!--/ork--> skill-scoped)
 **Average Bundle:** ~35KB per event
 **Claude Code Requirement:** >= 2.1.78
 
 See the async hooks section above for detailed async hook patterns.
 
 ## Registry changelog (archived from hooks.json description, 2026-07-18)
+
+(count 163 to 161, global 153 to 151, 2026-10-25): `prompt/goal-tracker` and `prompt/worktree-advisory-consumer` now run inside `prompt/unified-dispatcher` instead of as two separate sync UserPromptSubmit hooks. Each one was a node spawn per prompt with a 5 s timeout, and both timed out under load (node cold start about 0.35 s idle, up to 2.2 s at load1 60 to 86, past 5 s at load1 ~230); the dispatcher has one spawn and a 15 s budget. Their behaviour is unchanged: they run first on every prompt, outside the dispatcher's prompt guards, effort budget, noise filter and delta skip; a goal-tracker block (the /goal budget brake) is returned as is, after the other hooks have run as before; an advisory is appended to the consolidated context in full. Both stay in the prompt entries map and are reached through the dispatcher fan-out, like `prompt/handoff-injector`. Timeouts unchanged. Test: `__tests__/prompt/dispatcher-folded-hooks.test.ts` (12 cases).
 
 (count 169 to 171, skill-scoped 17 to 19: two frontmatter registrations of one handler, 2026-10-08, #4675, #4678): new `skill/review-post-gate`, a PreToolUse hook in `/ork:review-pr` frontmatter only (Bash|Monitor, and Write|Edit|NotebookEdit|mcp__.*; every MCP tool but the memory server is denied, since a GitHub MCP server holds its own token; not in hooks.json, like the other skill-scoped hooks). The skill posted a review nobody asked for. The GitHub write surface is an allowlist: gh runs only its read verbs, `gh api` only as a plain GET with no field or input flag and no graphql, and any curl, wget or httpie/xh call to a GitHub host is denied. The one write path is `skills/review-pr/scripts/post-review.mjs`, allowed only when the nearest human turn on this tool call's parentUuid chain is the user's `/ork:review-pr` line with `--post` and exactly the PR typed right after the command (a bare number also needs the shell at the session project root, since gh resolves it against the cwd's repo), the call is one plain command (letters, digits, `- _ . / :` and spaces, so no quotes, escapes, globs, `$` or chaining) with no `--repo`, and an approve or verdict post also has `--post-verdict` typed (`lib/review-opt-in.ts`; a line appended to the transcript is off the chain, and a repeated uuid fails closed). Any Bash text or Write path naming `.claude/projects` is denied. It reads no gh auth, so it holds with a full gh login. Known limit: it reads command text, so a renamed copy of the script, a script file, or an in-place transcript edit through a path built at run time is not seen; #4677 removes the write credential. 63 cases.
 (count unchanged, 2026-10-10): `pretool/read/tldr-summary` also passes through a Read with `allow_large: true` (CC 2.1.296), which asks for the whole file in one call, so a summary would only add tokens. 1 case added. No registration moved.

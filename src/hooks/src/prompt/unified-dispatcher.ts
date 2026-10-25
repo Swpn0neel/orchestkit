@@ -28,6 +28,13 @@
  * - profile-injector → materializeProfileRules()
  * - memory-context-loader → materializeDecisionRules()
  *
+ * Folded standalone hooks (run before everything else, outside the guards,
+ * the token budget, the noise filter and the delta skip):
+ * - goal-tracker (may block the prompt: /goal budget brake)
+ * - worktree-advisory-consumer (one-shot deferred worktree advisory)
+ * They were separate sync UserPromptSubmit hooks with a 5 s timeout, one node
+ * spawn each per prompt, and timed out under load on node cold start.
+ *
  * CC 2.1.9 Compliant: Single additionalContext output
  * CC 2.1.94: sessionTitle set from branch + effort for prompt-bar identification
  */
@@ -68,6 +75,9 @@ import { handoffInjector } from './handoff-injector.js';
 import { executorRouteNudge } from './executor-route-nudge.js';
 import { visualStyleNudge } from './visual-style-nudge.js';
 import { multiStepTaskNudge } from './multi-step-task-nudge.js';
+// Folded standalone hooks
+import { goalTracker } from './goal-tracker.js';
+import { worktreeAdvisoryConsumer } from './worktree-advisory-consumer.js';
 import { NOOP_CTX } from '../lib/context.js';
 
 // -----------------------------------------------------------------------------
@@ -127,8 +137,20 @@ const HOOKS: PromptHookConfig[] = [
   // antipattern-warning removed (#972) — now a type:prompt hook in hooks.json
 ];
 
+/**
+ * Hooks that used to be their own UserPromptSubmit entries in hooks.json. They
+ * keep their standalone behaviour exactly: they run on every prompt whatever
+ * the prompt guards, effort or once-flags decide, a block is returned as is,
+ * and their context is added after the budget, noise filter and delta skip, so
+ * nothing the dispatcher trims can drop it.
+ */
+const FOLDED_HOOKS: Array<{ name: string; fn: HookFn }> = [
+  { name: 'goal-tracker', fn: goalTracker },
+  { name: 'worktree-advisory-consumer', fn: worktreeAdvisoryConsumer },
+];
+
 /** Exposed for testing */
-export const registeredHookNames = () => HOOKS.map(h => h.name);
+export const registeredHookNames = () => [...FOLDED_HOOKS, ...HOOKS].map(h => h.name);
 
 // -----------------------------------------------------------------------------
 // Once-per-session Flag Tracking
@@ -402,6 +424,36 @@ function isNoisyOutput(context: string): boolean {
  * and consolidates their output into a single additionalContext response.
  */
 export function unifiedPromptDispatcher(input: HookInput, ctx: HookContext = NOOP_CTX): HookResult {
+  let block: HookResult | null = null;
+  const folded: string[] = [];
+  for (const hook of FOLDED_HOOKS) {
+    try {
+      const result = hook.fn(input, ctx);
+      if (result.continue === false) {
+        block ??= result;
+        continue;
+      }
+      const context = extractContext(result);
+      if (context) folded.push(context);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      ctx.log(HOOK_NAME, `${hook.name} failed: ${message}`, 'warn');
+    }
+  }
+
+  // The other hooks still run on a blocked prompt, as they did when the folded
+  // hooks were separate processes: their analytics and once-flags do not depend
+  // on whether CC accepts the prompt.
+  const result = runPromptHooks(input, ctx);
+  if (block) return block;
+  if (folded.length === 0) return result;
+
+  const out = result.hookSpecificOutput as { additionalContext?: string; sessionTitle?: string } | undefined;
+  const merged = [out?.additionalContext, ...folded].filter(Boolean).join('\n\n---\n\n');
+  return outputPromptContextWithTitle(merged, out?.sessionTitle ?? '');
+}
+
+function runPromptHooks(input: HookInput, ctx: HookContext): HookResult {
   // Guard: skip all processing for oversized or binary prompts (image paste, base64 data)
   const prompt = input.prompt || '';
   if (prompt.length > MAX_PROMPT_LENGTH) {
