@@ -17,7 +17,7 @@ import {
   hasUnquotedExpansion,
   hasBackgroundOperator,
 } from '../lib/normalize-command.js';
-import { REJECT_PATTERNS } from '../lib/bash-patterns.js';
+import { REJECT_PATTERNS, hasQuotedPackageManagerArgs } from '../lib/bash-patterns.js';
 import { isPermissionAutoApproveEnabled } from '../lib/permission-auto-approve.js';
 import { NOOP_CTX } from '../lib/context.js';
 
@@ -39,9 +39,9 @@ const SAFE_PATTERNS: RegExp[] = [
   // Package managers: read operations and the test entry point only. A bare
   // `run <script>` runs whatever package.json says, so only the named
   // test/lint/typecheck/format scripts below are allowed.
-  /^npm (list|ls|outdated|audit|test)\b/,
-  /^pnpm (list|ls|outdated|audit|test)\b/,
-  /^yarn (list|outdated|audit|test)\b/,
+  /^npm (list|ls|outdated|audit|test)(?=\s|$)/,
+  /^pnpm (list|ls|outdated|audit|test)(?=\s|$)/,
+  /^yarn (list|outdated|audit|test)(?=\s|$)/,
   /^poetry (show|env)\b/,
 
   // Docker — safe: read-only inspection commands
@@ -121,6 +121,12 @@ export function autoApproveSafeBash(input: HookInput, ctx: HookContext = NOOP_CT
   // which file is read from the literal patterns below.
   if (command && (hasUnquotedExpansion(command) || hasBackgroundOperator(command))) {
     ctx.log('auto-approve-safe-bash', 'Expansion or background operator, requiring manual approval');
+    return outputSilentSuccess();
+  }
+
+  // SEC: quoting must not reshape a package-manager script name.
+  if (command && hasQuotedPackageManagerArgs(command)) {
+    ctx.log('auto-approve-safe-bash', 'Quoted package-manager arguments, requiring manual approval');
     return outputSilentSuccess();
   }
 

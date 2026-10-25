@@ -10,6 +10,8 @@
  * @since v7.27.1
  */
 
+import { normalizeSingle } from './normalize-command.js';
+
 /**
  * git long options that run a configured or supplied program, write a file,
  * or point git at another repository (whose config can run programs).
@@ -97,6 +99,10 @@ export const REJECT_PATTERNS: RegExp[] = [
   // Top-level -p / --paginate runs the configured pager. Only before the
   // subcommand: `git log -p` is patch output, not paging.
   new RegExp(String.raw`^git${GIT_TOP_LEVEL_OPTIONS}\s+(?:-p|--paginate)(?=\s|$)`),
+  // Package managers accept abbreviated long options and several of them
+  // run a program or another directory's package.json, so any option
+  // drops to a prompt.
+  /^(?:npm|pnpm|yarn)\b[^\n]*?\s-/,
 
   // Credential-path arguments (#4216 HR-1): secret material must never
   // auto-approve under a read-only prefix. Keying on the reader left the
@@ -112,6 +118,19 @@ export const REJECT_PATTERNS: RegExp[] = [
   // and retry hooks refuse those up front (hasUnquotedExpansion).
   /(?:\/etc\/(?:shadow|gshadow|sudoers|master\.passwd)|\.(?:ssh|aws|gnupg|kube|docker|netrc|git-credentials|npmrc|pypirc|env|envrc|credentials?)\b|id_(?:rsa|ed25519|ecdsa|dsa)\b|\.(?:pem|key|p12|pfx|keystore)\b|\.config\/gh\/hosts\.yml\b)/i,
 ];
+
+/**
+ * True for an npm/pnpm/yarn command that carries a quote, backslash or
+ * backtick. The allowlists match the normalized command, and normalization
+ * strips quoting, so a quoted argument can read as a different script name
+ * than the one the package manager runs. Such commands never auto-approve.
+ * The package-manager word is read from the normalized command, the form the
+ * allowlists match, because the word itself may be quoted or escaped in the
+ * raw text. The match ignores case: learned approvals compare lowercased.
+ */
+export function hasQuotedPackageManagerArgs(cmd: string): boolean {
+  return /['"\\`]/.test(cmd) && /^(?:npm|pnpm|yarn)\b/i.test(normalizeSingle(cmd));
+}
 
 // Note: For compound command detection, use isCompoundCommand() from
 // lib/normalize-command.ts — it handles newlines, line continuations,

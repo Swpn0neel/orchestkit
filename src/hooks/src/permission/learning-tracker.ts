@@ -19,7 +19,7 @@ import {
   hasUnquotedExpansion,
   hasBackgroundOperator,
 } from '../lib/normalize-command.js';
-import { REJECT_PATTERNS } from '../lib/bash-patterns.js';
+import { REJECT_PATTERNS, hasQuotedPackageManagerArgs } from '../lib/bash-patterns.js';
 import { readDistilledPatterns } from '../lib/learned-patterns-cache.js';
 import { isPermissionAutoApproveEnabled } from '../lib/permission-auto-approve.js';
 import { existsSync, readFileSync } from 'node:fs';
@@ -170,8 +170,15 @@ export function learningTracker(input: HookInput, ctx: HookContext = NOOP_CTX): 
       ctx.log('learning-tracker', 'Expansion or background operator, skipping auto-approve');
       return outputSilentSuccess();
     }
+    if (hasQuotedPackageManagerArgs(command)) {
+      ctx.log('learning-tracker', 'Quoted package-manager arguments, skipping auto-approve');
+      return outputSilentSuccess();
+    }
+    // Learned prefixes match the lowercased normalized command (shouldAutoApprove),
+    // so the reject list also sees that form: `NPM test --prefix x` must not pass.
     const normalizedForReject = normalizeSingle(command);
-    if (REJECT_PATTERNS.some((p) => p.test(normalizedForReject))) {
+    const loweredForReject = normalizedForReject.toLowerCase();
+    if (REJECT_PATTERNS.some((p) => p.test(normalizedForReject) || p.test(loweredForReject))) {
       ctx.log('learning-tracker', 'Matches shared reject pattern, skipping auto-approve');
       return outputSilentSuccess();
     }

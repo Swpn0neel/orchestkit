@@ -775,6 +775,32 @@ describe('learningTracker learned-pattern hardening', () => {
     expect(allowed('cat ~/.ssh/config')).toBe(false);
   });
 
+  // Package-manager class from release/9.8.x. Fail-first: these fail on main
+  // at 181dcbecb and pass after.
+  test('a learned package-manager approval does not cover running another directory or program', () => {
+    learn(['npm test', 'pnpm test', 'yarn test']);
+    for (const cmd of ['npm test --prefix ../other', 'pnpm test --dir ../other', 'yarn test --cwd ../other', 'npm test --script-shell=x']) {
+      expect(allowed(cmd), cmd).toBe(false);
+    }
+    expect(allowed('npm test')).toBe(true);
+  });
+
+  test('a learned package-manager approval does not cover a quoted script name or package-manager word', () => {
+    learn(['npm test', 'npm run test']);
+    for (const cmd of ["npm run 'test x'", 'npm run "test x"', `"npm" run 'test x'`, `\\npm run "test x"`]) {
+      expect(allowed(cmd), cmd).toBe(false);
+    }
+    expect(allowed('npm run test')).toBe(true);
+  });
+
+  test('a learned package-manager approval does not cover an upper-case spelling', () => {
+    learn(['npm test', 'npm run test']);
+    for (const cmd of ['NPM test --prefix ../other', 'Npm test --script-shell=x', 'NPM run "test x"']) {
+      expect(allowed(cmd), cmd).toBe(false);
+    }
+    expect(allowed('npm test')).toBe(true);
+  });
+
   test('control: an exact learned command and its arguments still allow', () => {
     learn(['git status']);
     expect(allowed('git status')).toBe(true);

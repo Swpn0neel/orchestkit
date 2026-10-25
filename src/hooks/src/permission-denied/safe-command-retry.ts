@@ -27,7 +27,7 @@ import {
   hasUnquotedExpansion,
   hasBackgroundOperator,
 } from '../lib/normalize-command.js';
-import { REJECT_PATTERNS } from '../lib/bash-patterns.js';
+import { REJECT_PATTERNS, hasQuotedPackageManagerArgs } from '../lib/bash-patterns.js';
 import { NOOP_CTX } from '../lib/context.js';
 
 const HOOK_NAME = 'safe-command-retry';
@@ -54,9 +54,9 @@ const RETRY_SAFE_PATTERNS: RegExp[] = [
   // SEC (#4216 HR-1): env/printenv dump exported secrets — never auto-retry.
 
   // Package manager read-only
-  /^npm (list|ls|outdated|audit)\b/,
-  /^pnpm (list|ls|outdated|audit)\b/,
-  /^yarn (list|outdated|audit|info|why)\b/,
+  /^npm (list|ls|outdated|audit)(?=\s|$)/,
+  /^pnpm (list|ls|outdated|audit)(?=\s|$)/,
+  /^yarn (list|outdated|audit|info|why)(?=\s|$)/,
 
   // Docker read-only
   /^docker (ps|images|logs|inspect)\b/,
@@ -65,7 +65,7 @@ const RETRY_SAFE_PATTERNS: RegExp[] = [
   /^gh (issue|pr|repo|workflow) (list|view|status)\b/,
 
   // Test/lint commands
-  /^npm run (test|lint|typecheck|format)\b/,
+  /^npm run (test|lint|typecheck|format)(?=\s|$)/,
   /^pytest\b/,
 ];
 
@@ -100,6 +100,11 @@ export function safeCommandRetry(input: HookInput, ctx: HookContext = NOOP_CTX):
 
   if (hasUnquotedExpansion(command) || hasBackgroundOperator(command)) {
     ctx.log(HOOK_NAME, 'Expansion or background operator — not retrying');
+    return outputSilentSuccess();
+  }
+
+  if (hasQuotedPackageManagerArgs(command)) {
+    ctx.log(HOOK_NAME, 'Quoted package-manager arguments, not retrying');
     return outputSilentSuccess();
   }
 

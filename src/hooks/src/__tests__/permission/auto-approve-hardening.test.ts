@@ -269,3 +269,52 @@ describe('safe-bash allowlist refuses background jobs, risky git options and arb
     },
   );
 });
+
+// ---------------------------------------------------------------------------
+// Package-manager class from release/9.8.x (#4859, #4869 and its follow-up):
+// options that run another directory or program, quoted script names, and a
+// quoted or escaped package-manager word. Fail-first: the refused rows fail on
+// main at 181dcbecb and pass after.
+// ---------------------------------------------------------------------------
+
+describe('package-manager class from release/9.8.x never auto-approves', () => {
+  const refused = [
+    'npm test --prefix ../other',
+    'npm test --script-shell=x',
+    'npm test --node-options=x',
+    'npm test --prefi=o',
+    'pnpm test --dir ../other',
+    'yarn test --cwd ../other',
+    'npm run test --prefix ../other',
+    "npm run 'test x'",
+    'npm run "test x"',
+    "pnpm run 'lint x'",
+    "npm test 'a b'",
+    `"npm" run 'test x'`,
+    `\\npm run 'test x'`,
+    `n''pm run "test x"`,
+    `y"ar"n run 'test x'`,
+  ];
+
+  test.each(refused)('safe-bash does not allow: %s', (cmd) => {
+    expect(isAllow(autoApproveSafeBash(bashInput(cmd)))).toBe(false);
+  });
+
+  test.each([
+    'npm run test --prefix ../other',
+    'npm ls --prefix ../other',
+    'npm run test-e2e',
+    'npm run lint:fix',
+    "npm run 'test x'",
+    'npm run "test x"',
+    `"npm" run 'test x'`,
+    `\\npm run 'test x'`,
+  ])('safe-command-retry does not retry: %s', (cmd) => {
+    expect(isRetry(safeCommandRetry(bashInput(cmd, 'PermissionDenied')))).toBe(false);
+  });
+
+  test.each(['npm test', 'npm run test', 'npm run lint', 'npm ls', 'pnpm run test'])('control: still allowed: %s', (cmd) => {
+    expect(isAllow(autoApproveSafeBash(bashInput(cmd)))).toBe(true);
+  });
+});
+
