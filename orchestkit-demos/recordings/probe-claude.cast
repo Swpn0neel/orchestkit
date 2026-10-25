@@ -1,0 +1,3 @@
+{"version":2,"width":80,"height":24,"timestamp":1789498064,"idle_time_limit":2.0,"command":"/Users/yonatangross/.local/bin/claude --version","title":"ork show probe claude","env":{"SHELL":"/bin/zsh"}}
+[0.135772, "o", "2.1.272 (Claude Code)\r\n"]
+[0.156688, "x", "0"]
