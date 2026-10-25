@@ -2333,7 +2333,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "explore",
     "description": "Multi-angle codebase exploration spawning 3-5 parallel agents for code structure, data flow, architecture patterns, and health assessment. Generates ASCII visualizations, import graphs, and design pattern detection with cross-session memory storage. Use when exploring a repo, discovering architecture, onboarding to a new codebase, or analyzing design patterns.",
     "version": "2.6.0",
-    "sha256": "ef9b58215cc9802ebcc8c99b842cb61d2e2d989c34fe07e59ff646bfa799527b",
+    "sha256": "4cf09ff267bc006fc577e6cf9a6d0620d42635f8ac399a96f2add2d933e96665",
     "author": "OrchestKit",
     "tags": [
       "exploration",
@@ -2611,7 +2611,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "glyph",
     "description": "Render an answer as ASCII art plus semantic emojis inline with no setup questions: one render per reply, verdict first. Use for any answer with shape: status, inventories, audits, budgets, comparisons, rankings, pipelines, 'what is using X', or any ad-hoc 'show me X visually' ask. Not for definitions, conceptual explanations, or one-liner asks. For a full multi-artifact plan playground, use visualize-plan instead.",
     "version": "3.2.0",
-    "sha256": "e61e603e67dbab190b9da29243f9d087cb4f5227d6cbd4e331f57e7b660772a7",
+    "sha256": "72454ea17c189097eac9b0f85d8158dce4a603090a175d6ddee3120e138b292c",
     "author": "OrchestKit",
     "tags": [
       "ascii",
@@ -3150,7 +3150,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "mcp-visual-output",
     "description": "Interactive MCP visual output via @json-render/mcp: upgrade plain JSON tool responses to dashboards rendered in sandboxed iframes inside MCP clients like Claude, Cursor, and ChatGPT. Use when a tool result would read better as a stat grid, data table, or status badge than as text. For the server itself (transport, auth, tool handlers, security) reach for ork:mcp-patterns.",
     "version": "1.1.0",
-    "sha256": "285d44557b1874b315656def1d3e023636e976440f62d5ecf8403a2d097fb5bb",
+    "sha256": "964603261072974ce6dfe98d29fcd061abf6af01a5f416d3e6a8177093716ff5",
     "author": "OrchestKit",
     "tags": [
       "mcp",
@@ -3173,6 +3173,9 @@ export const SKILLS: Record<string, SkillMeta> = {
         "component-recipes.md",
         "mcp-integration.md",
         "upstream-mcp.md"
+      ],
+      "scripts": [
+        "glyph-card-server.mjs"
       ]
     },
     "plugins": [
@@ -4285,7 +4288,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "review-pr",
     "description": "PR review using parallel specialized agents for code quality, security, testing, architecture, and performance analysis. Synthesizes findings into a review report with conventional comments (praise/issue/suggestion/nitpick) and approve or request-changes verdict. Use when reviewing pull requests, conducting security audits, or validating changes before merge.",
     "version": "1.9.0",
-    "sha256": "2419b6d35f70b79fd84335910ccbc2f09c3cf059dd8a7f4560ecd16e81e30250",
+    "sha256": "9a97e52e5545b11c7ba792b9415c71a178f1a181636577ef0ff20b7d8bb4ac0d",
     "author": "OrchestKit",
     "tags": [
       "code-review",

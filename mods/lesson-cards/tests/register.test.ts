@@ -51,23 +51,13 @@ const CORPUS_ENTRIES = PATTERNS.length + 2;
 
 interface Fake$Options {
   noticeThrows?: boolean;
-  /** When set, $.ui.ask exists and answers with this label; unset = no dialog (headless). */
+  /** When set, $.ui.ask exists (recorded, answers with this label); lesson-cards must never call it. */
   askAnswer?: string;
   /** When set, $.env.get answers from this map instead of the default HOME only. */
   env?: Record<string, string>;
+  /** $.settings.read answers: by source, and `merged` for a read with no source. */
+  settings?: Partial<Record<'user' | 'project' | 'local' | 'merged', Record<string, unknown>>>;
 }
-
-/** askAnswer sentinel: the dialog throws, the way Escape does on CC 2.1.283 (captured live). */
-const ESCAPE = '<escape>';
-
-/** askAnswer sentinel: the Escape throw when the dialog returns no text (CC's fallback). */
-const ESCAPE_NO_TEXT = '<escape-no-text>';
-
-/** askAnswer sentinel: the dialog throws for a reason other than Escape. */
-const REFUSED = '<refused>';
-
-/** askAnswer sentinel: a host deny, which also throws "no answer (...)". */
-const HOST_DENY = '<host-deny>';
 
 /** A node built by a fake element constructor: the name as type, props spread. */
 type FakeNode = { type: string; key?: string; children?: unknown; [prop: string]: unknown };
@@ -85,6 +75,8 @@ interface Fake$Record {
   envGets: string[];
   registeredCommands: Array<{ name: string; description: string }>;
   asks: Array<{ question: string; options: readonly string[] }>;
+  statuses: Array<string | undefined>;
+  settingsReads: Array<string | undefined>;
 }
 
 function makeFake$(options: Fake$Options = {}): Fake$Record {
@@ -93,27 +85,21 @@ function makeFake$(options: Fake$Options = {}): Fake$Record {
   const envGets: string[] = [];
   const registeredCommands: Array<{ name: string; description: string }> = [];
   const asks: Array<{ question: string; options: readonly string[] }> = [];
+  const statuses: Array<string | undefined> = [];
+  const settingsReads: Array<string | undefined> = [];
 
   const ask = async (question: string, opts: readonly string[]): Promise<string> => {
     asks.push({ question, options: opts });
-    if (options.askAnswer === ESCAPE) {
-      throw new Error(
-        "lesson-cards: $.ui.ask: no answer (The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.)",
-      );
-    }
-    if (options.askAnswer === ESCAPE_NO_TEXT) {
-      throw new Error('$.ui.ask: no answer (the dialog was dismissed)');
-    }
-    if (options.askAnswer === REFUSED) {
-      throw new Error('$.ui.ask: no answer (a hook refused the dialog)');
-    }
-    if (options.askAnswer === HOST_DENY) {
-      throw new Error('lesson-cards: $.ui.ask: no answer (no surface)');
-    }
     return options.askAnswer as string;
   };
 
   const fake$ = {
+    settings: {
+      read: async (args?: { source?: 'user' | 'project' | 'local' }): Promise<Record<string, unknown>> => {
+        settingsReads.push(args?.source);
+        return options.settings?.[args?.source ?? 'merged'] ?? {};
+      },
+    },
     env: {
       get: async (name: string): Promise<string | undefined> => {
         envGets.push(name);
@@ -179,6 +165,9 @@ function makeFake$(options: Fake$Options = {}): Fake$Record {
         invalidateCalls.push(component);
       },
       resolve: async (): Promise<typeof fakeElements> => fakeElements,
+      status: async (text?: string): Promise<void> => {
+        statuses.push(text);
+      },
       ...(options.askAnswer === undefined ? {} : { ask }),
     },
     command: {
@@ -188,7 +177,7 @@ function makeFake$(options: Fake$Options = {}): Fake$Record {
     },
   };
 
-  return { $: fake$, notices, invalidateCalls, envGets, registeredCommands, asks };
+  return { $: fake$, notices, invalidateCalls, envGets, registeredCommands, asks, statuses, settingsReads };
 }
 
 interface CapturedHooks {
@@ -269,7 +258,7 @@ describe('session.start', () => {
 
   test('loads patterns and newest three floor lessons', async () => {
     const { hooks } = captureHooks();
-    const { $ } = makeFake$({ askAnswer: 'Proceed anyway' });
+    const { $ } = makeFake$({ askAnswer: 'Cancel' });
     await startSession(hooks, $);
 
     const next = asNext<never>({});
@@ -297,7 +286,7 @@ describe('session.start', () => {
 describe('tool.call', () => {
   test('returns context for a matched block pattern', async () => {
     const { hooks } = captureHooks();
-    const { $ } = makeFake$({ askAnswer: 'Proceed anyway' });
+    const { $ } = makeFake$({ askAnswer: 'Cancel' });
     await startSession(hooks, $);
 
     const next = asNext<never>({ result: 'ok' });
@@ -313,7 +302,7 @@ describe('tool.call', () => {
   // next() returned, it never replaces it.
   test('keeps the context a hook below attached and adds its own after it', async () => {
     const { hooks } = captureHooks();
-    const { $ } = makeFake$({ askAnswer: 'Proceed anyway' });
+    const { $ } = makeFake$({ askAnswer: 'Cancel' });
     await startSession(hooks, $);
 
     const next = asNext<never>({ result: 'ok', context: ['memory-lens: related memory'] });
@@ -326,7 +315,7 @@ describe('tool.call', () => {
 
   test('keeps only non-empty string entries from the context below', async () => {
     const { hooks } = captureHooks();
-    const { $ } = makeFake$({ askAnswer: 'Proceed anyway' });
+    const { $ } = makeFake$({ askAnswer: 'Cancel' });
     await startSession(hooks, $);
 
     const next = asNext<never>({ result: 'ok', context: ['ok', '', 42] });
@@ -338,7 +327,7 @@ describe('tool.call', () => {
 
   test('adds its card once when the context below already holds it', async () => {
     const { hooks } = captureHooks();
-    const { $ } = makeFake$({ askAnswer: 'Proceed anyway' });
+    const { $ } = makeFake$({ askAnswer: 'Cancel' });
     await startSession(hooks, $);
 
     const call = (prior: string[]) =>
@@ -353,7 +342,7 @@ describe('tool.call', () => {
 
   test('keeps every prior context entry for an Edit match too', async () => {
     const { hooks } = captureHooks();
-    const { $ } = makeFake$({ askAnswer: 'Proceed anyway' });
+    const { $ } = makeFake$({ askAnswer: 'Cancel' });
     await startSession(hooks, $);
 
     const next = asNext<never>({ result: 'ran', context: ['a', 'b'] });
@@ -384,7 +373,7 @@ describe('tool.call', () => {
 
   test('survives a refused ui.notice', async () => {
     const { hooks } = captureHooks();
-    const { $ } = makeFake$({ noticeThrows: true, askAnswer: 'Proceed anyway' });
+    const { $ } = makeFake$({ noticeThrows: true, askAnswer: 'Cancel' });
     await startSession(hooks, $);
 
     const next = asNext<never>({});
@@ -418,7 +407,7 @@ describe('tool.call', () => {
 
   test('feeds matching tool.call and asserts card and lesson notice independently', async () => {
     const { hooks } = captureHooks();
-    const { $, notices } = makeFake$({ askAnswer: 'Proceed anyway' });
+    const { $, notices } = makeFake$({ askAnswer: 'Cancel' });
     await startSession(hooks, $);
 
     const toolUseId = 'call_1';
@@ -488,156 +477,98 @@ describe('ui.render', () => {
   });
 });
 
-describe('block lessons ask before the call runs', () => {
-  test('Cancel denies the call without running the tool', async () => {
-    const { hooks } = captureHooks();
-    const { $, asks } = makeFake$({ askAnswer: 'Cancel' });
-    await startSession(hooks, $);
+describe('lessons are advisory: a lesson never blocks a tool call (operator word 2026-10-21)', () => {
+  const MESSAGE = 'Cancelled CI tiers are not pass.';
+  const ADVISORY = 'BLOCK-SEVERITY LESSON (advisory, not enforced): ';
 
+  type Out = { deny?: unknown; permissionDecision?: unknown; result?: string; context?: string[] };
+
+  async function run(
+    sessionEvent: Record<string, unknown> | null,
+    toolEvent: Record<string, unknown>,
+    fakeOptions: Fake$Options = {},
+  ): Promise<{ ran: boolean; out: Out; asks: unknown[]; tree: unknown }> {
+    const { hooks } = captureHooks();
+    const { $, asks } = makeFake$(fakeOptions);
+    if (sessionEvent !== null) await hooks.get('session.start')!($, sessionEvent, async (ev: unknown) => ev);
     let ran = false;
     const next = async (): Promise<unknown> => {
       ran = true;
       return { result: 'ran' };
     };
-    const out = (await hooks.get('tool.call')!($, { tool: 'Bash', command: 'gh pr checks', tool_use_id: 'tu-c' }, next)) as { deny?: string; result?: string };
+    const out = (await hooks.get('tool.call')!($, { ...toolEvent, tool_use_id: 'tu-adv' }, next)) as Out;
+    const tree = await hooks.get('ui.render')!($, { component: 'ToolUse', requestId: 'tu-adv' }, asNext<never>(null));
+    return { ran, out, asks, tree };
+  }
 
-    expect(ran).toBe(false);
-    expect(asks).toHaveLength(1);
-    expect(asks[0].question).toContain('cancelled-check-is-not-pass');
-    expect(asks[0].options).toEqual(['Proceed anyway', 'Cancel']);
-    expect(out.result).toBeUndefined();
-    expect(out.deny).toContain('Cancelled: by you; not run.');
-    expect(out.deny).toContain('[lesson:cancelled-check-is-not-pass]');
-  });
+  const BLOCK_CALL = { tool: 'Bash', command: 'gh pr checks' };
+  const WARN_CALL = { tool: 'Edit', file_path: 'tests/run.py', new_string: 'pytest.main()' };
 
-  test('Proceed anyway runs the tool and keeps the context', async () => {
-    const { hooks } = captureHooks();
-    const { $, asks } = makeFake$({ askAnswer: 'Proceed anyway' });
-    await startSession(hooks, $);
-
-    const out = (await hooks.get('tool.call')!($, { tool: 'Bash', command: 'gh pr checks' }, asNext<never>({ result: 'ran' }))) as { result?: string; context?: string[] };
-    expect(asks).toHaveLength(1);
-    expect(out.result).toBe('ran');
-    expect(out.context?.[0]).toContain('[lesson:cancelled-check-is-not-pass]');
-  });
-
-  test('a warn lesson never asks', async () => {
-    const { hooks } = captureHooks();
-    const { $, asks } = makeFake$({ askAnswer: 'Cancel' });
-    await startSession(hooks, $);
-
-    const out = (await hooks.get('tool.call')!($, { tool: 'Edit', file_path: 'tests/run.py', new_string: 'pytest.main()' }, asNext<never>({ result: 'ran' }))) as { result?: string };
-    expect(asks).toHaveLength(0);
-    expect(out.result).toBe('ran');
-  });
-});
-
-describe('a block lesson fails closed: only an explicit Proceed anyway runs it', () => {
-  const cases: Array<[string, string | undefined, boolean | undefined, string]> = [
-    ['Escape (the live 2.1.283 rejection throw)', ESCAPE, true, 'Cancelled: by you; not run.'],
-    ['Escape with no dialog text (the dismiss fallback)', ESCAPE_NO_TEXT, true, 'Cancelled: by you; not run.'],
-    ['a throw that is not the dismiss', REFUSED, true, 'Not run: no dialog to confirm.'],
-    ['a host deny ("no answer" without a rejection text)', HOST_DENY, true, 'Not run: no dialog to confirm.'],
-    ['a typed free-text answer', 'sure, go ahead', true, 'Not run: no "Proceed anyway".'],
-    ['a lowercase "proceed anyway"', 'proceed anyway', true, 'Not run: no "Proceed anyway".'],
-    ['an uppercase "PROCEED ANYWAY"', 'PROCEED ANYWAY', true, 'Not run: no "Proceed anyway".'],
-    ['a cut short "Proceed"', 'Proceed', true, 'Not run: no "Proceed anyway".'],
-    ['a trailing space "Proceed anyway "', 'Proceed anyway ', true, 'Not run: no "Proceed anyway".'],
-    ['a padded " Proceed anyway "', ' Proceed anyway ', true, 'Not run: no "Proceed anyway".'],
-    ['both labels "Proceed anyway, Cancel"', 'Proceed anyway, Cancel', true, 'Not run: no "Proceed anyway".'],
-    ['a missing $.ui.ask (the call throws, the try/catch denies)', undefined, true, 'Not run: no dialog to confirm.'],
-    ['a headless session (isInteractive false)', 'Proceed anyway', false, 'Not run: no dialog to confirm.'],
-    ['a session.start without isInteractive', 'Proceed anyway', undefined, 'Not run: no dialog to confirm.'],
+  const sessions: Array<[string, Record<string, unknown>]> = [
+    ['an interactive session', { cwd: '/repo', isInteractive: true }],
+    ['a headless session (isInteractive false)', { cwd: '/repo', isInteractive: false }],
+    ['a session.start without isInteractive', { cwd: '/repo' }],
   ];
-  for (const [label, answer, isInteractive, why] of cases) {
-    test(`${label} denies without running the tool`, async () => {
-      const { hooks } = captureHooks();
-      const { $, asks } = makeFake$(answer === undefined ? {} : { askAnswer: answer });
-      const event = isInteractive === undefined ? { cwd: '/repo' } : { ...SESSION_EVENT, isInteractive };
-      await hooks.get('session.start')!($, event, async (ev: unknown) => ev);
 
-      let ran = false;
-      const next = async (): Promise<unknown> => {
-        ran = true;
-        return { result: 'ran' };
-      };
-      const out = (await hooks.get('tool.call')!($, { tool: 'Bash', command: 'gh pr checks' }, next)) as { deny?: string; result?: string };
-      expect(ran).toBe(false);
-      expect(out.result).toBeUndefined();
-      const cancel = why === 'Cancelled: by you; not run.';
-      expect(out.deny?.startsWith(`${why} [lesson:cancelled-check-is-not-pass]`)).toBe(true);
-      expect(out.deny).not.toMatch(/error/i);
-      if (cancel) {
-        expect(out.deny).not.toContain('Fix:');
-        expect(out.deny).not.toMatch(/^Cancelled: Cancelled/);
-        expect(out.deny?.startsWith('Cancelled: ')).toBe(true);
-      }
-      if (isInteractive !== true) expect(asks).toHaveLength(0);
-    });
-  }
-});
-
-describe('the lesson paragraph is drawn once: the card, never the question or the deny', () => {
-  const MESSAGE = 'Cancelled CI tiers are not pass.';
-  const copies = (text: string): number => text.split(MESSAGE).length - 1;
-
-  for (const [label, answer] of [['Cancel', 'Cancel'], ['Escape', ESCAPE]]) {
-    test(`${label}: one copy across card, question and deny`, async () => {
-      const { hooks } = captureHooks();
-      const { $, asks } = makeFake$({ askAnswer: answer });
-      await startSession(hooks, $);
-
-      const out = (await hooks.get('tool.call')!($, { tool: 'Bash', command: 'gh pr checks', tool_use_id: 'tu-once' }, asNext<never>({ result: 'ran' }))) as { deny?: string };
-      const tree = await hooks.get('ui.render')!($, { component: 'ToolUse', requestId: 'tu-once' }, asNext<never>(null));
-
-      const card = JSON.stringify(tree);
-      const question = asks[0]?.question ?? '';
-      const deny = out.deny ?? '';
-      expect(copies(card)).toBe(1);
-      expect(copies(question)).toBe(0);
-      expect(copies(deny)).toBe(0);
-      expect(copies(card + question + deny)).toBe(1);
-      expect(question).toBe('lesson cancelled-check-is-not-pass: Proceed anyway?');
+  for (const [label, sessionEvent] of sessions) {
+    test(`a block lesson in ${label}: no deny, no dialog, the tool runs, the card draws`, async () => {
+      const { ran, out, asks, tree } = await run(sessionEvent, BLOCK_CALL, { askAnswer: 'Cancel' });
+      expect(ran).toBe(true);
+      expect(asks).toHaveLength(0);
+      expect('deny' in out).toBe(false);
+      expect('permissionDecision' in out).toBe(false);
+      expect(out.result).toBe('ran');
+      expect(out.context).toHaveLength(1);
+      expect(out.context?.[0].startsWith(`${ADVISORY}[lesson:cancelled-check-is-not-pass]`)).toBe(true);
+      expect(out.context?.[0]).toContain(MESSAGE);
+      expect(out.context?.[0]).toContain(`Fix: ${PATTERNS[0].example_fix}`);
+      expect(JSON.stringify(tree)).toContain('lesson: cancelled-check-is-not-pass');
     });
   }
 
-  test('Cancel deny is exact: Cancelled: by you; not run. [lesson:id], no Fix', async () => {
-    const { hooks } = captureHooks();
-    const { $ } = makeFake$({ askAnswer: 'Cancel' });
-    await startSession(hooks, $);
-
-    const out = (await hooks.get('tool.call')!($, { tool: 'Bash', command: 'gh pr checks' }, asNext<never>({ result: 'ran' }))) as { deny?: string };
-    expect(out.deny).toBe('Cancelled: by you; not run. [lesson:cancelled-check-is-not-pass]');
-    expect(out.deny?.startsWith('Cancelled: ')).toBe(true);
-    expect(out.deny).not.toContain('Fix:');
-    expect(out.deny).not.toMatch(/^Cancelled: Cancelled/);
+  test('a block lesson runs even when the engine has no dialog at all', async () => {
+    const { ran, out, asks } = await run(SESSION_EVENT, BLOCK_CALL);
+    expect(ran).toBe(true);
+    expect(asks).toHaveLength(0);
+    expect('deny' in out).toBe(false);
+    expect(out.context?.[0].startsWith(ADVISORY)).toBe(true);
   });
 
-  test('Escape deny is the same exact cancel line (no Fix)', async () => {
-    const { hooks } = captureHooks();
-    const { $ } = makeFake$({ askAnswer: ESCAPE });
-    await startSession(hooks, $);
-
-    const out = (await hooks.get('tool.call')!($, { tool: 'Bash', command: 'gh pr checks' }, asNext<never>({ result: 'ran' }))) as { deny?: string };
-    expect(out.deny).toBe('Cancelled: by you; not run. [lesson:cancelled-check-is-not-pass]');
-    expect(out.deny?.startsWith('Cancelled: ')).toBe(true);
-    expect(out.deny).not.toContain('Fix:');
+  test('a warn lesson runs too, with plain (unmarked) context and its card', async () => {
+    const { ran, out, asks, tree } = await run(SESSION_EVENT, WARN_CALL, { askAnswer: 'Cancel' });
+    expect(ran).toBe(true);
+    expect(asks).toHaveLength(0);
+    expect('deny' in out).toBe(false);
+    expect(out.result).toBe('ran');
+    expect(out.context?.[0]).toBe('[lesson:no-pytest-main] Run tests with uv run pytest, not pytest.main.');
+    expect(JSON.stringify(tree)).toContain('lesson: no-pytest-main');
   });
 
-  test('a typed free-text deny still keeps the short Fix for the model', async () => {
-    const { hooks } = captureHooks();
-    const { $ } = makeFake$({ askAnswer: 'sure, go ahead' });
-    await startSession(hooks, $);
+  test('the lesson paragraph is drawn once on screen: the card only', async () => {
+    const { tree } = await run(SESSION_EVENT, BLOCK_CALL, { askAnswer: 'Cancel' });
+    expect(JSON.stringify(tree).split(MESSAGE).length - 1).toBe(1);
+  });
 
-    const out = (await hooks.get('tool.call')!($, { tool: 'Bash', command: 'gh pr checks' }, asNext<never>({ result: 'ran' }))) as { deny?: string };
-    expect(out.deny).toBe(`Not run: no "Proceed anyway". [lesson:cancelled-check-is-not-pass] Fix: ${PATTERNS[0].example_fix}`);
+  test('a card-only setting no longer matters: settings are never read and no status line is set', async () => {
+    const { hooks } = captureHooks();
+    const fake = makeFake$({
+      askAnswer: 'Cancel',
+      settings: { user: { env: { ORK_LESSON_CARDS_CARD_ONLY_DIRS: '/repo' } } },
+    });
+    await startSession(hooks, fake.$);
+    const out = (await hooks.get('tool.call')!(fake.$, BLOCK_CALL, asNext<never>({ result: 'ran' }))) as Out;
+    expect(fake.settingsReads).toEqual([]);
+    expect(fake.statuses).toEqual([]);
+    expect(fake.asks).toHaveLength(0);
+    expect('deny' in out).toBe(false);
+    expect(out.result).toBe('ran');
   });
 });
 
 describe('command.run', () => {
   test('/lessons reloads the corpus and invalidates ui.render', async () => {
     const { hooks } = captureHooks();
-    const { $, invalidateCalls } = makeFake$({ askAnswer: 'Proceed anyway' });
+    const { $, invalidateCalls } = makeFake$({ askAnswer: 'Cancel' });
     await startSession(hooks, $);
 
     const result = (await hooks.get('command.run')!($, { command: 'lessons' })) as { text?: string };
@@ -654,7 +585,7 @@ describe('command.run', () => {
 describe('home lookup: HOME then USERPROFILE through $.env, never process', () => {
   test('loads the corpus under USERPROFILE when HOME is unset (the Windows shape)', async () => {
     const { hooks } = captureHooks();
-    const { $, envGets } = makeFake$({ env: { USERPROFILE: FAKE_HOME }, askAnswer: 'Proceed anyway' });
+    const { $, envGets } = makeFake$({ env: { USERPROFILE: FAKE_HOME }, askAnswer: 'Cancel' });
     vi.stubGlobal('process', undefined);
     try {
       await startSession(hooks, $);
@@ -798,5 +729,53 @@ describe('session.start with HOME unset', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('floor dirs without lessons.md are skipped before any fs.stat (mods-dogfood-2026-10-20)', () => {
+  // Measured live: 88 "$.fs.stat (lesson-cards): .../floor-*/lessons.md failed: ENOENT" debug lines
+  // per session start, one for every floor dir that has no lessons.md.
+  function floorFake(withExists: boolean) {
+    const stats: string[] = [];
+    const $ = {
+      env: { get: async (name: string): Promise<string | undefined> => (name === 'HOME' ? '/h' : undefined) },
+      fs: {
+        list: async (path: string) =>
+          path === '/h/.claude/hq'
+            ? [{ name: 'floor-alpha', kind: 'dir' }, ...[1, 2, 3, 4, 5].map((n) => ({ name: `floor-none-${n}`, kind: 'dir' }))]
+            : null,
+        read: async (path: string): Promise<string> => {
+          if (path === '/h/.claude/hq/floor-alpha/lessons.md') return '## a\n\n- always read the merge state first\n';
+          throw new Error(`ENOENT ${path}`);
+        },
+        stat: async (path: string) => {
+          stats.push(path);
+          if (path === '/h/.claude/hq/floor-alpha/lessons.md') return { size: 10, mtimeMs: 1, kind: 'file' as const };
+          throw new Error(`ENOENT ${path}`);
+        },
+        ...(withExists ? { exists: async (path: string): Promise<boolean> => path === '/h/.claude/hq/floor-alpha/lessons.md' } : {}),
+      },
+      command: { register: async (): Promise<void> => undefined },
+      ui: { invalidate: async (): Promise<void> => undefined, status: async (): Promise<void> => undefined },
+      settings: { read: async () => ({}) },
+    };
+    return { $, stats };
+  }
+
+  test('with $.fs.exists, only the floor dir that has lessons.md is stat-ed, and its lessons still load', async () => {
+    const { hooks } = captureHooks();
+    const { $, stats } = floorFake(true);
+    await startSession(hooks, $);
+    expect(stats.filter((p) => p.includes('floor-none'))).toEqual([]);
+    expect(stats).toContain('/h/.claude/hq/floor-alpha/lessons.md');
+    const result = (await hooks.get('command.run')!($, { command: 'lessons' })) as { text?: string };
+    expect(result.text).not.toContain('0 entries');
+  });
+
+  test('an engine without $.fs.exists falls back to fs.stat for every floor dir', async () => {
+    const { hooks } = captureHooks();
+    const { $, stats } = floorFake(false);
+    await startSession(hooks, $);
+    expect(stats.filter((p) => p.includes('floor-none'))).toHaveLength(5);
   });
 });

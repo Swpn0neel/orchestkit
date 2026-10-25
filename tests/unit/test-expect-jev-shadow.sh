@@ -27,6 +27,14 @@
 
 set -euo pipefail
 
+# Every row sets the mode it tests, so the caller's environment must not.
+# ORK_EXPECT_JEV outranks the legacy ORK_EXPECT_JEV_SHADOW that run_shadow
+# sets: a session with ORK_EXPECT_JEV=act (or 1) turned the shadow rows into
+# act mode and failed the record row in the local pre-push, while CI, which
+# sets none of these, stayed green.
+unset ORK_EXPECT_JEV ORK_EXPECT_JEV_SHADOW ORK_EXPECT_JEV_ENDPOINT ORK_EXPECT_CONFIG \
+  ORK_EXPECT_SESSION AB_SESSION ORK_TYPESAFE_API_KEY
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 SH="$PROJECT_ROOT/src/skills/expect/scripts/jev-shadow.sh"
@@ -100,7 +108,15 @@ COUNT="$(curl -sf "http://127.0.0.1:$PORT/")"
   || bad "flag off hit the network ($COUNT requests)"
 
 # ── 3: unambiguous goal, agreement, latency budget ───────────
+# latency_ms is checked against the wall clock of this one call, not against
+# the 400 ms budget: under load the payload build and the response parse
+# inside the timed window ran past 400 ms with the mock answering at once,
+# and the row went red on unchanged main. The budget itself is enforced and
+# tested by the delay row below (1.5 s delay -> unreachable_or_timeout).
+now_ms() { python3 -c 'import time; print(time.time_ns() // 1000000)'; }
+CALL_START_MS="$(now_ms)"
 LINE="$(run_shadow)"
+CALL_MS=$(( $(now_ms) - CALL_START_MS ))
 if [[ "$LINE" == JEV_SHADOW\|login-2\|* ]]; then
   ok "emits JEV_SHADOW|<step>|<json>"
 else
@@ -111,6 +127,7 @@ REC="$(printf '%s' "$LINE" | cut -d'|' -f3-)"
 VERDICT="$(python3 -c "
 import json, sys
 r = json.loads(sys.argv[1])
+call_ms = int(sys.argv[2])
 want_nouls = {'goal_reached', 'page_changed_as_expected', 'blocked'}
 checks = [
     r.get('jev_action') == 'click:@e3',
@@ -120,15 +137,15 @@ checks = [
     r.get('floor') == 0.5,
     r.get('below_floor') is False,
     r.get('high_confidence_disagreement') is False,
-    isinstance(r.get('latency_ms'), int) and r['latency_ms'] < 400,
+    isinstance(r.get('latency_ms'), int) and 0 <= r['latency_ms'] <= call_ms,
     r.get('latency_budget_ms') == 400,
     set(r.get('nouls', {})) == want_nouls,
     bool(r.get('probabilities')),
     r.get('error') is None,
 ]
-print('OK' if all(checks) else 'FAIL ' + repr(checks) + ' ' + json.dumps(r)[:400])
-" "$REC")"
-[[ "$VERDICT" == "OK" ]] && ok "record: jev pick beside model pick, agree=true, latency in budget" \
+print('OK' if all(checks) else 'FAIL ' + repr(checks) + ' call_ms=' + str(call_ms) + ' ' + json.dumps(r)[:400])
+" "$REC" "$CALL_MS")"
+[[ "$VERDICT" == "OK" ]] && ok "record: jev pick beside model pick, agree=true, latency measured within the call" \
   || bad "record: $VERDICT"
 
 BODY="$(tail -1 "$REQ_LOG")"

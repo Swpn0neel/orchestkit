@@ -2,6 +2,8 @@
 
 Shows CI status lights above the prompt while a promote PR (base `main`, or `PROMOTE_BASE`) is open.
 
+> The command is `/lights`; `/promote-lights` runs the same thing. The promote PR search runs after the session has started, so GitHub never holds up a new session; the band appears once the search finds an open promote PR.
+
 ## What it does
 
 - Displays a compact AbovePrompt band: one summary line (PR, head, merge state, green/yellow/red counts), then one line per required context that is not green, full name, red first, at most 5 such lines with a `+N more` line after them; when everything is green the band is the summary line alone:
@@ -17,6 +19,7 @@ Shows CI status lights above the prompt while a promote PR (base `main`, or `PRO
 - Shows `HOLD` in red when the latest PR comment starts with `HOLD*`
 - The band is the only place the lights are drawn: each tick clears the plugin status line instead of repeating the band in it, and a degraded promote search shows as `DEGRADED` in the band. Claude Code gives a mod no signal when the band is collapsed (ctrl+x ctrl+a), so `/lights` answers the one-line status on demand
 - Draws a one-line dim `lights: <reason>` band when it cannot show lights (no required contexts, gh failed, head moved), so a failure is never a blank space
+- A seat that cannot write the mod store (a sandboxed session gets `EPERM` under `~/.claude`) keeps working: the lights live in memory for that process, and the status line says `lights: store unavailable` once. Before 0.0.14 `session.start` threw there and no band ever drew
 - Demo mode: `/lights watch owner/repo#N` shows lights for any open PR in any repo, no promote PR needed
 
 ## How the band is drawn
