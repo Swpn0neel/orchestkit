@@ -626,7 +626,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "auto",
     "description": "Intent-classified router, the front door to OrchestKit and the DEFAULT entry point for any goal-shaped request. Classifies a plain-English goal and routes it to the right specialist skill. Routing is never overhead, so use it even when the target skill seems obvious; skip only when already executing inside another skill (no recursion). Triggers on: auto, do this, figure out, just make, I want, help me, fix, build, improve, any goal description.",
     "version": "1.0.0",
-    "sha256": "8cbd3b91c48f8a33ee89fd62ba7256c1cbc5d63d2af1d51cbf146983c9fce93b",
+    "sha256": "547cc02ec6bcb203dba5005024e8f98e8ccff11c94a7aa6e9a623f360c7b514e",
     "author": "OrchestKit",
     "tags": [
       "router",
@@ -1298,7 +1298,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "create-plan",
     "description": "Writes an implementation plan as a file artifact in the task directory (.ork/tasks/TASK/NN-plan-SLUG.md) with phases, exact file changes and runnable success criteria, so reviewers comment on the file instead of in chat. Use when a task has its research done and needs a reviewable plan before code; pair with iterate-plan for revisions and review-artifact-comments for feedback.",
     "version": "1.0.0",
-    "sha256": "058090b115d4b96acda45618b5846755877d7955327395be53654a91d49ed2f7",
+    "sha256": "a107ffaf81f5c03eb0d1981e7cc114148b32e5e0fa96466578cd044eb6682e37",
     "author": "OrchestKit",
     "tags": [
       "planning",
@@ -1394,9 +1394,9 @@ export const SKILLS: Record<string, SkillMeta> = {
   },
   "create-research": {
     "name": "create-research",
-    "description": "Documents how the codebase works today for a task's research questions and saves it as a file artifact (.ork/tasks/TASK/NN-research-SLUG.md) with file:line citations, so the plan and reviewers build on a reviewable record. Use before planning a change in unfamiliar code; describes what exists only, never proposes changes. Pair with iterate-research.",
+    "description": "Documents how the codebase works today for a task's research questions and saves it as a research file (.ork/tasks/TASK/NN-research-SLUG.md) with file:line citations, so the plan builds on a reviewable record. Use before planning a change in unfamiliar code; describes, never proposes.",
     "version": "1.0.0",
-    "sha256": "2c7c91b324f9d1e01f3ad97f9330e1b2ae953f899c9e2bf6937c4c5f16f4e4ad",
+    "sha256": "8487c9da6e8514016dc3d90e1442eb5d70a91b6c472aa4600b1407bd0eef1c45",
     "author": "OrchestKit",
     "tags": [
       "research",
@@ -3011,9 +3011,9 @@ export const SKILLS: Record<string, SkillMeta> = {
   },
   "iterate-plan": {
     "name": "iterate-plan",
-    "description": "Revises an existing plan artifact (.ork/tasks/TASK/NN-plan-SLUG.md) from review comments or new instructions, rewriting the body in place while keeping every earlier review comment and bumping the revision. Use when a plan from create-plan got feedback in its comment block or the scope changed; never use it to start a new plan.",
+    "description": "Revises a plan written by create-plan from its review comments or new instructions: rewrites the plan body, leaves each comment intact and bumps the revision. Use when a plan file got feedback or its scope changed; never to start a new plan.",
     "version": "1.0.0",
-    "sha256": "a7a87302d1e950ce5b5a167227d12b702934a66b85c70faa91ce62aa1d378868",
+    "sha256": "9bfc184174f88dae4d9d93cce4490b3f335274e704ade9a0e7b5e17678ce2ccb",
     "author": "OrchestKit",
     "tags": [
       "planning",
@@ -3046,9 +3046,9 @@ export const SKILLS: Record<string, SkillMeta> = {
   },
   "iterate-research": {
     "name": "iterate-research",
-    "description": "Revises an existing research artifact (.ork/tasks/TASK/NN-research-SLUG.md) from review comments or follow-up questions, re-checking the code, rewriting the body in place and keeping every earlier review comment. Use when a research file from create-research got comments, a claim was challenged, or the question widened; it stays descriptive and never proposes changes.",
+    "description": "Re-checks the code behind a research file from create-research when a reviewer challenges a claim or the question widens, then revises its findings with fresh file:line citations, comments intact. Use after review comments on research; stays descriptive.",
     "version": "1.0.0",
-    "sha256": "3128fab66d227d2bd67f00118878d26108b419721f2ac785cc38ac7a5aec31bf",
+    "sha256": "fcd3e79216740b202413244ef3ec0a1108b3a2d9c8bebd2878fd742709c93c44",
     "author": "OrchestKit",
     "tags": [
       "research",
@@ -4437,7 +4437,7 @@ export const SKILLS: Record<string, SkillMeta> = {
     "name": "review-artifact-comments",
     "description": "Works through the review comments written into a task artifact (plan or research under .ork/tasks/TASK/): lists the open ones, asks how to proceed, then replies, resolves or hands off to iterate-plan or iterate-research, and approves the artifact once nothing is open. Use when a reviewer has commented on an artifact file or asks to address, resolve or approve its comments.",
     "version": "1.0.0",
-    "sha256": "77ab62a281111cdfea586b3e1c0ed8090811f880aa59b27a2c277d80d8afa53f",
+    "sha256": "a2b14674468827a1cc05cdfade6547cba63db66d3e7792d47096a346d2d99e2c",
     "author": "OrchestKit",
     "tags": [
       "review",

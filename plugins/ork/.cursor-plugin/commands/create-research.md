@@ -1,5 +1,5 @@
 ---
-description: "Documents how the codebase works today for a task's research questions and saves it as a file artifact (.ork/tasks/TASK/NN-research-SLUG.md) with file:line citations, so the plan and reviewers build on a reviewable record. Use before planning a change in unfamiliar code; describes what exists only, never proposes changes. Pair with iterate-research."
+description: "Documents how the codebase works today for a task's research questions and saves it as a research file (.ork/tasks/TASK/NN-research-SLUG.md) with file:line citations, so the plan builds on a reviewable record. Use before planning a change in unfamiliar code; describes, never proposes."
 argument-hint: "<task> <question or questions file>"
 user-invocable: true
 name: create-research
@@ -46,4 +46,4 @@ a map, not a proposal: no recommendations, no fixes, no critique. Layout: the cr
 
 ## Related
 
-- `iterate-research` revises it from comments. `create-plan` reads it next.
+- `/ork:iterate-research` revises it from comments. `/ork:create-plan` reads it next.

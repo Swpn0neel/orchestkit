@@ -1,6 +1,6 @@
 ---
 name: iterate-plan
-description: "Revises an existing plan artifact (.ork/tasks/TASK/NN-plan-SLUG.md) from review comments or new instructions, rewriting the body in place while keeping every earlier review comment and bumping the revision. Use when a plan from create-plan got feedback in its comment block or the scope changed; never use it to start a new plan."
+description: "Revises a plan written by create-plan from its review comments or new instructions: rewrites the plan body, leaves each comment intact and bumps the revision. Use when a plan file got feedback or its scope changed; never to start a new plan."
 argument-hint: "<plan file> [instructions]"
 user-invocable: true
 allowed-tools: "Bash Read Write Grep Glob"
@@ -58,5 +58,5 @@ review record must outlive every revision. Layout: the create-plan skill's
 
 ## Related
 
-- `create-plan` writes the first revision. `review-artifact-comments` works through comments
+- `/ork:create-plan` writes the first revision. `/ork:review-artifact-comments` works through comments
   without rewriting the body.

@@ -59,6 +59,6 @@ the front matter.
 
 ## Related
 
-- `iterate-plan`: revise this plan from review comments, keeping every comment.
-- `create-research`: the research artifact this plan should read first.
-- `review-artifact-comments`: read, answer and resolve comments on any artifact.
+- `/ork:iterate-plan`: revise this plan from review comments, keeping every comment.
+- `/ork:create-research`: the research artifact this plan should read first.
+- `/ork:review-artifact-comments`: read, answer and resolve comments on any artifact.

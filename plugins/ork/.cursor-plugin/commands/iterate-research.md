@@ -1,5 +1,5 @@
 ---
-description: "Revises an existing research artifact (.ork/tasks/TASK/NN-research-SLUG.md) from review comments or follow-up questions, re-checking the code, rewriting the body in place and keeping every earlier review comment. Use when a research file from create-research got comments, a claim was challenged, or the question widened; it stays descriptive and never proposes changes."
+description: "Re-checks the code behind a research file from create-research when a reviewer challenges a claim or the question widens, then revises its findings with fresh file:line citations, comments intact. Use after review comments on research; stays descriptive."
 argument-hint: "<research file> [follow-up]"
 user-invocable: true
 name: iterate-research
@@ -44,5 +44,5 @@ kept byte for byte. Layout: the create-plan skill's `references/artifact-layout.
 
 ## Related
 
-- `create-research` writes the first revision. `review-artifact-comments` handles comments without a
+- `/ork:create-research` writes the first revision. `/ork:review-artifact-comments` handles comments without a
   rewrite.

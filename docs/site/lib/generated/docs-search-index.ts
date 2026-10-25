@@ -928,7 +928,7 @@ export const DOCS_SEARCH_INDEX: DocSearchEntry[] = [
   {
     "url": "/docs/reference/skills/create-research",
     "title": "Create Research",
-    "description": "Documents how the codebase works today for a task's research questions and saves it as a file artifact (.ork/tasks/TASK/NN-research-SLUG.md) with file:line citations, so the plan and reviewers build on a reviewable record. Use before planning a change in unfamiliar code; describes what exists only, never proposes changes. Pair with iterate-research."
+    "description": "Documents how the codebase works today for a task's research questions and saves it as a research file (.ork/tasks/TASK/NN-research-SLUG.md) with file:line citations, so the plan builds on a reviewable record. Use before planning a change in unfamiliar code; describes, never proposes."
   },
   {
     "url": "/docs/reference/skills/database-patterns",
@@ -1063,7 +1063,7 @@ export const DOCS_SEARCH_INDEX: DocSearchEntry[] = [
   {
     "url": "/docs/reference/skills/doctor/references/skills-validation",
     "title": "Doctor: Skills Validation",
-    "description": "OrchestKit includes 110 skills validated against frontmatter requirements and content standards."
+    "description": "OrchestKit includes 115 skills validated against frontmatter requirements and content standards."
   },
   {
     "url": "/docs/reference/skills/doctor/references/version-compatibility/00-overview",
@@ -1208,12 +1208,12 @@ export const DOCS_SEARCH_INDEX: DocSearchEntry[] = [
   {
     "url": "/docs/reference/skills/iterate-plan",
     "title": "Iterate Plan",
-    "description": "Revises an existing plan artifact (.ork/tasks/TASK/NN-plan-SLUG.md) from review comments or new instructions, rewriting the body in place while keeping every earlier review comment and bumping the revision. Use when a plan from create-plan got feedback in its comment block or the scope changed; never use it to start a new plan."
+    "description": "Revises a plan written by create-plan from its review comments or new instructions: rewrites the plan body, leaves each comment intact and bumps the revision. Use when a plan file got feedback or its scope changed; never to start a new plan."
   },
   {
     "url": "/docs/reference/skills/iterate-research",
     "title": "Iterate Research",
-    "description": "Revises an existing research artifact (.ork/tasks/TASK/NN-research-SLUG.md) from review comments or follow-up questions, re-checking the code, rewriting the body in place and keeping every earlier review comment. Use when a research file from create-research got comments, a claim was challenged, or the question widened; it stays descriptive and never proposes changes."
+    "description": "Re-checks the code behind a research file from create-research when a reviewer challenges a claim or the question widens, then revises its findings with fresh file:line citations, comments intact. Use after review comments on research; stays descriptive."
   },
   {
     "url": "/docs/reference/skills/json-render-catalog",
