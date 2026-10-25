@@ -1,0 +1,22 @@
+{
+  "episode": "ep1-claude-explore",
+  "engine": "claude",
+  "skill": "ork:glyph + ork:explore",
+  "prompts": [
+    "/ork:glyph how does the docs site build its skill pages, one small box",
+    "/ork:explore docs/site"
+  ],
+  "artifacts": [
+    {
+      "kind": "cast-mp4",
+      "path": "/Users/yonatangross/coding/yonatangross/orchestkit/.worktrees/ork-show-ep1/orchestkit-demos/recordings/ep1-claude-explore/ep1-claude-explore.full.mp4",
+      "duration_s": 422.26,
+      "bytes": 4323495,
+      "width": 1196,
+      "height": 842,
+      "codec": "h264",
+      "sha256": "c765c6d037ed0a95a80b7cf9c1805fa16cc76298969af4241487e2fc35582737",
+      "black_share": 0.0
+    }
+  ]
+}
