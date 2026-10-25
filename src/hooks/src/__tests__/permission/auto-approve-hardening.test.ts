@@ -261,13 +261,18 @@ describe('safe-bash allowlist refuses background jobs, risky git options and arb
     'npm run lint:fix',
     'pnpm run format-all',
     'git --exec-path=x status',
+    // Quoting or escaping the package-manager word itself.
+    `"npm" run 'test x'`,
+    "n\\pm run 'test x'",
+    `'pnpm' run "lint x"`,
+    `ya"rn" test 'a b'`,
   ];
 
   test.each(refused)('safe-bash does not allow: %s', (cmd) => {
     expect(isAllow(autoApproveSafeBash(bashInput(cmd)))).toBe(false);
   });
 
-  test.each(['git fetch --upload-pack=x origin', 'git log --output=out.txt', 'git status &', 'npm run test-e2e', 'npm run lint:fix', "npm run 'test x'", 'npm run "test x"'])(
+  test.each(['git fetch --upload-pack=x origin', 'git log --output=out.txt', 'git status &', 'npm run test-e2e', 'npm run lint:fix', "npm run 'test x'", 'npm run "test x"', `"npm" run 'test x'`, "n\\pm run 'test x'"])(
     'safe-command-retry does not retry: %s',
     (cmd) => {
       expect(isRetry(safeCommandRetry(bashInput(cmd, 'PermissionDenied')))).toBe(false);

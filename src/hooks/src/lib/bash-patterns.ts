@@ -10,6 +10,8 @@
  * @since v7.27.1
  */
 
+import { normalizeSingle } from './normalize-command.js';
+
 /**
  * Long git options that run a program, write a file or switch repository.
  * The reject row matches any prefix of these names, because git expands an
@@ -109,7 +111,9 @@ export const REJECT_PATTERNS: RegExp[] = [
  * backtick. The allowlists match the normalized command, and normalization
  * strips quoting, so a quoted argument can read as a different script name
  * than the one the package manager runs. Such commands never auto-approve.
+ * The package-manager word is read from the normalized command, because the
+ * word itself may be quoted or escaped in the raw text.
  */
 export function hasQuotedPackageManagerArgs(cmd: string): boolean {
-  return /^\s*(?:npm|pnpm|yarn)\b/.test(cmd) && /['"\\`]/.test(cmd);
+  return /['"\\`]/.test(cmd) && /^(?:npm|pnpm|yarn)\b/.test(normalizeSingle(cmd));
 }
