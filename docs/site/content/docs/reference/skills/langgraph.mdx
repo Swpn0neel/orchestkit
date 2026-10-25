@@ -1159,16 +1159,16 @@ from langgraph_sdk import get_client
 client = get_client(url="http://localhost:2024")
 
 # Create assistants with different configs from the same graph.
-# Vary them through the prompt: claude-sonnet-5 returns 400 on a non-default temperature.
+# Vary them through the prompt: claude-sonnet-5-5 returns 400 on a non-default temperature.
 creative = await client.assistants.create(
     graph_id="my_agent",
-    config={"configurable": {"system_prompt": "Write vividly and explore unusual angles.", "model": "claude-sonnet-5"}},
+    config={"configurable": {"system_prompt": "Write vividly and explore unusual angles.", "model": "claude-sonnet-5-5"}},
     name="creative-writer",
 )
 
 precise = await client.assistants.create(
     graph_id="my_agent",
-    config={"configurable": {"system_prompt": "Be precise; state only what the data supports.", "model": "claude-sonnet-5"}},
+    config={"configurable": {"system_prompt": "Be precise; state only what the data supports.", "model": "claude-sonnet-5-5"}},
     name="precise-analyst",
 )
 ```
@@ -2474,7 +2474,7 @@ for msg, meta in graph.stream(inputs, stream_mode="messages"):
 
 **Filtered by tags (more flexible):**
 ```python
-model = init_chat_model("claude-sonnet-5", tags=["main_response"])
+model = init_chat_model("claude-sonnet-5-5", tags=["main_response"])
 
 for msg, meta in graph.stream(inputs, stream_mode="messages"):
     if "main_response" in meta.get("tags", []):
@@ -2961,7 +2961,7 @@ def send_email(to: str, subject: str, body: str) -> str:
     return f"Email sent to {to}"
 
 tools = [search_database, send_email]
-model = ChatAnthropic(model="claude-sonnet-5")
+model = ChatAnthropic(model="claude-sonnet-5-5")
 model_with_tools = model.bind_tools(tools)
 
 def agent_node(state):
