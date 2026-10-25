@@ -27,8 +27,8 @@
       "exports": 71
     },
     "stop": {
-      "size": 46375,
-      "sizeKB": "45.29",
+      "size": 46745,
+      "sizeKB": "45.65",
       "exports": 55
     },
     "subagent": {
@@ -57,8 +57,8 @@
       "exports": 73
     }
   },
-  "totalSize": 786183,
-  "totalSizeKB": "767.76",
+  "totalSize": 786553,
+  "totalSizeKB": "768.12",
   "inputs": 118,
-  "avgBundleSizeKB": "69.80"
+  "avgBundleSizeKB": "69.83"
 }
