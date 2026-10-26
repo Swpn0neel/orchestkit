@@ -5,6 +5,85 @@ All notable changes to the OrchestKit Claude Code Plugin will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.3.0](https://github.com/yonatangross/orchestkit/compare/v10.2.2...v10.3.0) (2026-10-26)
+
+
+### Features
+
+* **skills:** plan and research artifact pairs with in-file review ([#4897](https://github.com/yonatangross/orchestkit/issues/4897)) ([266b9af](https://github.com/yonatangross/orchestkit/commit/266b9af97c0a8ff45572eddac232a5e7fca62841))
+
+
+### Bug Fixes
+
+* **ci:** open workflow PRs unarmed ([#4930](https://github.com/yonatangross/orchestkit/issues/4930)) ([0074ed3](https://github.com/yonatangross/orchestkit/commit/0074ed3254b54cdab1eb30f5aae2e4f010335ec8))
+* **plugin:** plain description that states hook scope ([#4759](https://github.com/yonatangross/orchestkit/issues/4759)) ([bf212dd](https://github.com/yonatangross/orchestkit/commit/bf212dd2385c571af5e172bf41719da91bb737fe))
+* **tests:** docs.yml parity test compares temp files, not /dev/fd ([#4933](https://github.com/yonatangross/orchestkit/issues/4933)) ([37e9abb](https://github.com/yonatangross/orchestkit/commit/37e9abb55b1b79b4b9a210a7a73c6c76b514e28b))
+
+
+### Documentation
+
+* **skills:** move the json-render skills to 0.21.3 ([#4929](https://github.com/yonatangross/orchestkit/issues/4929)) ([b09b1e6](https://github.com/yonatangross/orchestkit/commit/b09b1e6ebb56234c2d716f90a8790ab90e7ac9fc))
+
+## [10.2.2](https://github.com/yonatangross/orchestkit/compare/v10.2.1...v10.2.2) (2026-10-26)
+
+
+### Bug Fixes
+
+* **hooks:** consolidate prompt hook processes ([#4909](https://github.com/yonatangross/orchestkit/issues/4909)) ([854e144](https://github.com/yonatangross/orchestkit/commit/854e144b25365343ddc5c9dba5c072f4938a133b))
+* **hooks:** never spawn an unrestricted claude under --restricted ([#4906](https://github.com/yonatangross/orchestkit/issues/4906)) ([b850f51](https://github.com/yonatangross/orchestkit/commit/b850f51af1a66623b8a5c7c34ef7cdf7ee325a9d))
+* **site:** close the orank sandbox, card and discoverability gaps ([#4908](https://github.com/yonatangross/orchestkit/issues/4908)) ([c96a887](https://github.com/yonatangross/orchestkit/commit/c96a88732eea6e4dedd837bcca1241de8a598a86))
+
+## [10.2.1](https://github.com/yonatangross/orchestkit/compare/v10.2.0...v10.2.1) (2026-10-25)
+
+
+### Miscellaneous
+
+* **coderabbit:** spend free OSS reviews sparingly, match org settings ([#4886](https://github.com/yonatangross/orchestkit/issues/4886)) ([431a0bf](https://github.com/yonatangross/orchestkit/commit/431a0bf12d775aff75c096459836ca93f070e9ba))
+
+## [10.2.0](https://github.com/yonatangross/orchestkit/compare/v10.1.1...v10.2.0) (2026-10-25)
+
+
+### Features
+
+* **prompt-enhancer:** short stack-aware rewrites with a prompt-cached catalog ([#4857](https://github.com/yonatangross/orchestkit/issues/4857)) ([2a64faf](https://github.com/yonatangross/orchestkit/commit/2a64faf888aeaf2068e9f8b402efcdfaf1e4ff55))
+
+
+### Bug Fixes
+
+* **secrets-veil:** widen the scan-time scaling bound to 31.6x ([#4898](https://github.com/yonatangross/orchestkit/issues/4898)) ([0e364d5](https://github.com/yonatangross/orchestkit/commit/0e364d5430bffd44785909ef56be58084e5c5f09))
+
+## [10.1.1](https://github.com/yonatangross/orchestkit/compare/v10.1.0...v10.1.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **deps:** patch npm audit advisories in four lockfiles ([#4894](https://github.com/yonatangross/orchestkit/issues/4894)) ([e34034b](https://github.com/yonatangross/orchestkit/commit/e34034b640c14f0e7fb6a9125a02d52d4753b6c8))
+
+## [10.1.0](https://github.com/yonatangross/orchestkit/compare/v10.0.2...v10.1.0) (2026-10-23)
+
+
+### Features
+
+* **ci:** fail a PR while a bot review thread has no reply ([#4864](https://github.com/yonatangross/orchestkit/issues/4864)) ([772c847](https://github.com/yonatangross/orchestkit/commit/772c84750a83ee151baa78da462ba54d0bc49ef1))
+
+
+### Bug Fixes
+
+* **ci:** let apt wait for the dpkg lock in the docs deps step ([#4879](https://github.com/yonatangross/orchestkit/issues/4879)) ([dfc21b2](https://github.com/yonatangross/orchestkit/commit/dfc21b2d3700e60937e190c95a87f5e27ccb0a4c))
+* **hooks:** advisor decides on the description and ignores negated asks ([#4853](https://github.com/yonatangross/orchestkit/issues/4853)) ([418813f](https://github.com/yonatangross/orchestkit/commit/418813f6e427a27e47c6bb699a3ebfa23cdb4a19))
+* **hooks:** harden auto-approve and retry hooks ([#4858](https://github.com/yonatangross/orchestkit/issues/4858)) ([181dcbe](https://github.com/yonatangross/orchestkit/commit/181dcbecb3cabe80fcbf5c5c69847b1ad7f22fa1))
+* **hooks:** keep a stop condition the next clause refers back to (after [#4853](https://github.com/yonatangross/orchestkit/issues/4853)) ([#4880](https://github.com/yonatangross/orchestkit/issues/4880)) ([35b614e](https://github.com/yonatangross/orchestkit/commit/35b614e0231cf729a41520a764410b8300b70a8c))
+* **hooks:** run npm audit at most once a day from the stop hook ([#4856](https://github.com/yonatangross/orchestkit/issues/4856)) ([5c72810](https://github.com/yonatangross/orchestkit/commit/5c728105203a108608b210bc19224e3d919f29ba))
+* **memory-lens:** recall on your own prompts only ([#4873](https://github.com/yonatangross/orchestkit/issues/4873)) ([8b5dac8](https://github.com/yonatangross/orchestkit/commit/8b5dac89295dd8060cb338398725cff89a762607))
+* **promote-lights:** search after start, accept /promote-lights ([#4875](https://github.com/yonatangross/orchestkit/issues/4875)) ([7d2cf02](https://github.com/yonatangross/orchestkit/commit/7d2cf026fa7b9a5e590d5e929ed2b2839a48e84f))
+* **prompt-enhancer:** one line by default, keep other bands ([#4874](https://github.com/yonatangross/orchestkit/issues/4874)) ([0ebe87d](https://github.com/yonatangross/orchestkit/commit/0ebe87d3a8a71a2e3fdc2b7509791135ea4315dd))
+* **secrets-veil:** answer a masked errored run with deny ([#4872](https://github.com/yonatangross/orchestkit/issues/4872)) ([ef7dbb6](https://github.com/yonatangross/orchestkit/commit/ef7dbb6309bbd4eadd13369e15812e1043adfd0e))
+
+
+### Miscellaneous
+
+* **lesson-cards:** retire the mod from the marketplace ([#4876](https://github.com/yonatangross/orchestkit/issues/4876)) ([1b07894](https://github.com/yonatangross/orchestkit/commit/1b07894787b15475d74bf39bf658674c41668c04))
+
 ## [10.0.2](https://github.com/yonatangross/orchestkit/compare/v10.0.1...v10.0.2) (2026-10-23)
 
 
