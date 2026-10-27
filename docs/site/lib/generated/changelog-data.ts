@@ -18,6 +18,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    "version": "10.3.2",
+    "date": "2026-10-27",
+    "compareUrl": "https://github.com/yonatangross/orchestkit/compare/v10.3.1...v10.3.2",
+    "sections": [
+      {
+        "type": "changed",
+        "heading": "Miscellaneous",
+        "items": [
+          "**deps:** bump @anthropic-ai/sdk from 0.135.0 to 1.1.0 ([#4918](https://github.com/yonatangross/orchestkit/issues/4918)) ([f474b70](https://github.com/yonatangross/orchestkit/commit/f474b70990c05763843db072d2c9c66d2cca66d1))"
+        ]
+      }
+    ]
+  },
+  {
     "version": "10.3.1",
     "date": "2026-10-26",
     "compareUrl": "https://github.com/yonatangross/orchestkit/compare/v10.3.0...v10.3.1",
