@@ -5,6 +5,13 @@ All notable changes to the OrchestKit Claude Code Plugin will be documented in t
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.3.2](https://github.com/yonatangross/orchestkit/compare/v10.3.1...v10.3.2) (2026-10-27)
+
+
+### Miscellaneous
+
+* **deps:** bump @anthropic-ai/sdk from 0.135.0 to 1.1.0 ([#4918](https://github.com/yonatangross/orchestkit/issues/4918)) ([f474b70](https://github.com/yonatangross/orchestkit/commit/f474b70990c05763843db072d2c9c66d2cca66d1))
+
 ## [10.3.1](https://github.com/yonatangross/orchestkit/compare/v10.3.0...v10.3.1) (2026-10-26)
 
 
