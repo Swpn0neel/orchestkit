@@ -87,18 +87,21 @@ if (projectSandbox && projectSandbox.enabled === false && userSandbox && userSan
 // idle conversation inside its 1h prompt cache, and the retry watchdog's
 // usage-limit caps stop a lane waiting hours on a limit reset. Both are
 // operator settings a plugin cannot carry, so they are observed and offered,
-// never failed on. Settings `env` wins over the process env, as in CC.
+// never failed on. The launch environment wins over settings `env` when both
+// set a variable (CC 2.1.281); settings `env` fills in only what the launch
+// environment leaves unset.
 const settingsByScope = scopes.map((f) => {
   if (!existsSync(f)) return null;
   try { return { file: f, s: JSON.parse(readFileSync(f, 'utf8')) }; } catch { return null; }
 }).filter(Boolean);
 function envVar(name) {
+  const p = process.env[name];
+  if (p !== undefined && p !== '') return { value: p, source: 'environment' };
   for (const { file, s } of settingsByScope) {
     const v = s.env && s.env[name];
     if (v !== undefined && v !== null && v !== '') return { value: String(v), source: file };
   }
-  const v = process.env[name];
-  return v ? { value: v, source: 'environment' } : { value: null, source: null };
+  return { value: null, source: null };
 }
 const idleDecl = settingsByScope.find(({ s }) => typeof s.idleCompaction === 'boolean') || null;
 const idleMin = envVar('CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS');

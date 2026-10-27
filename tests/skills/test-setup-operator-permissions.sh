@@ -187,5 +187,35 @@ const w=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).unattende
 process.exit(w.enabled===false && w.offers.length===0 ? 0 : 1)' "$T/check-wd-off.json" \
   && ok "watchdog off: no offers" || bad "offers made with the watchdog off"
 
+# 12. Precedence (CC 2.1.281): the launch environment wins over settings `env` when both set a variable.
+# 12a. a conflicting minimum: settings say 400000, the launch env says 200000
+run_chk "$H4" "$T/check-prec-min.json" json CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS=200000
+node -e '
+const i=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).unattended.idle_compaction;
+process.exit(i.min_tokens==="200000" && i.min_tokens_source==="environment" ? 0 : 1)' "$T/check-prec-min.json" \
+  && ok "launch env min tokens wins over settings env" || bad "settings env won the min tokens conflict: $(head -c 600 "$T/check-prec-min.json")"
+# 12b. the switch, launch off over settings on: settings say 1, the launch env says 0
+run_chk "$H5" "$T/check-prec-off.json" json CLAUDE_CODE_RETRY_WATCHDOG=0
+node -e '
+const w=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).unattended.retry_watchdog;
+process.exit(w.enabled===false && w.source==="environment" && w.offers.length===0 ? 0 : 1)' "$T/check-prec-off.json" \
+  && ok "launch env watchdog=0 wins over settings watchdog=1" || bad "settings env won the watchdog-off conflict: $(head -c 600 "$T/check-prec-off.json")"
+# 12c. the switch, launch on over settings off: settings say 0, the launch env says 1
+H6="$T/home-wd-off"; mkdir -p "$H6/.claude"
+printf '{\n  "env": { "CLAUDE_CODE_RETRY_WATCHDOG": "0" }\n}\n' > "$H6/.claude/settings.json"
+run_chk "$H6" "$T/check-prec-on.json" json CLAUDE_CODE_RETRY_WATCHDOG=1
+node -e '
+const w=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).unattended.retry_watchdog;
+process.exit(w.enabled===true && w.source==="environment" ? 0 : 1)' "$T/check-prec-on.json" \
+  && ok "launch env watchdog=1 wins over settings watchdog=0" || bad "settings env won the watchdog-on conflict: $(head -c 600 "$T/check-prec-on.json")"
+# 12d. a conflicting cap: settings say 600000, the launch env says 1800000
+H7="$T/home-wd-cap"; mkdir -p "$H7/.claude"
+printf '{\n  "env": { "CLAUDE_CODE_RETRY_WATCHDOG": "1", "CLAUDE_CODE_RETRY_WATCHDOG_MAX_WAIT_MS": "600000" }\n}\n' > "$H7/.claude/settings.json"
+run_chk "$H7" "$T/check-prec-cap.json" json CLAUDE_CODE_RETRY_WATCHDOG_MAX_WAIT_MS=1800000
+node -e '
+const w=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).unattended.retry_watchdog;
+process.exit(w.max_wait_ms==="1800000" ? 0 : 1)' "$T/check-prec-cap.json" \
+  && ok "launch env cap wins over settings env cap" || bad "settings env won the cap conflict: $(head -c 600 "$T/check-prec-cap.json")"
+
 echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
